@@ -1,0 +1,49 @@
+#ifndef __PARTICLE__
+#define __PARTICLE__
+ 
+#include "Conventions.hh"
+#include <vector>
+
+namespace SGF {
+
+/*
+  Class Boson
+  It represents a single degree of freedom of a boson.
+  In the context of SGF it is described by two occupancies,
+  one for the left and one for the right wave function
+  and a common maximum occupancy.
+  
+*/
+
+class Boson {
+protected:
+  occupancy_t _maximum_occupancy; // 1 for hardcore bosons and infinity for bosons
+  occupancy_t _occupancy[2];      // The left and right occupancy 
+public:
+  Boson() : _maximum_occupancy(0) {
+    _occupancy[LEFT]=_occupancy[RIGHT]=0;
+  };
+  Boson(occupancy_t nL,occupancy_t nR,occupancy_t maxn) : _maximum_occupancy(maxn) {
+    _occupancy[LEFT]=nL;
+    _occupancy[RIGHT]=nR;
+  };
+  Boson(const Boson &o) { *this=o; }
+  Boson &operator=(const Boson &o) {
+    _maximum_occupancy=o._maximum_occupancy;
+    _occupancy[LEFT]=o._occupancy[LEFT];
+    _occupancy[RIGHT]=o._occupancy[RIGHT];
+    return *this;    
+  }
+  inline occupancy_t &n(int direction) {return _occupancy[direction];};
+  inline occupancy_t &nmax() {return _maximum_occupancy;};
+  inline int delta() const {return _occupancy[RIGHT]-_occupancy[LEFT];};
+  
+};
+ 
+// Defines a configuration (right and left state) which is a list of Boson occupancies
+typedef std::vector<Boson> Configuration;
+
+
+}
+
+#endif
