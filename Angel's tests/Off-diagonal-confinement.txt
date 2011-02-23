@@ -1,0 +1,23 @@
+Variable L=70;
+Variable t=1;
+Variable T=0.05;
+
+Species "Atoms",C,A,N,1;
+
+Population "Atoms",50;
+
+Lattice L;
+
+Operator K=-Sum{<p,q>}(t(p+q+1)(2L-p-q-1)/(L^2)(C[p]A[q]+C[q]A[p]))+t(C[0]A[L-1]+C[L-1]A[0]);
+Operator H=K;
+
+Hamiltonian H;
+
+Seed 23535;
+InverseTemperature 1/T;
+WarmTime 1*Minute;
+MeasTime 1*Minute;
+Bins 20;
+Ensemble Canonical;
+
+SimulName "Off-diag";
