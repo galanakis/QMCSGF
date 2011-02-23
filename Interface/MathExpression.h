@@ -633,7 +633,7 @@ class MathExpression
 		{
 		  Node *Temp;
 		  
-		  if (Son1->Type!=ArithmeticOperator1 && Son1->Evaluate()==0.0)
+		  if (Son1->Type!=ArithmeticOperator1 && Son1->Evaluate().Modulous()<0.0000000001)
 		    {
 		      Temp=Son2;
 		      Type=Temp->Type;
@@ -647,7 +647,7 @@ class MathExpression
 		      Test=true;
 		    }
 		  
-		  else if (Son2->Type!=ArithmeticOperator1 && Son2->Evaluate()==0)
+		  else if (Son2->Type!=ArithmeticOperator1 && Son2->Evaluate().Modulous()<0.0000000001)
 		    {
 		      Temp=Son1;
 		      Type=Temp->Type;
