@@ -76,6 +76,9 @@ inline Complex operator%(const Complex &X,const Complex &Y)
 
 inline Complex operator^(const Complex &X,const Complex &Y)
   {
+    if (X==0)
+      return 1.0;
+    
     return exp(Y*log(X));
   }
 
