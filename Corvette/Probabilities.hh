@@ -16,8 +16,6 @@ uint RebuildFrequency=100;
 /* Crop small doubles. Use them when you expect a finite double
    in which case you can disregard the small ones as numerical
    errors */
-const double Tolerance=1e-6;  // This is the square root of the smallet double.
-long double Crop(long double x) { return (fabs(x)>Tolerance)?x:0; }
 
 
 /* 
@@ -143,7 +141,10 @@ private:
   const OffsetMap offsets;               // This will map the offsets to consecutive integers
 
   long long NUpdates;              // Number of updates since last rebuild
+  MatrixElement MinCoefficient;
 
+
+  long double Crop(long double x) const { return (fabs(x)>0.5*MinCoefficient)?x:0; }
 
   inline uint tsum_index(uint direction,int offset,uint iterm) const {return (direction*noffsets()+offsets(offset))*nterms()+iterm;}
   inline uint tsum_rawindex(uint direction,int indoffset,uint iterm) const {return (direction*noffsets()+indoffset)*nterms()+iterm;}
@@ -193,7 +194,7 @@ public:
 
     NUpdates=0;
     /* Finding the minimum of all Kinetic operator coefficients */
-    MatrixElement MinCoefficient=T[0].coefficient();
+    MinCoefficient=T[0].coefficient();
     for(int term=0;term<T.size();++term)
       MinCoefficient=Min(MinCoefficient,T[term].coefficient());
     
@@ -231,7 +232,7 @@ public:
     while((R-=G(offsets[i])*Crop(TSum[tsum_rawindex(rl,i,0)]))>=0)
       ++i;
 
-    MatrixElement *ptr=&TSum[tsum_index(rl,offsets[i],0)]; 
+    MatrixElement *ptr=&TSum[tsum_rawindex(rl,i,0)]; 
     uint _nterms=nterms();
 
     int index=0;

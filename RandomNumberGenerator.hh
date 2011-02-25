@@ -17,86 +17,110 @@
 // *                                                                              *
 // * Valy Rousseau - October 2007                                                 *
 // *                                                                              *
-// * Modified by Dimitris Galanakis to include sprng.                             *
+// * Modified by Dimitris Galanakis to include sprng and MersenneTwister          *
 // ********************************************************************************
-#ifdef SIMPLE_SPRNG
-#include <sprng.h>
-#endif
 
 #include <iostream>
 #include <cmath>
 #include <cstdlib>
+ 
+#if defined(RNG_MT)
 
-
-class RNG {
+// Mersenne Twister
+#include "MersenneTwister.h" 
+class RNGMT {
+  static MTRand rand; 
 public:
-
-  static int Seed;
-// Initialize the random number generator with a non zero seed. 
-  static void Initialize(int);
-// Returns a uniformly distributed random number in the interval [0,1[
-  inline static double Uniform();
-// Returns a uniformly distributed random number in the interval ]0,1[
-  inline static double NZUniform();
-// Returns 0 or 1 with relative probabilities a and b respectively 
-  inline static int CoinFlip(double,double);
-// Returns a number with relative distribution exp(-A x)
-  inline double Exponential(double A);
-  inline double Exponential(double A,double T);
-
+  inline static void Initialize(int s) {
+    std::cout<<"Using the Mersenne Twister random number generator."<<std::endl;
+    rand.seed(s);
+  }
+  inline static double Uniform() {return rand.randExc();}
+  inline static double NZUniform() {return rand.randDblExc();}
 };
 
-int RNG::Seed;
+MTRand RNGMT::rand;
+typedef RNGMT RNGBase;
 
-void RNG::Initialize(int S) {
+#elif defined(RNG_SIMPLE_SPRNG)
 
-  Seed=S;
+#include <sprng.h>
 
-  if(S==0) {
-    std::cout<<"Error in RNG::Initialize: The initialization seed cannot be zero."<<std::endl;
-    exit(1);
+// Sprng: parallel random number generator
+class RNGSPRNG {
+  inline static void Initialize(int Seed) {
+    std::cout<<"Using the SPRNG random number generator."<<std::endl;
+    init_sprng(SPRNG_CMRG,Seed,SPRNG_DEFAULT);
   }
+  inline static double Uniform() {return sprng();}
+  // Returns a uniformly distributed random number in the interval ]0,1[
+  inline static double NZUniform() {
+    double result=0;
+    do { result=Uniform(); } while(result==0);
+    return result;
+  }      
+}; 
 
-#ifdef SIMPLE_SPRNG
-  init_sprng(SPRNG_CMRG,Seed,SPRNG_DEFAULT);
+typedef RNGSPRNG RNGBase;
+
 #else
-  for (int i=0;i<1000;++i)
-    Seed*=16807;
+
+// Linear Congruence method (Val's method)
+class RNGLC {
+  static int Seed;
+public:
+// Initialize the random number generator with a non zero seed. 
+  inline static void Initialize(int S) {
+    std::cout<<"Using the Linear Congruence random number generator."<<std::endl;
+    Seed=S;
+    if(S==0) {
+      std::cout<<"Error in RNG::Initialize: The initialization seed cannot be zero."<<std::endl;
+      exit(1);
+    }
+    for (int i=0;i<1000;++i)
+      Seed*=16807;
+  }
+// Returns a uniformly distributed random number in the interval [0,1[
+  inline static double Uniform() { return (Seed*=16807)/4294967296.0+0.5; }
+// Returns a uniformly distributed random number in the interval ]0,1[
+  inline static double NZUniform() {
+    double result=0;
+    do { result=Uniform(); } while(result==0);
+    return result;
+  }      
+};
+
+int RNGLC::Seed;
+
+typedef RNGLC RNGBase;
+
 #endif
-}
 
-inline double RNG::Uniform() {
-#ifdef SIMPLE_SPRNG
-  return sprng();
-#else
-  return (Seed*=16807)/4294967296.0+0.5;
-#endif
-}
 
-inline int RNG::CoinFlip(double a,double b) { return (a+b)*Uniform()<b;}
+class RNG : public RNGBase {
+public:
+// Initialize the random number generator with a non zero seed. 
+  static void Initialize(int S) {RNGBase::Initialize(S);};
+// Returns a uniformly distributed random number in the interval [0,1[
+  inline static double Uniform() {return RNGBase::Uniform();};
+// Returns a uniformly distributed random number in the interval ]0,1[
+  inline static double NZUniform() {return RNGBase::NZUniform();};
+// Returns 0 or 1 with relative probabilities a and b respectively 
+  static inline int CoinFlip(double a,double b) { return (a+b)*Uniform()<b;}
+// Returns a number with relative distribution exp(-A x)
+  static inline double Exponential(double A) { return -log(1.0-Uniform())/A; }
+  static inline double Exponential(double A,double T) {
 
-inline double RNG::NZUniform() {
-  double result=0;
-  do { result=Uniform(); } while(result==0);
-  return result;
-}
+    if (fabs(A*T)<0.000001)
+      return T*Uniform();
 
-inline double RNG::Exponential(double A) {
-  return -log(1.0-Uniform())/A;
-}
+    if (A*T<-20.0)
+      return T*Uniform();
 
-inline double RNG::Exponential(double A,double T) {
-  static double Temp;
-
-  if (fabs(A*T)<0.000001)
-    return T*Uniform();
-
-  if (A*T<-20.0)
-    return T*Uniform();
-
-  Temp=exp(-A*T);
-  return -log((1.0-Uniform())*(1.0-Temp)+Temp)/A;
-}
+    double Temp=exp(-A*T);
+    return -log((1.0-Uniform())*(1.0-Temp)+Temp)/A;
+  }
+};
 
 
 
