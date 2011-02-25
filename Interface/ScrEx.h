@@ -34,9 +34,10 @@ char ScriptExample[]="\
   Variable i=SquareRootOfMinusOne;   # For convenience, we define i as the usual notation for the squareroot of -1.\n\
   Variable Aux=5+3i;                 # We define a general complex number, just for fun. It is completely useless in this example.\n\
 \n\
-# The lattice must be defined. Here we define a one-dimensional lattice with 20 sites. Two-dimensional and three-dimensional lattices\n\
+# The boundary conditions and the lattice must be defined. Here we define a one-dimensional lattice with 20 sites. Two-dimensional and three-dimensional lattices\n\
 # can be defined as well by specifying the number of sites in each direction, separated by comas.\n\
 \n\
+  Boundaries Periodic;               # The boundaries can be either 'Periodic' or 'Open'.\n\
   Lattice L;                         # We define a one-dimensional lattice with 20 sites.\n\
 \n\
 # One species of particles at least must be defined. A species is defined by a name, identifiers for the creation, annihilation, and number operators, and\n\

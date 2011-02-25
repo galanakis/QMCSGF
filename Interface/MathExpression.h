@@ -2202,6 +2202,7 @@ class MathExpression
 	  Symbol::AddKeyword("MeasTime");
 	  Symbol::AddKeyword("Bins");
 	  Symbol::AddKeyword("Ensemble");
+          Symbol::AddKeyword("Boundaries");
 	  Symbol::AddKeyword("SimulName");
           Symbol::AddKeyword("Measure");
 	  Symbol::AddKeyword("Random");
@@ -2212,6 +2213,8 @@ class MathExpression
 	  Symbol::AddConstant("Week",604800);
 	  Symbol::AddConstant("Canonical",0);
 	  Symbol::AddConstant("GrandCanonical",1);
+          Symbol::AddConstant("Periodic",0);
+          Symbol::AddConstant("Open",1);
 	  Symbol::AddConstant("Pi",3.1415926535897932384626433832795);
 	  Symbol::AddConstant("SquareRootOfMinusOne",I);
 	  Symbol::AddConstant("Infinity",numeric_limits<double>::infinity());
@@ -2269,7 +2272,15 @@ class MathExpression
       static char *Lattice(Parser::TokenHandle Begin,Parser::TokenHandle End)
 	{
 	  char *Err;
+          
+          if (!Find("#Boundaries"))
+            {
+              LocalizedError("Boundary conditions must be defined before lattice declaration",Begin);
+              return Error;
+            }
 
+          bool BC=(bool) GetValue("#Boundaries").Re();
+          
 	  if (Lx>0)
 	    {
 	      if (Ly>0)
@@ -2289,14 +2300,14 @@ class MathExpression
 		  NumSites*=Lz;
 		  delete FirstPair;
 		  FirstPair=NULL;
-		  
+                  
 		  for (int x=0;x<Lx;x++)
 		    for (int y=0;y<Ly;y++)
 		      for (int z=0;z<Lz;z++)
 			{
-			  Pair::AddPair(z*Lx*Ly+y*Lx+x,z*Lx*Ly+y*Lx+(x+1)%Lx);
-			  Pair::AddPair(z*Lx*Ly+y*Lx+x,z*Lx*Ly+((y+1)%Ly)*Lx+x);
-			  Pair::AddPair(z*Lx*Ly+y*Lx+x,((z+1)%Lz)*Lx*Ly+y*Lx+x);
+			  if (!BC || x<Lx-1) Pair::AddPair(z*Lx*Ly+y*Lx+x,z*Lx*Ly+y*Lx+(x+1)%Lx);
+			  if (!BC || y<Ly-1) Pair::AddPair(z*Lx*Ly+y*Lx+x,z*Lx*Ly+((y+1)%Ly)*Lx+x);
+			  if (!BC || z<Lz-1) Pair::AddPair(z*Lx*Ly+y*Lx+x,((z+1)%Lz)*Lx*Ly+y*Lx+x);
 			}
 		}
 		
@@ -2321,8 +2332,8 @@ class MathExpression
 		  for (int x=0;x<Lx;x++)
 		    for (int y=0;y<Ly;y++)
 		      {
-			Pair::AddPair(y*Lx+x,y*Lx+(x+1)%Lx);
-			Pair::AddPair(y*Lx+x,((y+1)%Ly)*Lx+x);
+			if (!BC || x<Lx-1) Pair::AddPair(y*Lx+x,y*Lx+(x+1)%Lx);
+			if (!BC || y<Ly-1) Pair::AddPair(y*Lx+x,((y+1)%Ly)*Lx+x);
 		      }
 		}
 	    }
@@ -2344,7 +2355,7 @@ class MathExpression
 	      NumSites=Lx;
 
 	      for (int i=0;i<Lx;i++)
-		Pair::AddPair(i,(i+1)%Lx);
+		if (!BC || i<Lx-1) Pair::AddPair(i,(i+1)%Lx);
 	    }
 	  
 	  return NULL;

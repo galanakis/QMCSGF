@@ -10,10 +10,11 @@
 //
 // Commands can be of the following types:
 //   - ParserSGF::VariableDeclaration
+//   - ParserSGF::VariableArrayDeclaration
 //   - ParserSGF::VariableDeclarationAffectation
 //   - ParserSGF::OperatorDeclaration
+//   - ParserSGF::OperatorArrayDeclaration
 //   - ParserSGF::OperatorDeclarationAffectation
-//   - ParserSGF::VariableDeclaration
 //   - ParserSGF::Affectation
 //   - ParserSGF::SpeciesDeclaration
 //   - ParserSGF::LatticeDeclaration
@@ -24,6 +25,7 @@
 //   - ParserSGF::MeasTimeDeclaration
 //   - ParserSGF::BinsDeclaration
 //   - ParserSGF::EnsembleDeclaration
+//   - ParserSGF::BoundariesDeclaration
 //   - ParserSGF::SimulNameDeclaration
 //   - ParserSGF::PopulationDeclaration
 //   - ParserSGF::MeasureDeclaration
@@ -202,9 +204,9 @@ class ParserSGF
       
     public:
       typedef Command * CommandHandle;
-      enum Commands {VariableDeclaration,VariableDeclarationAffectation,OperatorDeclaration,OperatorDeclarationAffectation,Affectation,
+      enum Commands {VariableDeclaration,VariableArrayDeclaration,VariableDeclarationAffectation,OperatorDeclaration,OperatorArrayDeclaration,OperatorDeclarationAffectation,Affectation,
                      SpeciesDeclaration,LatticeDeclaration,SeedDeclaration,HamiltonianDeclaration,TemperatureDeclaration,WarmTimeDeclaration,MeasTimeDeclaration,
-                     BinsDeclaration,EnsembleDeclaration,SimulNameDeclaration,PopulationDeclaration,MeasureDeclaration};
+                     BinsDeclaration,EnsembleDeclaration,BoundariesDeclaration,SimulNameDeclaration,PopulationDeclaration,MeasureDeclaration};
       
       ParserSGF(void) {First=Last=Head=NULL;}
       ~ParserSGF(void) {if (First) Clear();}
@@ -292,7 +294,7 @@ class ParserSGF
 			
 			if (!NextHandle)
 			  {
-			    LocalizedError(Row,Col,(char *) "Either a semicolon ';' or an affectation '=' is expected after identifier.");
+			    LocalizedError(Row,Col,(char *) "Either a semicolon ';', an affectation '=', or an opening bracket  is expected after identifier.");
 			    return Error;
 			  }
 			
@@ -323,6 +325,25 @@ class ParserSGF
 				}
 
 			      break;
+                              
+                            case Parser::Bracket:
+                              if (*((char *) NextHandle->Value())!='[')
+                                {
+                                  LocalizedError(Row,Col,(char *) "Either a semicolon ';', an affectation '=', or an opening bracket  is expected after identifier.");
+                                  return Error;
+                                }
+                                
+                              End=Parser::GetExpressionEnd(Handle);
+                              Add(VariableArrayDeclaration,Id,NextHandle,End,Row,Col);
+                              Handle=Parser::NextToken(End);
+
+                              if (!Handle || *((char *) Handle->Value())!=';')
+                                {
+                                  LocalizedError(Row,Col,(char *) "A semicolon ';' is expected after 'Variable' declaration.");
+                                  return Error;
+                                }
+
+                              break;
 			      
 			    case Parser::Separator:
                               if (*((char *) NextHandle->Value())!=';')
@@ -337,7 +358,7 @@ class ParserSGF
 				
 			    default:
 			      {
-				LocalizedError(Row,Col,(char *) "Either a semicolon ';' or an affectation '=' is expected after identifier.");
+				LocalizedError(Row,Col,(char *) "Either a semicolon ';', an affectation '=', or an opening bracket is expected after identifier.");
 				return Error;
 			      }
 			  }
@@ -782,6 +803,25 @@ class ParserSGF
 			  }
 		      }
 		      
+                    else if (!strcmp("Boundaries",Id))
+                      {
+                        if (!(Handle=Parser::NextToken(Handle)))
+                          {
+                            LocalizedError(Row,Col,(char *) "Either 'Periodic' or 'Open' is expected in 'Boundaries' declaration.");
+                            return Error;
+                          }
+
+                        End=Parser::GetExpressionEnd(Handle);
+                        Add(BoundariesDeclaration,Handle,End,Row,Col);
+                        Handle=Parser::NextToken(Handle);
+
+                        if (!Handle || *((char *) Handle->Value())!=';')
+                          {
+                            LocalizedError(Row,Col,(char *) "A semicolon ';' is expected after 'Boundaries' declaration.");
+                            return Error;
+                          }
+                      }
+                      
 		    else if (!strcmp("SimulName",Id))
 		      {
 			if (!(Handle=Parser::NextToken(Handle)))
@@ -1020,6 +1060,18 @@ class ParserSGF
 
 		    break;
 
+                  case VariableArrayDeclaration:
+                    if (MathExpression::Find(Head->CString()))
+                      {
+                        LocalizedError(Head->Row,Head->Column,(char *) "Identifier was previously declared.");
+                        return Error;
+                      }
+
+                    if ((Err=MathExpression::Define(Head->CString(),Head->Begin,Head->End)))
+                      return Err;
+
+                    break;
+              
 		  case VariableDeclarationAffectation:
 		    if (MathExpression::Find(Head->CString()))
 		      {
@@ -1138,6 +1190,11 @@ class ParserSGF
 		      return Err;
 		    break;
 
+                  case BoundariesDeclaration:
+                    if ((Err=MathExpression::Define("#Boundaries",Head->Begin,Head->End)))
+                      return Err;
+                    break;
+
 		  case SimulNameDeclaration:
 		    MathExpression::SetSimulName(Head->CString());
 		    break;
@@ -1189,6 +1246,9 @@ class ParserSGF
 	  else if (!MathExpression::Find("#Ensemble"))
 	    return (char *) "The ensemble of the simulation must be defined.";
 	    
+          else if (!MathExpression::Find("#Boundaries"))
+            return (char *) "The boundary conditions of the simulation must be defined.";
+            
           else if (!*MathExpression::GetSimulName())
             return (char *) "A name must be given to the simulation.";
           

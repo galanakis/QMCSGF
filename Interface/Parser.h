@@ -532,6 +532,24 @@ public:
           
         return CheckParenthesis();            
       }
+      
+    static void Display(TokenHandle Begin,TokenHandle End)
+      {
+        while (Begin && Begin!=End->NextToken())
+          {
+            switch (Begin->Type())
+              {
+                case Number:
+                  cout << *(double *) Begin->Value() << endl;
+                  break;
+                  
+                default:
+                  cout << (char *) Begin->Value() << endl;
+              }
+              
+            Begin=Begin->NextToken();
+          }
+      }
 
     static char * CheckParenthesis(void)
       {
