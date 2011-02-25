@@ -69,7 +69,7 @@ inline double RNG::Uniform() {
 #ifdef SIMPLE_SPRNG
   return sprng();
 #else
-  return (Seed*=16807)/4294967294.0+0.5;
+  return (Seed*=16807)/4294967296.0+0.5;
 #endif
 }
 
