@@ -1,0 +1,35 @@
+  Variable L=8;
+  Variable tu=0.8/10;
+ # Variable tu=0.08;   BUGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+  Variable td=1;
+  Variable RebuildFrequency=1E8;
+  Variable U=6;
+  Variable i=SquareRootOfMinusOne;
+
+  Boundaries Periodic;
+  Lattice L,L;
+
+  Species "Spin up",Cu,Au,Nu,1;
+  Species "Spin dn",Cd,Ad,Nd,1;
+  
+  Population "Spin up",27;
+  Population "Spin dn",27;
+ 
+  Operator Ku=-tu Sum{<p,q>}(Cu[p]Au[q]+Cu[q]Au[p]);
+  Operator Kd=-td Sum{<p,q>}(Cd[p]Ad[q]+Cd[q]Ad[p]);
+  Operator Pot=U Sum{p}(Nu[p]Nd[p]);
+  Operator Kin=Ku+Kd;
+  Operator H=Kin+Pot;
+
+  Hamiltonian H;
+
+  InverseTemperature 80;
+  Seed 34715;
+  WarmTime 120*Minute;
+  MeasTime 480*Minute;
+  Bins 20;
+  Ensemble Canonical;
+  
+  Measure "S(pi,pi)",1/(L^4) Sum{p}(Sum{q}(Nu[p]Nu[q]exp(i(PosX(p)-PosX(q)+PosY(p)-PosY(q))Pi/L)));
+
+  SimulName "Spin-Half";
