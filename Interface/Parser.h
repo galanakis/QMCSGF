@@ -415,8 +415,8 @@ public:
                             NumDec++;
                             Column++;
                           } while (*Buffer>='0' && *Buffer<='9');
-                          
-                        for (int i=0;i<NumDec;i++)
+
+                          for (int i=0;i<NumDec;i++)
                           Value*=10;
 
                         Value+=DecValue;
@@ -469,7 +469,7 @@ public:
                         return Error3;
                       }
                   }
-              
+
                 Add(Number,&Value,Row,Col);
               }
              
@@ -559,7 +559,7 @@ public:
         int Stack4=0;
         TokenHandle Head=First();
         
-        while (Head)
+        while (Head && Head->Type()!=Number)
           {
             char C=*(char *) Head->Value();
             int Row=Head->Row();
@@ -586,7 +586,7 @@ public:
         Stack4=0;
         Head=Last();
         
-        while (Head)
+        while (Head && Head->Type()!=Number)
           {
             char C=*(char *) Head->Value();
             int Row=Head->Row();
