@@ -14,7 +14,7 @@
 // *   Come on! Bugs do not exist in an SGF engine!!!                                                  *
 // *****************************************************************************************************
 
-#define Version "1.0 (February 10th, 2011)"
+#define Version "1.0 (May 10th, 2011)"
 
 // **********************
 // * Standard libraries *
@@ -123,7 +123,8 @@ int main(int NumArg,char **Arg)
 // *****************************
 // _____________________________________________________________________
 SGFContainer Container;
-SGF::RebuildFrequency=MathExpression::GetValue("RebuildFrequency").Re();
+//SGF::RebuildFrequency=MathExpression::GetValue("RebuildFrequency").Re();
+SGF::RebuildFrequency=100000000;
 const SGF::Hamiltonian &T=Container.Kinetic();
 const SGF::Hamiltonian &V=Container.Potential();
 double Beta=Container.Beta();

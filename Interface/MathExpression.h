@@ -1172,6 +1172,7 @@ class MathExpression
 	  
           friend class MathExpression;
           friend class EasyMathExpression;
+          friend class ParserSGF;
       };
   
     class Symbol
@@ -2218,6 +2219,12 @@ class MathExpression
 	  Symbol::AddConstant("Pi",3.1415926535897932384626433832795);
 	  Symbol::AddConstant("SquareRootOfMinusOne",I);
 	  Symbol::AddConstant("Infinity",numeric_limits<double>::infinity());
+
+//Symbol::AddConstant("RebuildFrequency",100000000);
+//cout << "MERDE" << endl;
+//cout << GetValue("RebuildFrequency");
+//cout << endl;
+//cout << "MERDE" << endl;
 	}
 	
       static Complex GetValue(const char *Name)
@@ -2293,7 +2300,7 @@ class MathExpression
 	  
 		  if (Lz<=0)
 		    {
-		      LocalizedError("Arguments in lattice declaration must be a positive integers",Begin);
+		      LocalizedError("Arguments in lattice declaration must be positive integers",Begin);
 		      return Error;
 		    }
 
@@ -2321,7 +2328,7 @@ class MathExpression
 	  
 		  if (Ly<=0)
 		    {
-		      LocalizedError("Arguments in lattice declaration must be a positive integers",Begin);
+		      LocalizedError("Arguments in lattice declaration must be positive integers",Begin);
 		      return Error;
 		    }
 
@@ -2564,7 +2571,36 @@ class MathExpression
 	{
 	  return NumSites;
 	}
+        
+      static int GetDimension()
+        {
+          if (Lx)
+            if (Ly)
+              if (Lz)
+                return 3;
+              else
+                return 2;
+            else
+              return 1;
+          else
+            return 0;
+        }
+        
+      static int GetLx(void)
+        {
+          return Lx;
+        }
 	
+      static int GetLy(void)
+        {
+          return Ly;
+        }
+        
+      static int GetLz(void)
+        {
+          return Lz;
+        }
+        
       static int GetNumSpecies()
 	{
 	  return NumSpecies;
@@ -2612,6 +2648,21 @@ class MathExpression
 	  return MeasurableList;
 	}
         
+      static double GetCoordX(int i)
+        {
+          return i%Lx;
+        }
+        
+      static double GetCoordY(int i)
+        {
+          return (i/Lx)%Ly;
+        }
+        
+      static double GetCoordZ(int i)
+        {
+          return i/(Lx*Ly);
+        }
+        
       static double GetPosX(int i)
         {
           return i%Lx-(Lx-1)/2.0;
@@ -2627,7 +2678,18 @@ class MathExpression
           return i/(Lx*Ly)-(Lz-1)/2.0;
         }
         
+      static const char *GetSpeciesName(int N)
+        {
+          Species *Head=FirstSpecies;
+          
+          while (N--)
+            Head=Head->Next;
+          
+          return Head->Name;
+        }
+        
       friend class EasyMathExpression;
+      friend class ParserSGF;
   };
 
 int MathExpression::NumSites=0;

@@ -153,7 +153,7 @@ namespace SGF {
       std::cout<<"  *******************************\n";
       std::cout<<"  * Broken worldlines histogram *\n";
       std::cout<<"  *******************************\n\n";
-      std::cout<<"    N lines\tCount\tFrequency\n\n";
+      std::cout<<"    N lines\tCount\tProbability\n\n";
       std::map<unsigned int,unsigned int>::const_iterator it;
       double Normalization=0;
       for(it=BrokenHistogram.begin();it!=BrokenHistogram.end();++it)

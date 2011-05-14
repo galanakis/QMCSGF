@@ -1251,7 +1251,147 @@ class ParserSGF
             
           else if (!*MathExpression::GetSimulName())
             return (char *) "A name must be given to the simulation.";
+
+          // ************************************************************
+          // * This part is temporary. It defines generic measurements. *
+          // ************************************************************
           
+          int Index;
+            
+          for (int i=0;i<MathExpression::GetNumSpecies();i++)
+            {
+              for (int j=0;j<MathExpression::GetNumSites();j++)
+                {
+                  char Name[20]="#Den";
+                  Index=MathExpression::GetNumSites()*i+j;
+                  strcpy(Name+4,Parser::IntToChars(Index));
+                  MathExpression *Handle=new MathExpression;
+                  Handle->Root=new MathExpression::Node;
+                  Handle->Root->Type=MathExpression::NumberOperator;
+                  Handle->Root->Son1=new MathExpression::Node;
+                  Handle->Root->Son1->Type=MathExpression::ComplexNumber;
+                  Handle->Root->Son1->Value=Index;
+                  MathExpression::Symbol::AddExpression(Name,Handle);
+                  MathExpression::AddMeasurable(Name);
+                  MathExpression::BuildMeasurable(Name);
+                }
+            }
+            
+          Index=0;
+            
+          for (int Species1=0;Species1<MathExpression::GetNumSpecies();Species1++)
+            for (int Species2=Species1;Species2<MathExpression::GetNumSpecies();Species2++)
+              {
+                for (int Dist=0;Dist<MathExpression::GetNumSites();Dist++)
+                  {
+                    char Name[20]="#Cor";
+                    strcpy(Name+4,Parser::IntToChars(Index));
+                    MathExpression *Handle=new MathExpression;
+                    MathExpression::Node *Temp;
+                    Handle->Root=new MathExpression::Node;
+                    Handle->Root->Type=MathExpression::ArithmeticOperator3;
+                    Handle->Root->Son1=new MathExpression::Node;
+                    Handle->Root->Son1->Type=MathExpression::NumberOperator;
+                    Handle->Root->Son1->Son1=new MathExpression::Node;
+                    Handle->Root->Son1->Son1->Type=MathExpression::ComplexNumber;
+                    Handle->Root->Son1->Son1->Value=Species1*MathExpression::GetNumSites();
+                    Handle->Root->Son2=new MathExpression::Node;
+                    Handle->Root->Son2->Type=MathExpression::NumberOperator;
+                    Handle->Root->Son2->Son1=new MathExpression::Node;
+                    Handle->Root->Son2->Son1->Type=MathExpression::ComplexNumber;
+                    Handle->Root->Son2->Son1->Value=Species2*MathExpression::GetNumSites()+Dist;
+                    
+                    for (int Site=1;Site<MathExpression::GetNumSites();Site++)
+                      {
+                        Temp=new MathExpression::Node;
+                        Temp->Type=MathExpression::ArithmeticOperator1;
+                        Temp->Son1=Handle->Root;
+                        Temp->Son2=new MathExpression::Node;
+                        Temp->Son2->Type=MathExpression::ArithmeticOperator3;
+                        Temp->Son2->Son1=new MathExpression::Node;
+                        Temp->Son2->Son1->Type=MathExpression::NumberOperator;
+                        Temp->Son2->Son1->Son1=new MathExpression::Node;
+                        Temp->Son2->Son1->Son1->Type=MathExpression::ComplexNumber;
+                        Temp->Son2->Son1->Son1->Value=Species1*MathExpression::GetNumSites()+Site;
+                        Temp->Son2->Son2=new MathExpression::Node;
+                        Temp->Son2->Son2->Type=MathExpression::NumberOperator;
+                        Temp->Son2->Son2->Son1=new MathExpression::Node;
+                        Temp->Son2->Son2->Son1->Type=MathExpression::ComplexNumber;
+                        Temp->Son2->Son2->Son1->Value=Species2*MathExpression::GetNumSites()+(Site+Dist)%MathExpression::GetNumSites();
+                        Handle->Root=Temp;
+                      }
+                      
+                    Temp=new MathExpression::Node;
+                    Temp->Type=MathExpression::ArithmeticOperator3;
+                    Temp->Son1=new MathExpression::Node;
+                    Temp->Son1->Type=MathExpression::ComplexNumber;
+                    Temp->Son1->Value=1.0/MathExpression::GetNumSites();
+                    Temp->Son2=Handle->Root;
+                    Handle->Root=Temp;
+                    MathExpression::Symbol::AddExpression(Name,Handle);
+                    MathExpression::AddMeasurable(Name);
+                    MathExpression::BuildMeasurable(Name);
+                    Index++;
+                  }
+              }
+            
+          Index=0;
+            
+          for (int Species=0;Species<MathExpression::GetNumSpecies();Species++)
+            {
+              for (int Dist=0;Dist<MathExpression::GetNumSites();Dist++)
+                {
+                  char Name[20]="#OneBodyGreen";
+                  strcpy(Name+13,Parser::IntToChars(Index));
+                  MathExpression *Handle=new MathExpression;
+                  MathExpression::Node *Temp;
+                  Handle->Root=new MathExpression::Node;
+                  Handle->Root->Type=MathExpression::ArithmeticOperator3;
+                  Handle->Root->Son1=new MathExpression::Node;
+                  Handle->Root->Son1->Type=MathExpression::CreationOperator;
+                  Handle->Root->Son1->Son1=new MathExpression::Node;
+                  Handle->Root->Son1->Son1->Type=MathExpression::ComplexNumber;
+                  Handle->Root->Son1->Son1->Value=Species*MathExpression::GetNumSites();
+                  Handle->Root->Son2=new MathExpression::Node;
+                  Handle->Root->Son2->Type=MathExpression::AnnihilationOperator;
+                  Handle->Root->Son2->Son1=new MathExpression::Node;
+                  Handle->Root->Son2->Son1->Type=MathExpression::ComplexNumber;
+                  Handle->Root->Son2->Son1->Value=Species*MathExpression::GetNumSites()+Dist;
+                    
+                  for (int Site=1;Site<MathExpression::GetNumSites();Site++)
+                    {
+                      Temp=new MathExpression::Node;
+                      Temp->Type=MathExpression::ArithmeticOperator1;
+                      Temp->Son1=Handle->Root;
+                      Temp->Son2=new MathExpression::Node;
+                      Temp->Son2->Type=MathExpression::ArithmeticOperator3;
+                      Temp->Son2->Son1=new MathExpression::Node;
+                      Temp->Son2->Son1->Type=MathExpression::CreationOperator;
+                      Temp->Son2->Son1->Son1=new MathExpression::Node;
+                      Temp->Son2->Son1->Son1->Type=MathExpression::ComplexNumber;
+                      Temp->Son2->Son1->Son1->Value=Species*MathExpression::GetNumSites()+Site;
+                      Temp->Son2->Son2=new MathExpression::Node;
+                      Temp->Son2->Son2->Type=MathExpression::AnnihilationOperator;
+                      Temp->Son2->Son2->Son1=new MathExpression::Node;
+                      Temp->Son2->Son2->Son1->Type=MathExpression::ComplexNumber;
+                      Temp->Son2->Son2->Son1->Value=Species*MathExpression::GetNumSites()+(Site+Dist)%MathExpression::GetNumSites();
+                      Handle->Root=Temp;
+                    }
+                      
+                  Temp=new MathExpression::Node;
+                  Temp->Type=MathExpression::ArithmeticOperator3;
+                  Temp->Son1=new MathExpression::Node;
+                  Temp->Son1->Type=MathExpression::ComplexNumber;
+                  Temp->Son1->Value=1.0/MathExpression::GetNumSites();
+                  Temp->Son2=Handle->Root;
+                  Handle->Root=Temp;
+                  MathExpression::Symbol::AddExpression(Name,Handle);
+                  MathExpression::AddMeasurable(Name);
+                  MathExpression::BuildMeasurable(Name);
+                  Index++;
+                }
+            }
+            
 	  return NULL;
 	}
   };

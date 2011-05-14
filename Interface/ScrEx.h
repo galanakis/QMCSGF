@@ -77,12 +77,12 @@ char ScriptExample[]="\
   Bins 20;                           # The number of bins is used to estimate the statistical errors.\n\
   Ensemble Canonical;                # The ensemble can be either 'Canonical' or 'GrandCanonical'.\n\
 \n\
-# The quantities to be measured must be specified.\n\
+# Some generic quantities are systematically measured: Diagonal energy, non-diagonal energy, total energy, local density, density-density correlations, and one-body Green functions.\n\
+# The user can also specify additional measurements. Any operator defined by the user can be measured.\n\
 \n\
   Measure \"Atom Kinetic energy\",Ka;                            # A measurable is defined by a name and an expression.\n\
   Measure \"Number of atoms\",Sum{p}(Na[p]);                     # The name of the measurable will be printed in the output file.\n\
-  Measure \"Number of molecules\",Sum{p}(Nm[p]);\n\
-  Measure \"Local density in the center\",Na[L/2]+Nm[L/2];\n\
+  Measure \"Number of molecules\",Sum{p}(Nm[p]);                 # Caution: Do not measure a quantity that you don't need!\n\
 \n\
 # A name must be given to the simulation.\n\
 \n\
