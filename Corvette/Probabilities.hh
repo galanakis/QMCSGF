@@ -93,6 +93,56 @@ public:
 };
 
 
+class TSum {
+	const uint _nterms;
+	MatrixElement *_sums;
+	long double Crop(long double x) const { return (fabs(x)>0.00001)?x:0; }
+
+public:
+	TSum(uint N) : _nterms(N) {
+		_sums=new MatrixElement[_nterms];
+		reset();
+	}
+	~TSum() { delete [] _sums; }
+	
+	inline void update(int index,MatrixElement me) {
+		if(me!=0) {
+			index++;
+			while(index>0) {
+			  _sums[index-1]+=me;
+              index>>=1;
+	        }
+    	}
+	}
+
+	inline uint choose() const {
+		int index=0;
+		while(index<_nterms) {
+			int indr=(index+1)<<1;
+			int indl=indr-1;
+
+			double w =Crop(_sums[index]);
+			double wr=(indr<_nterms) ? Crop(_sums[indr]) : 0;
+			double wl=(indl<_nterms) ? Crop(_sums[indl]) : 0;
+
+			if(w*RNG::Uniform()>=wl+wr)
+				return index; 
+			else
+				index=((wl+wr)*RNG::Uniform()>=wr)?indl:indr;
+		}
+		std::cout<<"Probabilities::choose has reached a dead end. Cannot choose term"<<std::endl;
+		exit(13);
+		return _nterms;
+
+	}
+
+	inline void reset() {
+		for(uint i=0;i<_nterms;++i)
+			_sums[i]=0;	
+	}
+
+};
+
 /*
   class Probabilities
   This is the core class of the algorithm. It is able to evalute
@@ -146,22 +196,20 @@ private:
 
   long double Crop(long double x) const { return (fabs(x)>0.5*MinCoefficient)?x:0; }
 
-  inline uint tsum_index(uint direction,int offset,uint iterm) const {return (direction*noffsets()+offsets(offset))*nterms()+iterm;}
-  inline uint tsum_rawindex(uint direction,int indoffset,uint iterm) const {return (direction*noffsets()+indoffset)*nterms()+iterm;}
+
+  inline MatrixElement & tsum(int direction,int indoffset) const {return TSum[(direction*noffsets()+indoffset)*nterms()];}
+
   
   inline uint TSumLength() const {return 2*nterms()*noffsets();}
   inline uint noffsets() const {return offsets.size();}
   inline uint nterms() const {return Kinetic.size();}
-  inline double tsum(int direction,int offset,int iterm) const {return (iterm>=nterms())?0:Crop(TSum[tsum_index(direction,offset,iterm)]);}  
-  inline double tsum(int direction,int offset) const { return Crop(TSum[tsum_index(direction,offset,0)]); }
 
 /* Optimization hack: It assumes that the term index is the fastest index 
   This way you don't have to evaluate an expression to get the index. This
   hack alone increases speed by 25%.*/
-  inline void tsum_update(int rl,int index,int offset,MatrixElement me) {
+  inline void tsum_update(MatrixElement *ptr,int index,MatrixElement me) {
     if(me!=0) {
       index++;
-      MatrixElement *ptr=&TSum[tsum_index(rl,offset,0)];
       while(index>0) {
         /*
           After setting the value of the sum, check if the sum is close to zero.
@@ -219,7 +267,7 @@ public:
   inline double weight(int rl) const {
     double s=0.0;
     for(int i=0;i<noffsets();++i) 
-      s+=G(offsets[i])*Crop(TSum[tsum_rawindex(rl,i,0)]);
+      s+=G(offsets[i])*Crop(tsum(rl,i));
     return s;
   }
 
@@ -229,10 +277,10 @@ public:
 
     double R=RNG::Uniform()*weight(rl);
     int i=0;
-    while((R-=G(offsets[i])*Crop(TSum[tsum_rawindex(rl,i,0)]))>=0)
+    while((R-=G(offsets[i])*Crop(tsum(rl,i)))>=0)
       ++i;
 
-    MatrixElement *ptr=&TSum[tsum_rawindex(rl,i,0)]; 
+    MatrixElement *ptr=&tsum(rl,i); 
     uint _nterms=nterms();
 
     int index=0;
@@ -271,7 +319,7 @@ public:
 
     for(int rl=0;rl<2;++rl) 
       for(int i=0;i<nterms();++i) 
-        tsum_update(rl,i,Kinetic[i].offset(),Kinetic[i].me(rl));
+        tsum_update(&tsum(rl,offsets(Kinetic[i].offset())),i,Kinetic[i].me(rl));
         
     Energies[LEFT]=Energies[RIGHT]=0;  
     for(int direction=0;direction<2;++direction)
@@ -322,9 +370,9 @@ public:
     if(broken_line_success) std::cout<<"Broken line verification succeeded"<<std::endl;
     else std::cout<<"Broken line verification failed"<<std::endl;
 
+    for(int i=0;i<offsets.size();++i) 
+	   std::cout<<Crop(tsum(LEFT,i))<<", "<<Crop(tsum(RIGHT,i));	
     
-    for(int i=0;i<offsets.size();++i)
-      std::cout<<tsum(LEFT,offsets[i])<<", "<<tsum(RIGHT,offsets[i]);
     std::cout<<std::endl;
 
     delete [] TSumCopy;
@@ -351,13 +399,13 @@ public:
       if(ioffset!=foffset) {
         MatrixElement jme =nbr->me(!rl);
         // Note that those statements are parallelizable
-        tsum_update( rl,fndex,ioffset,-ime);
-        tsum_update( rl,fndex,foffset,+fme);
-        tsum_update(!rl,fndex,ioffset,-jme);
-        tsum_update(!rl,fndex,foffset,+jme);
+        tsum_update(&tsum( rl,offsets(ioffset)),fndex,-ime);
+        tsum_update(&tsum( rl,offsets(foffset)),fndex,+fme);
+        tsum_update(&tsum(!rl,offsets(ioffset)),fndex,-jme);
+        tsum_update(&tsum(!rl,offsets(foffset)),fndex,+jme);
       }
       else 
-        tsum_update( rl,fndex,ioffset,fme-ime);
+        tsum_update(&tsum( rl,offsets(ioffset)),fndex,fme-ime);
 
     }
     

@@ -1,5 +1,5 @@
 Include="-I./Interface -I./Corvette -I."
-Executable="Exec/corvette"+"."+%x{uname}
+Executable="corvette"+"."+%x{uname}
 Source="Corvette-SGF.cpp"
 Flags="-DRNG_MT"
 
