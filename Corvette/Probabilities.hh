@@ -92,54 +92,141 @@ public:
   
 };
 
+/*
+	class TSum
+	This is a helper class which consists of a vector of matrix elements.
+	The class interprets this vector as a balanced binary tree. To get the 
+	path of the i^th element we just look at the binary representation of i+1,
+	where the most significant digit corresponds to ancestor nodes.
+	The number of elements of the tree are meant to be fixed. Each
+	element contains a value which is interpreted as a relative probability
+	At each node we don't need to store that relative probability, but
+	only the total sum of the probability of the node and all its children.
+	The probability can be deduced by subtracting the sum of a node
+	minus the sums of its children.	When a probability is changed this change 
+	is propagated to the node's parents with logarithmic complexity. 
+	Selecting a term according to its relative probability is also done
+	with logarithmic complexity algorithm. We start from the root of the
+	tree and select either a left or right branch or the root node itself
+	(three way selection). We continue in the branch we selected or return
+	the root.
+	
+	The key functions are:
+	update(index,me): change the probability of the index by "me".
+	choose(): randomly chose an index using its relative probability (sum-sum_Left-sum_Right)
+	norm(): returns the sum of all relative probabilities
+	
+*/
 
 class TSum {
-	const uint _nterms;
-	MatrixElement *_sums;
-	long double Crop(long double x) const { return (fabs(x)>0.00001)?x:0; }
+	std::vector<MatrixElement> _sums;
+	
+	// This should not be here.
+	long double Crop(long double x) const { return (fabs(x)>1e-10)?x:0; }
 
 public:
-	TSum(uint N) : _nterms(N) {
-		_sums=new MatrixElement[_nterms];
-		reset();
-	}
-	~TSum() { delete [] _sums; }
+	TSum() {}
+	TSum(uint N) : _sums(N,MatrixElement(0)) {}
+	TSum(const TSum &o) : _sums(o._sums) {}
+	~TSum() {}
 	
-	inline void update(int index,MatrixElement me) {
+	/* resizes the vector */
+	inline void resize(uint N) {_sums.resize(N,MatrixElement(0));}
+	
+	inline void update(uint index,MatrixElement me) {
 		if(me!=0) {
 			index++;
 			while(index>0) {
 			  _sums[index-1]+=me;
-              index>>=1;
-	        }
-    	}
+        	index>>=1;
+	    }
+    }
 	}
 
 	inline uint choose() const {
+		int _nterms=_sums.size();
 		int index=0;
 		while(index<_nterms) {
 			int indr=(index+1)<<1;
 			int indl=indr-1;
 
 			double w =Crop(_sums[index]);
-			double wr=(indr<_nterms) ? Crop(_sums[indr]) : 0;
-			double wl=(indl<_nterms) ? Crop(_sums[indl]) : 0;
+			double wr=(indr<_nterms) ? Crop(_sums[indr]) : MatrixElement(0);
+			double wl=(indl<_nterms) ? Crop(_sums[indl]) : MatrixElement(0);
 
 			if(w*RNG::Uniform()>=wl+wr)
 				return index; 
 			else
 				index=((wl+wr)*RNG::Uniform()>=wr)?indl:indr;
 		}
-		std::cout<<"Probabilities::choose has reached a dead end. Cannot choose term"<<std::endl;
+		std::cout<<"TSum::choose has reached a dead end. Cannot choose term"<<std::endl;
 		exit(13);
 		return _nterms;
 
 	}
 
+	/* Makes all elements zero */
 	inline void reset() {
-		for(uint i=0;i<_nterms;++i)
-			_sums[i]=0;	
+		for(uint i=0;i<_sums.size();++i)
+			_sums[i]=MatrixElement(0);	
 	}
+	
+	/* Returns the sum of all the partial probabilities which is stored at the root */
+	inline MatrixElement norm() const { return _sums[0]; }
+
+};
+
+
+class ProbabilitiesBase {
+  static MatrixElement GetMinCoefficient(const Hamiltonian &T) {
+      /* Finding the minimum of all Kinetic operator coefficients */
+      MatrixElement result=T[0].coefficient();
+      for(int term=0;term<T.size();++term)
+        result=Min(result,T[term].coefficient());
+      return result;	
+  }
+	
+  // Scan all kinetic terms to find all the indices
+  static std::vector<Boson*> GetIndices(const Hamiltonian &T) {
+    std::set<Boson*> indexset;
+    for(int i=0;i<T.size();++i)
+      for(int j=0;j<T[i].product().size();++j)
+        indexset.insert(T[i].product()[j].particle_id());
+
+	std::vector<Boson*> result;
+    result.insert(result.begin(),indexset.begin(),indexset.end());
+	return result;
+	
+}
+	
+protected:
+  const Hamiltonian &Kinetic;         // Local copy of the kinetic operators
+  const Hamiltonian &Potential;       // Local copy of the potential operators    
+  const AdjacencyList kin_adjacency;  // For each term it holds a list of other kinetic terms with one common site
+  const AdjacencyList pot_adjacency;  // For each term it holds a list of other kinetic terms with one common site
+
+  const std::vector<Boson*> _indices; // Vector containing all indices appearing in the row terms  
+  const OffsetMap offsets;            // This will map the offsets to consecutive integers
+  const MatrixElement MinCoefficient; // This will contain the minimum coefficient
+
+  GreenOperator GF;                // Defines the Green operator function
+
+
+  long double Crop(long double x) const { return (fabs(x)>0.5*MinCoefficient)?x:0; }
+  inline uint noffsets() const {return offsets.size();}
+  inline uint nterms() const {return Kinetic.size();}
+  inline uint term_index(const HamiltonianTerm* term) const {return term-&Kinetic[0];}
+	inline const HamiltonianTerm * index_term(uint iterm) const {return &Kinetic[iterm];}
+
+public:
+  inline void GreenInit(int nsites) {GF.initialize(nsites);}
+
+  ProbabilitiesBase(const Hamiltonian &T,const Hamiltonian &V) : Kinetic(T), Potential(V), kin_adjacency(Kinetic), pot_adjacency(Kinetic,Potential), _indices(GetIndices(Kinetic)), offsets(Kinetic), MinCoefficient(GetMinCoefficient(T)) {
+		/* Initialize the Green operator function.
+		The number of sites is just the number of different
+		indices appearing in the Kinetic operators */
+		GF.initialize(_indices.size());	
+}
 
 };
 
@@ -171,222 +258,92 @@ public:
   
 */
 
-class Probabilities {
-protected:
-  const Hamiltonian &Kinetic;      // Local copy of the kinetic operators
-  const Hamiltonian &Potential;    // Local copy of the potential operators    
-private:
-  const AdjacencyList kin_adjacency;// For each term it holds a list of other kinetic terms with one common site
-  const AdjacencyList pot_adjacency;// For each term it holds a list of other kinetic terms with one common site
 
-  GreenOperator GF;                // Defines the Green operator function
-  int _NBWL;                       // The number of broken world lines
-
+class Probabilities : public ProbabilitiesBase {
   double Energies[2];              // energy of right and left state
-  std::vector<Boson*> _indices;    // Vector containing all indices appearing in the row terms  
   std::set<Boson*> _broken_lines;  // A set of the boson indices that are broken.
-  
-  // The fast index should be the term
-  MatrixElement *TSum;             // We will record the partial sums here.
-  const OffsetMap offsets;               // This will map the offsets to consecutive integers
-
   long long NUpdates;              // Number of updates since last rebuild
-  MatrixElement MinCoefficient;
 
-
-  long double Crop(long double x) const { return (fabs(x)>0.5*MinCoefficient)?x:0; }
-
-
-  inline MatrixElement & tsum(int direction,int indoffset) const {return TSum[(direction*noffsets()+indoffset)*nterms()];}
-
-  
-  inline uint TSumLength() const {return 2*nterms()*noffsets();}
-  inline uint noffsets() const {return offsets.size();}
-  inline uint nterms() const {return Kinetic.size();}
-
-/* Optimization hack: It assumes that the term index is the fastest index 
-  This way you don't have to evaluate an expression to get the index. This
-  hack alone increases speed by 25%.*/
-  inline void tsum_update(MatrixElement *ptr,int index,MatrixElement me) {
-    if(me!=0) {
-      index++;
-      while(index>0) {
-        /*
-          After setting the value of the sum, check if the sum is close to zero.
-          If it is within the Tolerance then set if exactly to zero. This costs 5%
-          but it may result in avoiding numerical crashes.
-          //ptr[index-1]+=me;
-        */
-        ptr[index-1]=Crop(ptr[index-1]+=me);
-        index>>=1;
-      }
-    }
-  }
-
-
+  TSum *_tsum;
+	TSum & tsum(int direction,int indoffset) const {return _tsum[direction*noffsets()+indoffset];}
 public:
-  Probabilities(const Hamiltonian &T,const Hamiltonian &V) : Kinetic(T), Potential(V), kin_adjacency(Kinetic), pot_adjacency(Kinetic,Potential), offsets(Kinetic) {
-     
-    // Scan all kinetic terms to find all the indices
-    std::set<Boson*> indexset;
-    for(int i=0;i<Kinetic.size();++i)
-      for(int j=0;j<Kinetic[i].product().size();++j)
-        indexset.insert(Kinetic[i].product()[j].particle_id());
-    _indices.insert(_indices.begin(),indexset.begin(),indexset.end());
-
-    /* Initialize the Green operator function.
-       The number of sites is just the number of different
-       indices appearing in the Kinetic operators */
-    GF.initialize(_indices.size());
-
-
-    NUpdates=0;
-    /* Finding the minimum of all Kinetic operator coefficients */
-    MinCoefficient=T[0].coefficient();
-    for(int term=0;term<T.size();++term)
-      MinCoefficient=Min(MinCoefficient,T[term].coefficient());
-    
-    TSum=new MatrixElement[TSumLength()];
-     
-    rebuild();
-
-  }
-  
-  ~Probabilities() { delete [] TSum; }
-
-  inline void GreenInit(int nsites) {GF.initialize(nsites);}
 
   inline double Energy(int direction) const {return Energies[direction];}
-  
-  inline double G() const {return GF(_NBWL);};                  // The value of the Green Operator for the given broken lines
-  inline double G(int offset) const {return GF(_NBWL+offset);}  // The value of the Green Operator given the total broken lines and the offset.
-  inline int NBrokenLines() const {return _NBWL;}
+
+  inline double G() const {return GF(NBrokenLines());};                  // The value of the Green Operator for the given broken lines
+  inline double G(int offset) const {return GF(NBrokenLines()+offset);}  // The value of the Green Operator given the total broken lines and the offset.
+  inline int NBrokenLines() const {return _broken_lines.size();}
   const std::set<Boson*> &ListBrokenLines() const {return _broken_lines;};  // A set of the boson indices that are broken.
-  
-  
+
+
   inline double weight(int rl) const {
     double s=0.0;
     for(int i=0;i<noffsets();++i) 
-      s+=G(offsets[i])*Crop(tsum(rl,i));
+      s+=G(offsets[i])*Crop(tsum(rl,i).norm());
     return s;
   }
 
-  /* Choose the offset first. This version
-     calls TSum rather than weight and so it's faster */
-  const HamiltonianTerm* choose(int rl) const {
 
-    double R=RNG::Uniform()*weight(rl);
-    int i=0;
-    while((R-=G(offsets[i])*Crop(tsum(rl,i)))>=0)
-      ++i;
+	Probabilities(const Hamiltonian &T,const Hamiltonian &V) : ProbabilitiesBase(T,V) {
+		_tsum=new TSum[2*noffsets()];
+		for(int rl=0;rl<2;++rl) 
+			for(int i=0;i<noffsets();++i)
+				tsum(rl,i).resize(nterms());
 
-    MatrixElement *ptr=&tsum(rl,i); 
-    uint _nterms=nterms();
+		rebuild();
+	}
 
-    int index=0;
-    while(index<_nterms) {
-      int indr=(index+1)<<1;
-      int indl=indr-1;
-      
-      double w =Crop(ptr[index]);
-      double wr=(indr<_nterms) ? Crop(ptr[indr]) : 0;
-      double wl=(indl<_nterms) ? Crop(ptr[indl]) : 0;
-      
-      if(w*RNG::Uniform()>=wl+wr)
-        return &Kinetic[index]; 
-      else
-        index=((wl+wr)*RNG::Uniform()>=wr)?indl:indr;
-    }
-    std::cout<<"Probabilities::choose has reached a dead end. Cannot choose term"<<std::endl;
-    exit(13);
-    return NULL;
-  }
-    
+	~Probabilities() {delete [] _tsum;}
+
+
+	/* Choose the offset first. This version
+	calls TSum rather than weight and so it's faster */
+	const HamiltonianTerm* choose(int rl) const {
+
+		double R=RNG::Uniform()*weight(rl);
+		int i=0;
+		while((R-=G(offsets[i])*Crop(tsum(rl,i).norm()))>=0)
+			++i;
+
+		return index_term(tsum(rl,i).choose());
+	}
+
+	/* makes everything zero */
+	inline void reset() {
+		_broken_lines.clear();
+		for(int rl=0;rl<2;++rl) 
+    	for(int i=0;i<noffsets();++i)
+				tsum(rl,i).reset();
+    Energies[LEFT]=Energies[RIGHT]=0;  
+    NUpdates=0;
+		
+	}
+
   // Evaluates the matrix elements and populates the trees
   void rebuild() {
-     
-     _NBWL=0;
-     _broken_lines.clear();
-     for(int i=0;i<_indices.size();++i) {
-      int delta=Abs(_indices[i]->delta());
-      if(delta!=0) {
-        _NBWL+=delta; 
-        _broken_lines.insert(_indices[i]);
-       }
-     }
-
-    for(int i=0;i<TSumLength();++i) TSum[i]=0;
+    
+		reset();
+		
+    for(int i=0;i<_indices.size();++i) 
+    	if(Abs(_indices[i]->delta())!=0) 
+    		_broken_lines.insert(_indices[i]);
 
     for(int rl=0;rl<2;++rl) 
-      for(int i=0;i<nterms();++i) 
-        tsum_update(&tsum(rl,offsets(Kinetic[i].offset())),i,Kinetic[i].me(rl));
+      for(int i=0;i<nterms();++i)
+				tsum(rl,offsets(Kinetic[i].offset())).update(i,Kinetic[i].me(rl));
         
-    Energies[LEFT]=Energies[RIGHT]=0;  
     for(int direction=0;direction<2;++direction)
       for(uint i=0;i<Potential.size();++i)
         Energies[direction]+=Potential[i].me(direction);
  
-    NUpdates=0;
 
   }
-  
-  // Copy the TSum, rebuild and compare
-  bool verify() {
-    
-    double Tolerance=1e-10;
-    
-    MatrixElement *TSumCopy=new MatrixElement[TSumLength()];
-    for(int i=0;i<TSumLength();++i)
-      TSumCopy[i]=TSum[i];
-      
-    double EnergiesCopy[2];
-    EnergiesCopy[LEFT]=Energies[LEFT];
-    EnergiesCopy[RIGHT]=Energies[RIGHT];
-    
-    int _NBWLCopy=_NBWL;
-    std::set<Boson*> _broken_lines_copy=_broken_lines;
-    
-    rebuild();
-    MatrixElement result=0;
-    for(int i=0;i<TSumLength();++i)
-      result+=Abs(TSumCopy[i]-TSum[i]);
 
-    double ediff=Abs(EnergiesCopy[LEFT]-Energies[LEFT])+Abs(EnergiesCopy[RIGHT]-Energies[RIGHT]);
-    
-    bool tree_success=(result>Tolerance);
-    bool energy_success=(ediff>Tolerance);
-    bool worldline_success=(_NBWL!=_NBWLCopy); 
-    bool broken_line_success=(_broken_lines==_broken_lines_copy);
-     
-    if(tree_success) std::cout<<"Probabilities: Tree verification failed"<<std::endl;
-    else std::cout<<"Probabilities: Tree verification succeeded"<<std::endl;
-    
-    if(energy_success) std::cout<<"Probabilities: Energy verification failed"<<std::endl;
-    else std::cout<<"Probabilities: Energy verification succeeded"<<std::endl;
-
-    if(worldline_success) std::cout<<"Probabilities: Worldline verification failed "<<_NBWL<<", "<<_NBWLCopy<<std::endl;
-    else std::cout<<"Probabilities: Worldline verification succeeded"<<std::endl;
-
-    if(broken_line_success) std::cout<<"Broken line verification succeeded"<<std::endl;
-    else std::cout<<"Broken line verification failed"<<std::endl;
-
-    for(int i=0;i<offsets.size();++i) 
-	   std::cout<<Crop(tsum(LEFT,i))<<", "<<Crop(tsum(RIGHT,i));	
-    
-    std::cout<<std::endl;
-
-    delete [] TSumCopy;
-    
-    return tree_success && energy_success && worldline_success;
-  }
- 
-  inline int term_index(const HamiltonianTerm* term) const {return term-&Kinetic[0];}
 
   inline void update(const HamiltonianTerm* term,int rl,int arflag) {update(term_index(term),rl,arflag);}
   
   inline void update(int index,int rl,int arflag) { 
-    const HamiltonianTerm* term=&Kinetic[index];
-    _NBWL+=term->offset(arflag);
+    const HamiltonianTerm* term=index_term(index);
 
     adjacency_list_t::const_iterator nbr;
     for(nbr=kin_adjacency[index].begin();nbr!=kin_adjacency[index].end();++nbr) {
@@ -399,13 +356,13 @@ public:
       if(ioffset!=foffset) {
         MatrixElement jme =nbr->me(!rl);
         // Note that those statements are parallelizable
-        tsum_update(&tsum( rl,offsets(ioffset)),fndex,-ime);
-        tsum_update(&tsum( rl,offsets(foffset)),fndex,+fme);
-        tsum_update(&tsum(!rl,offsets(ioffset)),fndex,-jme);
-        tsum_update(&tsum(!rl,offsets(foffset)),fndex,+jme);
+				tsum( rl,offsets(ioffset)).update(fndex,-ime);
+				tsum( rl,offsets(foffset)).update(fndex,+fme);
+				tsum(!rl,offsets(ioffset)).update(fndex,-jme);
+				tsum(!rl,offsets(foffset)).update(fndex,+jme);
       }
       else 
-        tsum_update(&tsum( rl,offsets(ioffset)),fndex,fme-ime);
+				tsum( rl,offsets(ioffset)).update(fndex,fme-ime);
 
     }
     
@@ -429,9 +386,58 @@ public:
       rebuild();
 
   }
- 
 
-};        
+ // Copy the TSum, rebuild and compare
+  bool verify() {
+    
+    double Tolerance=1e-10;
+
+		TSum *_tsumcopy=new TSum[2*noffsets()];
+		for(int rl=0;rl<2;++rl) 
+			for(int i=0;i<noffsets();++i)
+				_tsumcopy[rl*noffsets()+i]=tsum(rl,i);
+     
+    double EnergiesCopy[2];
+    EnergiesCopy[LEFT]=Energies[LEFT];
+    EnergiesCopy[RIGHT]=Energies[RIGHT];
+    
+    std::set<Boson*> _broken_lines_copy=_broken_lines;
+    
+    rebuild();
+    MatrixElement result=0;
+    for(int i=0;i<2*noffsets();++i)
+      result+=Abs(_tsumcopy[i].norm()-_tsum[i].norm());
+
+    double ediff=Abs(EnergiesCopy[LEFT]-Energies[LEFT])+Abs(EnergiesCopy[RIGHT]-Energies[RIGHT]);
+    
+    bool tree_success=(result>Tolerance);
+    bool energy_success=(ediff>Tolerance);
+    bool worldline_success=(_broken_lines.size()!=_broken_lines_copy.size()); 
+    bool broken_line_success=(_broken_lines==_broken_lines_copy);
+     
+    if(tree_success) std::cout<<"Probabilities: Tree verification failed"<<std::endl;
+    else std::cout<<"Probabilities: Tree verification succeeded"<<std::endl;
+    
+    if(energy_success) std::cout<<"Probabilities: Energy verification failed"<<std::endl;
+    else std::cout<<"Probabilities: Energy verification succeeded"<<std::endl;
+
+    if(worldline_success) std::cout<<"Probabilities: Worldline verification failed "<<_broken_lines.size()<<", "<<_broken_lines_copy.size()<<std::endl;
+    else std::cout<<"Probabilities: Worldline verification succeeded"<<std::endl;
+
+    if(broken_line_success) std::cout<<"Broken line verification succeeded"<<std::endl;
+    else std::cout<<"Broken line verification failed"<<std::endl;
+
+    for(int i=0;i<offsets.size();++i) 
+	   std::cout<<Crop(tsum(LEFT,i).norm())<<", "<<Crop(tsum(RIGHT,i).norm());	
+    
+    std::cout<<std::endl;
+
+    delete [] _tsumcopy;
+    
+    return tree_success && energy_success && worldline_success;
+  }
+
+};
 
 }
 

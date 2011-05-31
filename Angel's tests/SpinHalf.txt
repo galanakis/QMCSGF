@@ -25,8 +25,8 @@
 
   InverseTemperature 80;
   Seed 34715;
-  WarmTime 120*Minute;
-  MeasTime 480*Minute;
+  WarmTime 1*Minute;
+  MeasTime 2*Minute;
   Bins 20;
   Ensemble Canonical;
   
