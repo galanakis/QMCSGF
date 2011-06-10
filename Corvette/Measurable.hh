@@ -35,7 +35,10 @@ namespace SGF {
     const std::map<Boson*,int> &map() const {return indices;}
   };
 
-  typedef SGF::BinnedAccumulator<MatrixElement> BinnedAccumulatorME;
+	/* Adding a lot of numbers results in floating point errors. Therefore the accumulator 
+	   should have higher precition than the data that are added */
+	typedef SGF::BinnedAccumulator<long double> BinnedAccumulatorME;
+  //typedef SGF::BinnedAccumulator<MatrixElement> BinnedAccumulatorME;
 
   class MeasAccumulators {
     const HamiltonianTerm *term;

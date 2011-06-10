@@ -27,7 +27,7 @@ public:
   Accumulator & push(const T &data,const T &Weight) {
     T moment(Weight);
     for(int i=0;i<MomentOrder;++i) {
-      _sum[i]=(_sum[i]*_count+moment)/(_count+1);
+      _sum[i]+=moment;
       moment*=data;
     }
     ++_count;
@@ -35,10 +35,10 @@ public:
   }
   inline void reset() {
     _count=0; 
-    for(int i=0;i<MomentOrder;++i) _sum[i]=0; 
+    for(int i=0;i<MomentOrder;++i) _sum[i]=T(0); 
   }
   inline long count() const {return _count;}
-  inline T operator[](int i) const {return _sum[i]*_count;} 
+  inline T operator[](int i) const {return _sum[i];} 
   inline T operator()(int i) const {return _sum[i]/_sum[0];}
   inline int nmoments() const {return MomentOrder;}
 };

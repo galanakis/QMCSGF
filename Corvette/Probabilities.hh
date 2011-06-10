@@ -120,14 +120,17 @@ public:
 
 class TSum {
 	std::vector<MatrixElement> _sums;
+	long double _head; // a copy of the _sums[0] is stored here. The redundancy is used for error tracking.
 	
-	// This should not be here.
-	long double Crop(long double x) const { return (fabs(x)>1e-8)?x:0; }
+	// Chop off small numerical values. The thresshold is Tolerance which is set as the minimum coefficient of any kinetic operator.
+	long double Crop(long double x) const { return (fabs(x)>Tolerance)?x:0; }
 
 public:
+  static MatrixElement Tolerance;
+
 	TSum() {}
-	TSum(uint N) : _sums(N,MatrixElement(0)) {}
-	TSum(const TSum &o) : _sums(o._sums) {}
+	TSum(uint N) : _sums(N,MatrixElement(0)),_head(0) {}
+	TSum(const TSum &o) : _sums(o._sums),_head(0) {}
 	~TSum() {}
 	
 	/* resizes the vector */
@@ -140,6 +143,7 @@ public:
 			  _sums[index-1]+=me;
         index>>=1;
 	    }
+			_head+=me;
     }
 	}
 
@@ -167,15 +171,18 @@ public:
 
 	/* Makes all elements zero */
 	inline void reset() {
+		_head=0;
 		for(uint i=0;i<_sums.size();++i)
 			_sums[i]=MatrixElement(0);	
 	}
 	
 	/* Returns the sum of all the partial probabilities which is stored at the root */
-	inline MatrixElement norm() const { return _sums[0]; }
+	inline MatrixElement norm() const { return Crop(_head); }
+	inline MatrixElement error() const {return fabs(_head-_sums[0]);}
 
 };
 
+MatrixElement TSum::Tolerance;
 
 class ProbabilitiesBase {
   static MatrixElement GetMinCoefficient(const Hamiltonian &T) {
@@ -212,7 +219,6 @@ protected:
   GreenOperator GF;                // Defines the Green operator function
 
 
-  long double Crop(long double x) const { return (fabs(x)>0.5*MinCoefficient)?x:0; }
   inline uint noffsets() const {return offsets.size();}
   inline uint term_index(const HamiltonianTerm* term) const {return term-&Kinetic[0];}
 	inline const HamiltonianTerm * index_term(uint iterm) const {return &Kinetic[iterm];}
@@ -224,7 +230,8 @@ public:
 		/* Initialize the Green operator function.
 		The number of sites is just the number of different
 		indices appearing in the Kinetic operators */
-		GF.initialize(_indices.size());	
+		GF.initialize(_indices.size());
+	  TSum::Tolerance=MinCoefficient/10;
 }
 
 };
@@ -278,7 +285,7 @@ public:
   inline double weight(int rl) const {
     double s=0.0;
     for(int i=0;i<noffsets();++i) 
-      s+=G(offsets[i])*Crop(tsum(rl,i).norm());
+      s+=G(offsets[i])*tsum(rl,i).norm();
     return s;
   }
 
@@ -286,8 +293,9 @@ public:
 	Probabilities(const Hamiltonian &T,const Hamiltonian &V) : ProbabilitiesBase(T,V) {
 		_tsum=new TSum[2*noffsets()];
 		for(int rl=0;rl<2;++rl) 
-			for(int i=0;i<noffsets();++i)
+			for(int i=0;i<noffsets();++i) {
 				tsum(rl,i).resize(Kinetic.size());
+			}
 
 		rebuild();
 	}
@@ -301,7 +309,7 @@ public:
 
 		double R=RNG::Uniform()*weight(rl);
 		int i=0;
-		while((R-=G(offsets[i])*Crop(tsum(rl,i).norm()))>=0)
+		while((R-=G(offsets[i])*tsum(rl,i).norm())>=0)
 			++i;
 
 		return index_term(tsum(rl,i).choose());
@@ -436,7 +444,7 @@ public:
     else std::cout<<"Broken line verification failed"<<std::endl;
 
     for(int i=0;i<offsets.size();++i) 
-	   std::cout<<Crop(tsum(LEFT,i).norm())<<", "<<Crop(tsum(RIGHT,i).norm());	
+	   std::cout<<tsum(LEFT,i).norm()<<", "<<tsum(RIGHT,i).norm();	
     
     std::cout<<std::endl;
 
