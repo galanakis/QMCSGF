@@ -123,8 +123,7 @@ int main(int NumArg,char **Arg)
 // *****************************
 // _____________________________________________________________________
 SGFContainer Container;
-//SGF::RebuildFrequency=MathExpression::GetValue("RebuildFrequency").Re();
-SGF::RebuildFrequency=100000000;
+SGF::RebuildFrequency=MathExpression::GetValue("RebuildFrequency").Re();
 const SGF::Hamiltonian &T=Container.Kinetic();
 const SGF::Hamiltonian &V=Container.Potential();
 double Beta=Container.Beta();

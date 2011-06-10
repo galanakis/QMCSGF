@@ -191,7 +191,7 @@ public:
 
   inline double KeepCreating(int direction) const { return Alpha[ADD]*weight(direction)/Max(weight(LEFT),weight(RIGHT)); }
   inline double KeepDestroying(int direction) const { return Alpha[REMOVE]*Min(1.0,exp(Sign[direction]*DeltaV()*DeltaTau())); }
-  inline double CreationWeight(int direction) const { return ((1-KeepCreating(direction))*Probabilities::weight(!direction))/Probabilities::G(); }
+  inline double CreationWeight(int direction) const { return ((1-KeepCreating(direction))*weight(!direction))/G(); }
   inline double DestructionWeight(int direction) const { return empty() ? 0 : (1-KeepDestroying(direction))*expweight(-Sign[direction]*DeltaV()*DeltaTau())/DeltaTau(); }
   inline double BoltzmannWeight() const {return 1.0/G()/(CreationWeight(LEFT)+CreationWeight(RIGHT)+DestructionWeight(LEFT)+DestructionWeight(RIGHT));}
 

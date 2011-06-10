@@ -11,7 +11,7 @@
 
 namespace SGF {
 
-uint RebuildFrequency=100;
+uint RebuildFrequency=1000000;
 
 /* Crop small doubles. Use them when you expect a finite double
    in which case you can disregard the small ones as numerical
@@ -122,7 +122,7 @@ class TSum {
 	std::vector<MatrixElement> _sums;
 	
 	// This should not be here.
-	long double Crop(long double x) const { return (fabs(x)>1e-10)?x:0; }
+	long double Crop(long double x) const { return (fabs(x)>1e-8)?x:0; }
 
 public:
 	TSum() {}
@@ -138,7 +138,7 @@ public:
 			index++;
 			while(index>0) {
 			  _sums[index-1]+=me;
-        	index>>=1;
+        index>>=1;
 	    }
     }
 	}
@@ -214,7 +214,6 @@ protected:
 
   long double Crop(long double x) const { return (fabs(x)>0.5*MinCoefficient)?x:0; }
   inline uint noffsets() const {return offsets.size();}
-  inline uint nterms() const {return Kinetic.size();}
   inline uint term_index(const HamiltonianTerm* term) const {return term-&Kinetic[0];}
 	inline const HamiltonianTerm * index_term(uint iterm) const {return &Kinetic[iterm];}
 
@@ -288,7 +287,7 @@ public:
 		_tsum=new TSum[2*noffsets()];
 		for(int rl=0;rl<2;++rl) 
 			for(int i=0;i<noffsets();++i)
-				tsum(rl,i).resize(nterms());
+				tsum(rl,i).resize(Kinetic.size());
 
 		rebuild();
 	}
@@ -325,24 +324,39 @@ public:
 		reset();
 		
     for(int i=0;i<_indices.size();++i) 
-    	if(Abs(_indices[i]->delta())!=0) 
+    	if(_indices[i]->delta()!=0) 
     		_broken_lines.insert(_indices[i]);
 
-    for(int rl=0;rl<2;++rl) 
-      for(int i=0;i<nterms();++i)
+    for(int rl=0;rl<2;++rl) {
+      for(uint i=0;i<Kinetic.size();++i)
 				tsum(rl,offsets(Kinetic[i].offset())).update(i,Kinetic[i].me(rl));
+			for(uint i=0;i<Potential.size();++i)
+        Energies[rl]+=Potential[i].me(rl);
+		}
         
-    for(int direction=0;direction<2;++direction)
-      for(uint i=0;i<Potential.size();++i)
-        Energies[direction]+=Potential[i].me(direction);
- 
 
   }
 
 
   inline void update(const HamiltonianTerm* term,int rl,int arflag) {update(term_index(term),rl,arflag);}
   
-  inline void update(int index,int rl,int arflag) { 
+	inline void update(int index,int rl,int arflag) {    
+    /* This needs to be confirmed: the tree needs to be rebuilt from time
+      to time to fix accumulated floating points errors */
+    if((++NUpdates % RebuildFrequency)==0)
+			slow_update(index,rl,arflag);
+		else
+		 	fast_update(index,rl,arflag);
+		
+	}
+
+	inline void slow_update(int index,int rl,int arflag) { 
+    const HamiltonianTerm* term=index_term(index);
+		term->update_psi(rl,arflag);
+		rebuild();
+	}
+
+  inline void fast_update(int index,int rl,int arflag) { 
     const HamiltonianTerm* term=index_term(index);
 
     adjacency_list_t::const_iterator nbr;
@@ -379,12 +393,6 @@ public:
            _broken_lines.erase(pind);
     }
     
-
-    /* This needs to be confirmed: the tree needs to be rebuilt from time
-      to time to fix accumulated floating points errors */
-    if((++NUpdates % RebuildFrequency)==0)
-      rebuild();
-
   }
 
  // Copy the TSum, rebuild and compare
