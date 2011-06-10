@@ -193,6 +193,7 @@ class ProbabilitiesBase {
       return result;	
   }
 	
+	
   // Scan all kinetic terms to find all the indices
   static std::vector<Boson*> GetIndices(const Hamiltonian &T) {
     std::set<Boson*> indexset;
@@ -214,7 +215,6 @@ protected:
 
   const std::vector<Boson*> _indices; // Vector containing all indices appearing in the row terms  
   const OffsetMap offsets;            // This will map the offsets to consecutive integers
-  const MatrixElement MinCoefficient; // This will contain the minimum coefficient
 
   GreenOperator GF;                // Defines the Green operator function
 
@@ -223,15 +223,28 @@ protected:
   inline uint term_index(const HamiltonianTerm* term) const {return term-&Kinetic[0];}
 	inline const HamiltonianTerm * index_term(uint iterm) const {return &Kinetic[iterm];}
 
+	uint _ensemble;
+	
+	uint nextra() const {return 2*_indices.size()*_ensemble;}
+	uint nregular() const {return Kinetic.size()-nextra();}
 public:
   inline void GreenInit(int nsites) {GF.initialize(nsites);}
 
-  ProbabilitiesBase(const Hamiltonian &T,const Hamiltonian &V) : Kinetic(T), Potential(V), kin_adjacency(Kinetic), pot_adjacency(Kinetic,Potential), _indices(GetIndices(Kinetic)), offsets(Kinetic), MinCoefficient(GetMinCoefficient(T)) {
+  ProbabilitiesBase(const Hamiltonian &T,const Hamiltonian &V) :  _indices(GetIndices(T)), Kinetic(T), offsets(Kinetic), Potential(V), kin_adjacency(Kinetic), pot_adjacency(Kinetic,Potential) {
 		/* Initialize the Green operator function.
 		The number of sites is just the number of different
 		indices appearing in the Kinetic operators */
 		GF.initialize(_indices.size());
-	  TSum::Tolerance=MinCoefficient/10;
+	  TSum::Tolerance=0.5*GetMinCoefficient(T);
+	
+		// The SGFContainer class has put the extra kinetic terms at the end. So we only count to indirectly extract the ensemble.
+		uint _nextra=0;
+		for(int i=0;i<Kinetic.size();++i) {
+			if(Kinetic[i].atom()) _nextra++;
+		}
+		
+		_ensemble=(_nextra==2*_indices.size())?GrandCanonical:Canonical;
+
 }
 
 };
@@ -270,6 +283,8 @@ class Probabilities : public ProbabilitiesBase {
   std::set<Boson*> _broken_lines;  // A set of the boson indices that are broken.
   long long NUpdates;              // Number of updates since last rebuild
 
+	bool ExtraLock;                  // whether to ignore the extra terms or not. 0 means ignore, 1 means accept.
+
   TSum *_tsum;
 	TSum & tsum(int direction,int indoffset) const {return _tsum[direction*noffsets()+indoffset];}
 public:
@@ -290,13 +305,13 @@ public:
   }
 
 
-	Probabilities(const Hamiltonian &T,const Hamiltonian &V) : ProbabilitiesBase(T,V) {
+	Probabilities(const Hamiltonian &T,const Hamiltonian &V) : ProbabilitiesBase(T,V),ExtraLock(1) {
 		_tsum=new TSum[2*noffsets()];
 		for(int rl=0;rl<2;++rl) 
 			for(int i=0;i<noffsets();++i) {
 				tsum(rl,i).resize(Kinetic.size());
 			}
-
+			
 		rebuild();
 	}
 
@@ -346,26 +361,24 @@ public:
   }
 
 
-  inline void update(const HamiltonianTerm* term,int rl,int arflag) {update(term_index(term),rl,arflag);}
-  
-	inline void update(int index,int rl,int arflag) {    
+  inline void update(const HamiltonianTerm* term,int rl,int arflag) {
+		// If an extra term appears, the toggle the lock.
+		if(term->atom()) ExtraLock!=ExtraLock;
+	
     /* This needs to be confirmed: the tree needs to be rebuilt from time
       to time to fix accumulated floating points errors */
-    if((++NUpdates % RebuildFrequency)==0)
-			slow_update(index,rl,arflag);
+    if((++NUpdates % RebuildFrequency)==0) {
+		// Slow update: update the state and rebuild
+			term->update_psi(rl,arflag);
+			rebuild();
+		}
 		else
-		 	fast_update(index,rl,arflag);
+		 	fast_update(term,rl,arflag);
 		
 	}
-
-	inline void slow_update(int index,int rl,int arflag) { 
-    const HamiltonianTerm* term=index_term(index);
-		term->update_psi(rl,arflag);
-		rebuild();
-	}
-
-  inline void fast_update(int index,int rl,int arflag) { 
-    const HamiltonianTerm* term=index_term(index);
+  
+  inline void fast_update(const HamiltonianTerm* term,int rl,int arflag) { 
+		uint index=term_index(term);
 
     adjacency_list_t::const_iterator nbr;
     for(nbr=kin_adjacency[index].begin();nbr!=kin_adjacency[index].end();++nbr) {
@@ -401,56 +414,6 @@ public:
            _broken_lines.erase(pind);
     }
     
-  }
-
- // Copy the TSum, rebuild and compare
-  bool verify() {
-    
-    double Tolerance=1e-10;
-
-		TSum *_tsumcopy=new TSum[2*noffsets()];
-		for(int rl=0;rl<2;++rl) 
-			for(int i=0;i<noffsets();++i)
-				_tsumcopy[rl*noffsets()+i]=tsum(rl,i);
-     
-    double EnergiesCopy[2];
-    EnergiesCopy[LEFT]=Energies[LEFT];
-    EnergiesCopy[RIGHT]=Energies[RIGHT];
-    
-    std::set<Boson*> _broken_lines_copy=_broken_lines;
-    
-    rebuild();
-    MatrixElement result=0;
-    for(int i=0;i<2*noffsets();++i)
-      result+=Abs(_tsumcopy[i].norm()-_tsum[i].norm());
-
-    double ediff=Abs(EnergiesCopy[LEFT]-Energies[LEFT])+Abs(EnergiesCopy[RIGHT]-Energies[RIGHT]);
-    
-    bool tree_success=(result>Tolerance);
-    bool energy_success=(ediff>Tolerance);
-    bool worldline_success=(_broken_lines.size()!=_broken_lines_copy.size()); 
-    bool broken_line_success=(_broken_lines==_broken_lines_copy);
-     
-    if(tree_success) std::cout<<"Probabilities: Tree verification failed"<<std::endl;
-    else std::cout<<"Probabilities: Tree verification succeeded"<<std::endl;
-    
-    if(energy_success) std::cout<<"Probabilities: Energy verification failed"<<std::endl;
-    else std::cout<<"Probabilities: Energy verification succeeded"<<std::endl;
-
-    if(worldline_success) std::cout<<"Probabilities: Worldline verification failed "<<_broken_lines.size()<<", "<<_broken_lines_copy.size()<<std::endl;
-    else std::cout<<"Probabilities: Worldline verification succeeded"<<std::endl;
-
-    if(broken_line_success) std::cout<<"Broken line verification succeeded"<<std::endl;
-    else std::cout<<"Broken line verification failed"<<std::endl;
-
-    for(int i=0;i<offsets.size();++i) 
-	   std::cout<<tsum(LEFT,i).norm()<<", "<<tsum(RIGHT,i).norm();	
-    
-    std::cout<<std::endl;
-
-    delete [] _tsumcopy;
-    
-    return tree_success && energy_success && worldline_success;
   }
 
 };

@@ -1,5 +1,5 @@
 #include "EasyMathExpression.h" // For access to the interface
-
+#include <set>
 
 class SGFContainer {
   std::vector<SGF::Boson> _Psi;
@@ -71,6 +71,22 @@ public:
       }
 
     }
+
+		// Append the extra terms for the grand canonical ensemble
+		if(_Ensemble==SGF::GrandCanonical) {
+			// Scan all kinetic terms to find all the indices
+		    std::set<SGF::Boson*> indexset;
+		    for(int i=0;i<_Kinetic.size();++i)
+		      for(int j=0;j<_Kinetic[i].product().size();++j)
+		        indexset.insert(_Kinetic[i].product()[j].particle_id());
+
+				std::set<SGF::Boson*>::const_iterator it;
+				for(it=indexset.begin();it!=indexset.end();++it) {
+					_Kinetic.push_back(SGF::HamiltonianTerm(1.0/NSites(),SGF::A,*it));
+					_Kinetic.push_back(SGF::HamiltonianTerm(1.0/NSites(),SGF::C,*it));
+				}
+		}
+
 
     std::vector<std::string> opnames=EasyMathExpression::MeasurableNameList();
     _MeasurableOperators.resize(opnames.size());
