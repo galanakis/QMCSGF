@@ -282,8 +282,10 @@ class Probabilities : public ProbabilitiesBase {
   double Energies[2];              // energy of right and left state
   std::set<Boson*> _broken_lines;  // A set of the boson indices that are broken.
   long long NUpdates;              // Number of updates since last rebuild
+  int _NBWL;                       // The number of broken world lines
 
 	bool ExtraLock;                  // whether to ignore the extra terms or not. 0 means ignore, 1 means accept.
+
 
   TSum *_tsum;
 	TSum & tsum(int direction,int indoffset) const {return _tsum[direction*noffsets()+indoffset];}
@@ -293,7 +295,8 @@ public:
 
   inline double G() const {return GF(NBrokenLines());};                  // The value of the Green Operator for the given broken lines
   inline double G(int offset) const {return GF(NBrokenLines()+offset);}  // The value of the Green Operator given the total broken lines and the offset.
-  inline int NBrokenLines() const {return _broken_lines.size();}
+	inline int NBrokenLines() const {return _NBWL;}
+  inline int NBrokenIndices() const {return _broken_lines.size();}
   const std::set<Boson*> &ListBrokenLines() const {return _broken_lines;};  // A set of the boson indices that are broken.
 
 
@@ -330,26 +333,25 @@ public:
 		return index_term(tsum(rl,i).choose());
 	}
 
-	/* makes everything zero */
-	inline void reset() {
+  // Evaluates the matrix elements and populates the trees
+  void rebuild() {
+    
 		_broken_lines.clear();
 		for(int rl=0;rl<2;++rl) 
     	for(int i=0;i<noffsets();++i)
 				tsum(rl,i).reset();
     Energies[LEFT]=Energies[RIGHT]=0;  
     NUpdates=0;
+		_NBWL=0;
 		
-	}
-
-  // Evaluates the matrix elements and populates the trees
-  void rebuild() {
-    
-		reset();
+		for(int i=0;i<_indices.size();++i) {
+     int delta=Abs(_indices[i]->delta());
+     if(delta!=0) {
+       _NBWL+=delta; 
+       _broken_lines.insert(_indices[i]);
+      }
+    }
 		
-    for(int i=0;i<_indices.size();++i) 
-    	if(_indices[i]->delta()!=0) 
-    		_broken_lines.insert(_indices[i]);
-
     for(int rl=0;rl<2;++rl) {
       for(uint i=0;i<Kinetic.size();++i)
 				tsum(rl,offsets(Kinetic[i].offset())).update(i,Kinetic[i].me(rl));
@@ -362,6 +364,10 @@ public:
 
 
   inline void update(const HamiltonianTerm* term,int rl,int arflag) {
+		
+		// update the number of broken lines.
+		_NBWL+=term->offset(arflag);
+		
 		// If an extra term appears, the toggle the lock.
 		if(term->atom()) ExtraLock!=ExtraLock;
 	
