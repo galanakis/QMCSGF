@@ -17,7 +17,7 @@ namespace SGF {
 template<const int MomentOrder,class T>
 class Accumulator {
   T _sum[MomentOrder];
-  unsigned long _count;
+  unsigned long long _count;
 public:
   Accumulator() { reset(); }
   Accumulator(const Accumulator &o) {

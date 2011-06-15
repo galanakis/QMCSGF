@@ -114,11 +114,6 @@ namespace SGF {
       
       const std::set<Boson*> &list=OperatorString.ListBrokenLines();
       const double Weight=OperatorString.BoltzmannWeight();
-      
-      if(list.size()==0 && OperatorString.NBrokenLines()!=0 || list.size()!=0 && OperatorString.NBrokenLines()==0 ) {
-        std::cout<<"The list of broken lines is not consistent"<<std::endl;
-        exit(234);
-      }
 
       BrokenHistogram[OperatorString.NBrokenLines()]+=1;
       
