@@ -11,10 +11,13 @@
 
 namespace SGF {
 
+	typedef long double _accumulator_float;
+	typedef unsigned long long _counter_int;
+
   struct Measurement {
-    double value;
-    double error;
-    Measurement(double v,double e) : value(v), error(e) {}
+    _accumulator_float value;
+    _accumulator_float error;
+    Measurement(_accumulator_float v,_accumulator_float e) : value(v), error(e) {}
   };
 
   inline std::ostream& operator<<(std::ostream& output, const Measurement &o) { return output<<o.value<<" +/- "<<o.error; }
@@ -37,7 +40,7 @@ namespace SGF {
 
 	/* Adding a lot of numbers results in floating point errors. Therefore the accumulator 
 	   should have higher precition than the data that are added */
-	typedef SGF::BinnedAccumulator<long double> BinnedAccumulatorME;
+	typedef SGF::BinnedAccumulator<_accumulator_float> BinnedAccumulatorME;
   //typedef SGF::BinnedAccumulator<MatrixElement> BinnedAccumulatorME;
 
   class MeasAccumulators {
@@ -52,23 +55,23 @@ namespace SGF {
       sum=o.sum; 
       return *this;
     }
-    inline void measure(double Weight) const { sum->push(me(),Weight); }
-    inline MatrixElement me() const {return term->me(RIGHT);}
+    inline void measure(_accumulator_float Weight) const { sum->push( term->me(RIGHT) ,Weight); }
   };
 
 
   class Measurable {
-    long _ndiagonal;
-    long _nflush;
+    _counter_int _ndiagonal;
+    _counter_int _nflush;
     std::vector<BinnedAccumulatorME> Sums;
-    std::vector<double> Constants;
-    const long _size;
+    std::vector<MatrixElement> Constants;
+
+    const unsigned long _size;
     std::vector<MeasAccumulators> Diag_Acc;
     std::map<std::map<Boson*,int>,std::vector<MeasAccumulators> > OD_Acc;
     BinnedAccumulatorME _Kinetic;
     BinnedAccumulatorME _Potential;
     BinnedAccumulatorME _TotalEnergy;
-    double _BoltzmannWeight;
+    _accumulator_float _BoltzmannWeight;
     
     std::map<unsigned int,unsigned int> BrokenHistogram;
 
@@ -113,7 +116,7 @@ namespace SGF {
     void measure(const OperatorStringType &OperatorString) {
       
       const std::set<Boson*> &list=OperatorString.ListBrokenLines();
-      const double Weight=OperatorString.BoltzmannWeight();
+      const _accumulator_float Weight=OperatorString.BoltzmannWeight();
 
       BrokenHistogram[OperatorString.NBrokenLines()]+=1;
       
@@ -128,8 +131,8 @@ namespace SGF {
       else {  // diagonal configuration
         ++_ndiagonal;
         _BoltzmannWeight+=Weight;
-        double MeasKinetic=-OperatorString.length()/OperatorString.Beta();
-        double MeasPotential=OperatorString.Energy(SGF::RIGHT);        
+        _accumulator_float MeasKinetic=-OperatorString.length()/OperatorString.Beta();
+        _accumulator_float MeasPotential=OperatorString.Energy(SGF::RIGHT);        
         _Kinetic.push(MeasKinetic,Weight);
         _Potential.push(MeasPotential,Weight);
         _TotalEnergy.push(MeasKinetic+MeasPotential,Weight);
@@ -139,10 +142,10 @@ namespace SGF {
 
     }
 
-    inline long size() const {return _size;}
-    inline long count() const {return _ndiagonal;} 
-    inline long nflush() const {return _nflush;}
-    inline const Measurement operator[](long i) const {return Measurement(Constants[i]+Sums[i](1),Sums[i].sigma());}
+    inline unsigned long size() const {return _size;}
+    inline _counter_int count() const {return _ndiagonal;} 
+    inline _counter_int nflush() const {return _nflush;}
+    inline const Measurement operator[](unsigned long i) const {return Measurement(Constants[i]+Sums[i](1),Sums[i].sigma());}
     inline const Measurement KineticEnergy() const {return Measurement(_Kinetic.average(),_Kinetic.sigma());}
     inline const Measurement PotentialEnergy() const {return Measurement(_Potential.average(),_Potential.sigma());}
     inline const Measurement TotalEnergy() const {return Measurement(_TotalEnergy.average(),_TotalEnergy.sigma());}
@@ -153,7 +156,7 @@ namespace SGF {
       std::cout<<"  *******************************\n\n";
       std::cout<<"    N lines\tCount\tProbability\n\n";
       std::map<unsigned int,unsigned int>::const_iterator it;
-      double Normalization=0;
+      _accumulator_float Normalization=0;
       for(it=BrokenHistogram.begin();it!=BrokenHistogram.end();++it)
         Normalization+=it->second;
 

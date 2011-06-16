@@ -52,13 +52,13 @@ public:
     Accumulator<3,T>::push(Buffer(1),1.0);
     Buffer.reset();
   }
-  inline void flush(double Weight) {
+  inline void flush(T Weight) {
     Accumulator<3,T>::push(Buffer[1]/Weight,1.0);
     Buffer.reset();
   }
-  inline void push(T data,double Weight) { Buffer.push(data,Weight); }
-  inline double average() const {return (*this)(1);}
-  inline double sigma() const {return sqrt(fabs((*this)(2)-(*this)(1)*(*this)(1))/(this->count()-1));}
+  inline void push(T data,T Weight) { Buffer.push(data,Weight); }
+  inline T average() const {return (*this)(1);}
+  inline T sigma() const {return sqrt(fabs((*this)(2)-(*this)(1)*(*this)(1))/(this->count()-1));}
 };
 
 }

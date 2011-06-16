@@ -72,14 +72,15 @@ public:
 
     }
 
+    std::set<SGF::Boson*> indexset;
+    for(int i=0;i<_Kinetic.size();++i)
+      for(int j=0;j<_Kinetic[i].product().size();++j)
+        indexset.insert(_Kinetic[i].product()[j].particle_id());
+
+
 		// Append the extra terms for the grand canonical ensemble
 		if(_Ensemble==SGF::GrandCanonical) {
 			// Scan all kinetic terms to find all the indices
-		    std::set<SGF::Boson*> indexset;
-		    for(int i=0;i<_Kinetic.size();++i)
-		      for(int j=0;j<_Kinetic[i].product().size();++j)
-		        indexset.insert(_Kinetic[i].product()[j].particle_id());
-
 				std::set<SGF::Boson*>::const_iterator it;
 				for(it=indexset.begin();it!=indexset.end();++it) {
 					_Kinetic.push_back(SGF::HamiltonianTerm(1.0/NSites(),SGF::A,*it));
@@ -97,8 +98,34 @@ public:
       while(oit.increment())
         _MeasurableOperators[i].push_back(oit.Term());
 
-    } 
-    
+    }
+
+
+		/* Determining conserved charges */
+		
+		std::vector<SGF::Boson*> indices;
+		indices.insert(indices.begin(),indexset.begin(),indexset.end());
+    std::map<SGF::Boson*,unsigned int> indexmap;
+		for(unsigned int i=0;i<indices.size();++i)
+			indexmap[indices[i]]=i;
+		
+		
+	/*	std::vector< std::map<unsigned int,int> > SparceRows;
+		
+		std::vector< std::vector<unsigned int,int> > SparceMatrix;
+		
+
+		for(int i=0;i<_Kinetic.size();++i) {
+			std::map<unsigned int,int> temp_map;
+			for(int n=0;n<_Kinetic[i].product().size();++n) {
+				unsigned int index=indexmap[_Kinetic[i].product()[n].particle_id()];
+				temp_map[index]=_Kinetic[i].product()[n].delta();
+				//SparceMatrix[index].push_back(i);
+			}
+			//SparceRows.push_back(temp_map);
+		}
+
+*/
   }
     
   inline int NSites() const {return EasyMathExpression::NSites();}

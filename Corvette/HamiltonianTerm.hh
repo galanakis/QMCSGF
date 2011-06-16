@@ -119,7 +119,7 @@ public:
   typedef std::vector<IndexedProductElement>::const_iterator iterator;
   
   inline MatrixElement coefficient() const {return _coefficient;}; 
-  inline void set_coefficient(double c) {_coefficient=c;}
+  inline void set_coefficient(MatrixElement c) {_coefficient=c;}
   inline const std::vector<IndexedProductElement>& product() const {return _product;}
   
   /* The total number of creation minus the number of annihilation operators */

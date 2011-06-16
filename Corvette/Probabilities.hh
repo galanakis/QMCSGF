@@ -154,9 +154,9 @@ public:
 			int indr=(index+1)<<1;
 			int indl=indr-1;
 
-			double w =Crop(_sums[index]);
-			double wr=(indr<_nterms) ? Crop(_sums[indr]) : MatrixElement(0);
-			double wl=(indl<_nterms) ? Crop(_sums[indl]) : MatrixElement(0);
+			MatrixElement w =Crop(_sums[index]);
+			MatrixElement wr=(indr<_nterms) ? Crop(_sums[indr]) : MatrixElement(0);
+			MatrixElement wl=(indl<_nterms) ? Crop(_sums[indl]) : MatrixElement(0);
 
 			if(w*RNG::Uniform()>=wl+wr)
 				return index; 
@@ -208,15 +208,20 @@ class ProbabilitiesBase {
 }
 	
 protected:
-  const Hamiltonian &Kinetic;         // Local copy of the kinetic operators
-  const Hamiltonian &Potential;       // Local copy of the potential operators    
-  const AdjacencyList kin_adjacency;  // For each term it holds a list of other kinetic terms with one common site
-  const AdjacencyList pot_adjacency;  // For each term it holds a list of other kinetic terms with one common site
-
   const std::vector<Boson*> _indices; // Vector containing all indices appearing in the row terms  
+
+  const Hamiltonian &Kinetic;         // Local copy of the kinetic operators
+
   const OffsetMap offsets;            // This will map the offsets to consecutive integers
 
-  GreenOperator GF;                // Defines the Green operator function
+  const Hamiltonian &Potential;       // Local copy of the potential operators    
+
+  const AdjacencyList kin_adjacency;  // For each term it holds a list of other kinetic terms with one common site
+
+  const AdjacencyList pot_adjacency;  // For each term it holds a list of other kinetic terms with one common site
+
+
+  GreenOperator<long double> GF;                // Defines the Green operator function
 
 
   inline uint noffsets() const {return offsets.size();}
@@ -279,7 +284,7 @@ public:
 
 
 class Probabilities : public ProbabilitiesBase {
-  double Energies[2];              // energy of right and left state
+  MatrixElement Energies[2];              // energy of right and left state
   std::set<Boson*> _broken_lines;  // A set of the boson indices that are broken.
   long long NUpdates;              // Number of updates since last rebuild
   int _NBWL;                       // The number of broken world lines
@@ -291,10 +296,10 @@ class Probabilities : public ProbabilitiesBase {
 	TSum & tsum(int direction,int indoffset) const {return _tsum[direction*noffsets()+indoffset];}
 public:
 
-  inline double Energy(int direction) const {return Energies[direction];}
+  inline MatrixElement Energy(int direction) const {return Energies[direction];}
 
-  inline double G() const {return GF(NBrokenLines());};                  // The value of the Green Operator for the given broken lines
-  inline double G(int offset) const {return GF(NBrokenLines()+offset);}  // The value of the Green Operator given the total broken lines and the offset.
+  inline MatrixElement G() const {return GF(NBrokenLines());};                  // The value of the Green Operator for the given broken lines
+  inline MatrixElement G(int offset) const {return GF(NBrokenLines()+offset);}  // The value of the Green Operator given the total broken lines and the offset.
 	inline int NBrokenLines() const {return _NBWL;}
   inline int NBrokenIndices() const {return _broken_lines.size();}
   const std::set<Boson*> &ListBrokenLines() const {return _broken_lines;};  // A set of the boson indices that are broken.
@@ -334,7 +339,7 @@ public:
 	}
 
   // Evaluates the matrix elements and populates the trees
-  void rebuild() {
+  inline void rebuild() {
     
 		_broken_lines.clear();
 		for(int rl=0;rl<2;++rl) 
@@ -369,7 +374,7 @@ public:
 		_NBWL+=term->offset(arflag);
 		
 		// If an extra term appears, the toggle the lock.
-		if(term->atom()) ExtraLock!=ExtraLock;
+		//if(term->atom()) ExtraLock!=ExtraLock;
 	
     /* This needs to be confirmed: the tree needs to be rebuilt from time
       to time to fix accumulated floating points errors */

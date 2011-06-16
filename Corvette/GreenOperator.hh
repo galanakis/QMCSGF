@@ -18,11 +18,12 @@ The usage is very simple:
 GreenOperator G(12120);
 double a=G(13);
 */
+template<class T>
 class GreenOperator {
-  std::vector<long double> cache;
+  std::vector<T> cache;
   int NSites;
 public:
-  long double _GreenOperator(int n) const { 
+  T _GreenOperator(int n) const { 
     double result=1.0;
     if(n<=4 && n!=0) result=1.0/NSites;
     if(n>4) result=pow(1.0/NSites,n);
@@ -31,7 +32,7 @@ public:
 public:
   GreenOperator() : NSites(0) {}
   GreenOperator(int _nsites) : NSites(_nsites) {}
-  inline long double operator()(int n) const { 
+  inline T operator()(int n) const { 
     return (n<cache.size() && n>=0)?cache[n]:0.0; 
   }
 
@@ -42,7 +43,7 @@ public:
     }
     NSites=_nsites;
     cache.clear();
-    double value;
+    T value;
     int i=0;
     while((value=_GreenOperator(i++)))
       cache.push_back(value);
