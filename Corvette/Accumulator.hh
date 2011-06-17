@@ -37,7 +37,7 @@ public:
     _count=0; 
     for(int i=0;i<MomentOrder;++i) _sum[i]=T(0); 
   }
-  inline long count() const {return _count;}
+  inline unsigned long long count() const {return _count;}
   inline T operator[](int i) const {return _sum[i];} 
   inline T operator()(int i) const {return _sum[i]/_sum[0];}
   inline int nmoments() const {return MomentOrder;}
@@ -46,19 +46,16 @@ public:
 template<class T>
 class BinnedAccumulator : public Accumulator<3,T> {
   Accumulator<2,T> Buffer;
+	Accumulator<3,T> Bins;
 public:
   BinnedAccumulator() : Accumulator<3,T>(), Buffer() {}
-  inline void flush() {
-    Accumulator<3,T>::push(Buffer(1),1.0);
-    Buffer.reset();
-  }
   inline void flush(T Weight) {
-    Accumulator<3,T>::push(Buffer[1]/Weight,1.0);
+    Bins.push(Buffer[1]/Weight,1.0);
     Buffer.reset();
   }
   inline void push(T data,T Weight) { Buffer.push(data,Weight); }
-  inline T average() const {return (*this)(1);}
-  inline T sigma() const {return sqrt(fabs((*this)(2)-(*this)(1)*(*this)(1))/(this->count()-1));}
+  inline T average() const {return Bins(1);}
+  inline T sigma() const {return sqrt(fabs(Bins(2)-Bins(1)*Bins(1))/(Bins.count()-1));}
 };
 
 }

@@ -14,6 +14,8 @@ namespace SGF {
 	typedef long double _accumulator_float;
 	typedef unsigned long long _counter_int;
 
+	typedef BinnedAccumulator<_accumulator_float> BinnedAccumulatorME;
+
   struct Measurement {
     _accumulator_float value;
     _accumulator_float error;
@@ -21,8 +23,8 @@ namespace SGF {
   };
 
   inline std::ostream& operator<<(std::ostream& output, const Measurement &o) { return output<<o.value<<" +/- "<<o.error; }
-  
-  
+
+   
   class BosonDeltaMap {
     std::map<Boson*,int> indices;
   public:
@@ -38,10 +40,6 @@ namespace SGF {
     const std::map<Boson*,int> &map() const {return indices;}
   };
 
-	/* Adding a lot of numbers results in floating point errors. Therefore the accumulator 
-	   should have higher precition than the data that are added */
-	typedef SGF::BinnedAccumulator<_accumulator_float> BinnedAccumulatorME;
-  //typedef SGF::BinnedAccumulator<MatrixElement> BinnedAccumulatorME;
 
   class MeasAccumulators {
     const HamiltonianTerm *term;
@@ -73,13 +71,13 @@ namespace SGF {
     BinnedAccumulatorME _TotalEnergy;
     _accumulator_float _BoltzmannWeight;
     
-    std::map<unsigned int,unsigned int> BrokenHistogram;
+    std::map<unsigned int,_counter_int> BrokenHistogram;
 
   public:
     Measurable(const std::vector<Hamiltonian> &HList) : _ndiagonal(0), _nflush(0), Sums(HList.size()), Constants(HList.size()), _size(HList.size()), _Kinetic(), _TotalEnergy(), _BoltzmannWeight(0) {
 
-      for(int i=0;i<HList.size();++i)
-      for(int j=0;j<HList[i].size();++j) {
+      for(unsigned int i=0;i<HList.size();++i)
+      for(unsigned int j=0;j<HList[i].size();++j) {
         const HamiltonianTerm *term=&HList[i][j];
 
         if(term->constant())
@@ -90,15 +88,17 @@ namespace SGF {
           OD_Acc[BosonDeltaMap(term).map()].push_back(MeasAccumulators(term,&Sums[i]));
       }
     }
-                               
+                              
     inline void reset() {
       _ndiagonal=0;
       _nflush=0;
       _Kinetic.reset();
       _Potential.reset(); 
       _TotalEnergy.reset();
-      for(int i=0;i<Sums.size();++i) 
-        Sums[i].reset();
+
+			std::vector<BinnedAccumulatorME>::iterator it;
+			for(it=Sums.begin();it!=Sums.end();++it) it->reset();
+			
       _BoltzmannWeight=0;
       BrokenHistogram.clear();
     }
@@ -108,8 +108,9 @@ namespace SGF {
       _Kinetic.flush(_BoltzmannWeight);
       _Potential.flush(_BoltzmannWeight);
       _TotalEnergy.flush(_BoltzmannWeight);
-      for(int i=0;i<Sums.size();++i) 
-        Sums[i].flush(_BoltzmannWeight);
+
+			std::vector<BinnedAccumulatorME>::iterator it;
+			for(it=Sums.begin();it!=Sums.end();++it) it->flush(_BoltzmannWeight);
       _BoltzmannWeight=0;
     }
 
@@ -124,28 +125,28 @@ namespace SGF {
         std::map<std::map<Boson*,int>,std::vector<MeasAccumulators> >::const_iterator it(OD_Acc.find(BosonDeltaMap(list).map()));
         if(it!=OD_Acc.end()) {
           const std::vector<MeasAccumulators> &v=it->second;
-          for(int i=0;i<v.size();++i) 
-            v[i].measure(Weight);
+					std::vector<MeasAccumulators>::const_iterator v_it;
+					for(v_it=v.begin();v_it!=v.end();++v_it) v_it->measure(Weight);
         }
       }
       else {  // diagonal configuration
         ++_ndiagonal;
         _BoltzmannWeight+=Weight;
         _accumulator_float MeasKinetic=-OperatorString.length()/OperatorString.Beta();
-        _accumulator_float MeasPotential=OperatorString.Energy(SGF::RIGHT);        
+        _accumulator_float MeasPotential=OperatorString.Energy(RIGHT);        
         _Kinetic.push(MeasKinetic,Weight);
         _Potential.push(MeasPotential,Weight);
         _TotalEnergy.push(MeasKinetic+MeasPotential,Weight);
-        for(int i=0;i<Diag_Acc.size();++i)
-          Diag_Acc[i].measure(Weight);
+				
+				std::vector<MeasAccumulators>::const_iterator it;
+				for(it=Diag_Acc.begin();it!=Diag_Acc.end();++it) it->measure(Weight);
       }
 
     }
 
     inline unsigned long size() const {return _size;}
     inline _counter_int count() const {return _ndiagonal;} 
-    inline _counter_int nflush() const {return _nflush;}
-    inline const Measurement operator[](unsigned long i) const {return Measurement(Constants[i]+Sums[i](1),Sums[i].sigma());}
+    inline const Measurement operator[](unsigned long i) const {return Measurement(Constants[i]+Sums[i].average(),Sums[i].sigma());}
     inline const Measurement KineticEnergy() const {return Measurement(_Kinetic.average(),_Kinetic.sigma());}
     inline const Measurement PotentialEnergy() const {return Measurement(_Potential.average(),_Potential.sigma());}
     inline const Measurement TotalEnergy() const {return Measurement(_TotalEnergy.average(),_TotalEnergy.sigma());}
@@ -155,7 +156,8 @@ namespace SGF {
       std::cout<<"  * Broken worldlines histogram *\n";
       std::cout<<"  *******************************\n\n";
       std::cout<<"    N lines\tCount\tProbability\n\n";
-      std::map<unsigned int,unsigned int>::const_iterator it;
+
+      std::map<unsigned int,_counter_int>::const_iterator it;
       _accumulator_float Normalization=0;
       for(it=BrokenHistogram.begin();it!=BrokenHistogram.end();++it)
         Normalization+=it->second;

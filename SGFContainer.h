@@ -110,9 +110,9 @@ public:
 			indexmap[indices[i]]=i;
 		
 		
-	/*	std::vector< std::map<unsigned int,int> > SparceRows;
+		std::vector< std::map<unsigned int,int> > SparceRows;
 		
-		std::vector< std::vector<unsigned int,int> > SparceMatrix;
+		std::vector< std::vector<int> > SparceMatrix;
 		
 
 		for(int i=0;i<_Kinetic.size();++i) {
@@ -125,7 +125,7 @@ public:
 			//SparceRows.push_back(temp_map);
 		}
 
-*/
+
   }
     
   inline int NSites() const {return EasyMathExpression::NSites();}
