@@ -11,7 +11,7 @@
 
 namespace SGF {
 
-uint RebuildFrequency=1000000;
+uint RebuildPeriod=1000000;
 
 /* Crop small doubles. Use them when you expect a finite double
    in which case you can disregard the small ones as numerical
@@ -375,31 +375,36 @@ public:
   inline void update(const HamiltonianTerm* term,int rl,int arflag) {
 		++UpdateCounter;
 
-		std::cout<<term_index(term)<<"\t    : "<<term->me(rl)<<",\t"<<term->offset(arflag)<<"\t";
+		if(UpdateCounter%100000==99999) std::cout<<term_index(term)<<std::endl;
 
-		fast_update(term,rl,arflag);
+		//std::cout<<term_index(term)<<"\t    : "<<term->me(rl)<<",\t"<<term->offset(arflag)<<"\t";
+
+
+
+		
 		// If an extra term appears, the toggle the lock.
 		//if(term->atom()) ExtraLock!=ExtraLock;
 
-		std::cout<<UpdateCounter<<"\t"<<_NBWL<<"\t|\t";
-		for(int i=0;i<2*noffsets();++i)
-			std::cout<<_tsum[i].norm()<<"\t";
+		//std::cout<<UpdateCounter<<"\t"<<_NBWL<<"\t|\t";
+		//for(int i=0;i<2*noffsets();++i)
+		//	std::cout<<_tsum[i].norm()<<"\t";
 
 	
     /* This needs to be confirmed: the tree needs to be rebuilt from time
       to time to fix accumulated floating points errors */
-    if((++NUpdates % RebuildFrequency)==0) {
+    if((++NUpdates % RebuildPeriod)==0) {
 		// Slow update: update the state and rebuild
-			std::cout<<"\tRebuild:  ";
+			//std::cout<<"\tRebuild:  ";
 			//term->update_psi(rl,arflag);
-			verify();
+			slow_update(term,rl,arflag);
 		}
 		else {
-			std::cout<<"\t        :";
+			fast_update(term,rl,arflag);
+			//std::cout<<"\t        :";
 		}
 		
 	
-		std::cout<<std::endl;
+		//std::cout<<std::endl;
 	}
 
   inline void slow_update(const HamiltonianTerm* term,int rl,int arflag) {
@@ -447,10 +452,6 @@ public:
     
   }
 
-	void coredump() {
-		
-	}
-
 	inline bool verify() {
 
 	  MatrixElement Energies_copy[2]={Energies[0],Energies[1]};  
@@ -489,58 +490,6 @@ public:
 		return true;
 	}
 
-	friend class ProbabilitiesDebug;
-};
-
-
-class ProbabilitiesDebug {
-	Probabilities Pcorrect,Pfast;
-public:
-	ProbabilitiesDebug(const Hamiltonian &T,const Hamiltonian &V) : Pcorrect(T,V), Pfast(T,V) {}
-  inline MatrixElement Energy(int direction) const {return Pfast.Energy(direction);}
-
-  inline MatrixElement G() const {return Pfast.G();};                  // The value of the Green Operator for the given broken lines
-  inline MatrixElement G(int offset) const {return Pfast.G();}  // The value of the Green Operator given the total broken lines and the offset.
-	inline int NBrokenLines() const {return Pfast.NBrokenLines();}
-  const std::set<Boson*> &ListBrokenLines() const {return Pfast.ListBrokenLines();};  // A set of the boson indices that are broken.
-
-	inline double weight(int rl) const {return Pcorrect.weight(rl);}
-
-	inline void GreenInit(int nsites) {
-		Pcorrect.GF.initialize(nsites);
-		Pfast.GF.initialize(nsites);
-	}
-  
-
-	const HamiltonianTerm* choose(int rl) const { return Pcorrect.choose(rl);	}
-
-	inline void update(const HamiltonianTerm* term,int rl,int arflag) {
-		Pcorrect.slow_update(term,rl,arflag);
-		Pfast.update(term,rl,arflag);
-		diff();
-	}
-	
-	inline void diff() {
-
-		
-		bool flag_NBWL=(Pcorrect._NBWL==Pfast._NBWL);
-		bool flag_broken_lines=(Pcorrect._broken_lines==Pfast._broken_lines);
-		double DiffEnergies=fabs(Pcorrect.Energies[0]-Pfast.Energies[0])+fabs(Pcorrect.Energies[1]-Pfast.Energies[1]);
-
-		double TreeDiff=0.0;
-		for(int rl=0;rl<2;++rl) 
-			for(int i=0;i<Pcorrect.noffsets();++i) {
-				int index=rl*Pcorrect.noffsets()+i;
-				for(int term=0;term<Pcorrect.Kinetic.size();++term)
-					TreeDiff+=fabs(Pcorrect._tsum[index](term)-Pfast._tsum[index](term));
-			}
-		
-		
-		char c[2]={'F','P'};
-		std::cout<<"  :"<<c[flag_NBWL]<<c[flag_broken_lines]<<":\t"<<DiffEnergies<<"\t"<<TreeDiff<<std::endl;
-		
-	}
-	
 };
 
 }

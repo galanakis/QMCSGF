@@ -4,6 +4,7 @@ class Simulation
   {
     static int Progress;
     static long long NumWarmUpdates,NumMeasUpdates;
+		static long long NumDirectedWarmUpdates,NumDirectedMeasUpdates;
     static double StatusLength,ClockLength,WarmTime,MeasTime;
     static time_t StatusStart,ClockStart;
     static char Status[100],*Ptr;
@@ -61,6 +62,7 @@ class Simulation
           WarmTime=MathExpression::GetValue("#WarmTime").Re();
 
           NumWarmUpdates=0;
+					NumDirectedWarmUpdates=0;
           InitStatus("Thermalizing",WarmTime);
           InitClock(WarmTime);
           
@@ -70,7 +72,7 @@ class Simulation
             {
               UpdateStatus();                               // Update the percentage of progress, if needed.
               NumWarmUpdates+=OpString.directed_update();   // Perform an update.
-              
+							++NumDirectedWarmUpdates;
               if (++Iteration%100000==99999)
                 OpString.AlphaUpdate(); 
               
@@ -90,6 +92,7 @@ class Simulation
           int NumBins=MathExpression::GetValue("#Bins").Re();
           MeasTime=MathExpression::GetValue("#MeasTime").Re();
           NumMeasUpdates=0;
+					NumDirectedMeasUpdates=0;
           InitStatus("Measuring",MeasTime);
 
 					unsigned long long Iterations=0;
@@ -104,6 +107,7 @@ class Simulation
 									++counter;
                   UpdateStatus();                               // Update the percentage of progress, if needed.
                   NumMeasUpdates+=OpString.directed_update();   // Perform an update.
+									++NumDirectedMeasUpdates;
                   MeasuredOp.measure(OpString);                 // Perform measurements.
                 } while (counter<MeasTime/NumBins);
 
@@ -174,6 +178,8 @@ class Simulation
           cout << "  ******************************\n\n";
           cout << "    Number of updates for thermalization: " << NumWarmUpdates << " ("<<WarmTime*1000000000/NumWarmUpdates << " seconds per billion updates)\n";
           cout << "    Number of updates for measurements: " << NumMeasUpdates << " ("<<MeasTime*1000000000/NumMeasUpdates << " seconds per billion updates)\n";  
+          cout << "    Number of directed updates for thermalization: " << NumDirectedWarmUpdates << " ("<<WarmTime*1000000000/NumDirectedWarmUpdates << " seconds per billion updates)\n";
+          cout << "    Number of directed updates for measurements: " << NumDirectedMeasUpdates << " ("<<MeasTime*1000000000/NumDirectedMeasUpdates << " seconds per billion updates)\n";  
           cout << "    Number of measurements: " << MeasuredOp.count() << "\n\n";
           MeasuredOp.print_histogram();
           cout << endl;
@@ -424,6 +430,8 @@ char *Simulation::Ptr;
 int Simulation::Progress;
 long long Simulation::NumWarmUpdates;
 long long Simulation::NumMeasUpdates;
+long long Simulation::NumDirectedWarmUpdates;
+long long Simulation::NumDirectedMeasUpdates;
 double Simulation::StatusLength;
 double Simulation::ClockLength;
 double Simulation::WarmTime;
