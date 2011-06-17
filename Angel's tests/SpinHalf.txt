@@ -2,7 +2,7 @@
   Variable tu=0.8/10;
  # Variable tu=0.08;   BUGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
   Variable td=1;
-  Variable RebuildFrequency=1E8;
+  Variable RebuildFrequency=100;
   Variable U=6;
   Variable i=SquareRootOfMinusOne;
 
@@ -25,8 +25,8 @@
 
   InverseTemperature 80;
   Seed 34715;
-  WarmTime 1*Minute;
-  MeasTime 2*Minute;
+  WarmTime 10000000;
+  MeasTime 10000000;
   Bins 20;
   Ensemble Canonical;
   

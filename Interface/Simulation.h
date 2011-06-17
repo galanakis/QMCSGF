@@ -59,11 +59,12 @@ class Simulation
       static void Thermalize(SGF::OperatorStringType &OpString)
         {
           WarmTime=MathExpression::GetValue("#WarmTime").Re();
+
           NumWarmUpdates=0;
           InitStatus("Thermalizing",WarmTime);
           InitClock(WarmTime);
           
-          int Iteration=0;
+          unsigned long long Iteration=0;
           
           do
             {
@@ -73,11 +74,14 @@ class Simulation
               if (++Iteration%100000==99999)
                 OpString.AlphaUpdate(); 
               
-            } while (KeepWorking());
+            } while (Iteration<WarmTime);
 
-          while (OpString.NBrokenLines()!=0)                // Perform extra updates until we end up
+          while (OpString.NBrokenLines()!=0)  {              // Perform extra updates until we end up
             NumWarmUpdates+=OpString.directed_update();     // in a diagonal configuration.
+						++Iteration;
+					}
           
+					std::cout<<"Done Thermalizing after "<<Iteration<<" updates."<<std::endl;
           remove(Status);
         }
         
@@ -88,23 +92,29 @@ class Simulation
           NumMeasUpdates=0;
           InitStatus("Measuring",MeasTime);
 
+					unsigned long long Iterations=0;
+
           for (int i=0;i<NumBins;i++)
             {
               InitClock(MeasTime/NumBins);
-              
+							unsigned long long counter=0;
               do
                 {
+									++Iterations;
+									++counter;
                   UpdateStatus();                               // Update the percentage of progress, if needed.
                   NumMeasUpdates+=OpString.directed_update();   // Perform an update.
                   MeasuredOp.measure(OpString);                 // Perform measurements.
-                } while (KeepWorking());
+                } while (counter<MeasTime/NumBins);
 
-              while (OpString.NBrokenLines()!=0)                // Perform extra updates until we end up
+              while (OpString.NBrokenLines()!=0) {               // Perform extra updates until we end up
                 NumMeasUpdates+=OpString.directed_update();     // in a diagonal configuration.
-          
+								++Iterations;
+							}
               MeasuredOp.flush();                               // Bin the data.
             }
-            
+          
+					std::cout<<"Done Measuring after "<<Iterations<<" updates."<<std::endl;
           remove(Status);
         }
         

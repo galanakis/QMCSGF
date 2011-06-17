@@ -35,7 +35,7 @@ public:
 
 
 // This returns x/(1-exp(-x))
-inline double expweight(double x) { double d=1-exp(-x); return (d!=0)?x/d:1; }
+inline double expweight(long double x) { long double d=1.0-exp(-x); return (d!=0.0)?x/d:1.0; }
 
 // This returns log(1-x*(1-exp(A)))/A which is a monotonic function between 0 and 1 if x is in the same interval
 inline double logexponential(long double A,long double x) { return fabs(A)<0.000000001?x:log(1-x*(1-exp(A)))/A; }
@@ -85,30 +85,12 @@ class OperatorStringType : public CircDList<Operator>, public Probabilities {
   CircularTime _GreenTime;  // The time of the Green operator
   
   double Alpha[2];
-  Accumulator<2,double> AccumulateAlpha[2];    
+  Accumulator<2,long double> AccumulateAlpha[2];    
   double _Beta;             // Inverse temperature.
 
 public:
   OperatorStringType(const Hamiltonian &T,const Hamiltonian &V,double _beta) : CircDList<Operator>(), Probabilities(T,V), _Beta(_beta) {
     Alpha[ADD]=Alpha[REMOVE]=0;
-  }
-
-  void double_beta() {
-    _Beta*=2;
-    const int olength=length();
-    for(int i=0;i<olength;++i)
-      que[i].Time=(que[i].Time-_GreenTime).time()/2.0;
-
-    _GreenTime-=_GreenTime;
-    for(int i=olength-1;i>=0;--i) {
-      push(LEFT,Operator(CircularTime(0.5+que[i].Time.time()),que[i].Term));
-    }
-
-
-    std::cout<<_GreenTime.time()<<std::endl;
-    for(int i=0;i<length();++i)
-      std::cout<<que[i].Time.time()<<std::endl;
-
   }
 
   void AlphaUpdate() {
@@ -138,21 +120,7 @@ public:
   inline double &alpha(int action) {return Alpha[action];}
   inline CircularTime& GreenTime() {return _GreenTime;}
 
-  inline void create_operator(int index,int direction) {
-    const HamiltonianTerm *term=&Kinetic[index];
-    update(term,!direction,ADD);
-    push(!direction,Operator(_GreenTime,term));
-  }
-  
-  // Destroy an operator along the direction of motion of the green operator
-  inline void destroy_operator(int direction) {
-    _GreenTime=top(direction).Time;
-    update(top(direction).Term,direction,REMOVE);
-    pop(direction);
-  }
-
-
-  /* Chose an operator randomly and push it in the string. direction is the directio of motion of the green operator */
+  /* Chose an operator randomly and push it in the string. direction is the direction of motion of the green operator */
   inline bool create(int direction) {
     const HamiltonianTerm *term=choose(!direction);
     update(term,!direction,ADD);

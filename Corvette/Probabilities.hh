@@ -147,6 +147,9 @@ public:
     }
 	}
 
+	// Debug
+	inline MatrixElement &operator()(unsigned int i) {return _sums[i];}
+
 	inline uint choose() const {
 		int _nterms=_sums.size();
 		int index=0;
@@ -284,13 +287,14 @@ public:
 
 
 class Probabilities : public ProbabilitiesBase {
-  MatrixElement Energies[2];              // energy of right and left state
+  MatrixElement Energies[2];       // energy of right and left state
   std::set<Boson*> _broken_lines;  // A set of the boson indices that are broken.
-  long long NUpdates;              // Number of updates since last rebuild
+  unsigned long long NUpdates;     // Number of updates since last rebuild
   int _NBWL;                       // The number of broken world lines
 
 	bool ExtraLock;                  // whether to ignore the extra terms or not. 0 means ignore, 1 means accept.
 
+	unsigned long long UpdateCounter;
 
   TSum *_tsum;
 	TSum & tsum(int direction,int indoffset) const {return _tsum[direction*noffsets()+indoffset];}
@@ -301,7 +305,6 @@ public:
   inline MatrixElement G() const {return GF(NBrokenLines());};                  // The value of the Green Operator for the given broken lines
   inline MatrixElement G(int offset) const {return GF(NBrokenLines()+offset);}  // The value of the Green Operator given the total broken lines and the offset.
 	inline int NBrokenLines() const {return _NBWL;}
-  inline int NBrokenIndices() const {return _broken_lines.size();}
   const std::set<Boson*> &ListBrokenLines() const {return _broken_lines;};  // A set of the boson indices that are broken.
 
 
@@ -319,7 +322,8 @@ public:
 			for(int i=0;i<noffsets();++i) {
 				tsum(rl,i).resize(Kinetic.size());
 			}
-			
+		
+		UpdateCounter=0;	
 		rebuild();
 	}
 
@@ -340,7 +344,7 @@ public:
 
   // Evaluates the matrix elements and populates the trees
   inline void rebuild() {
-    
+
 		_broken_lines.clear();
 		for(int rl=0;rl<2;++rl) 
     	for(int i=0;i<noffsets();++i)
@@ -369,26 +373,42 @@ public:
 
 
   inline void update(const HamiltonianTerm* term,int rl,int arflag) {
-		
-		// update the number of broken lines.
-		_NBWL+=term->offset(arflag);
-		
+		++UpdateCounter;
+
+		std::cout<<term_index(term)<<"\t    : "<<term->me(rl)<<",\t"<<term->offset(arflag)<<"\t";
+
+		fast_update(term,rl,arflag);
 		// If an extra term appears, the toggle the lock.
 		//if(term->atom()) ExtraLock!=ExtraLock;
+
+		std::cout<<UpdateCounter<<"\t"<<_NBWL<<"\t|\t";
+		for(int i=0;i<2*noffsets();++i)
+			std::cout<<_tsum[i].norm()<<"\t";
+
 	
     /* This needs to be confirmed: the tree needs to be rebuilt from time
       to time to fix accumulated floating points errors */
     if((++NUpdates % RebuildFrequency)==0) {
 		// Slow update: update the state and rebuild
-			term->update_psi(rl,arflag);
-			rebuild();
+			std::cout<<"\tRebuild:  ";
+			//term->update_psi(rl,arflag);
+			verify();
 		}
-		else
-		 	fast_update(term,rl,arflag);
+		else {
+			std::cout<<"\t        :";
+		}
 		
+	
+		std::cout<<std::endl;
 	}
-  
+
+  inline void slow_update(const HamiltonianTerm* term,int rl,int arflag) {
+		term->update_psi(rl,arflag);
+		rebuild();
+	}
+
   inline void fast_update(const HamiltonianTerm* term,int rl,int arflag) { 
+		_NBWL+=term->offset(arflag);
 		uint index=term_index(term);
 
     adjacency_list_t::const_iterator nbr;
@@ -427,6 +447,100 @@ public:
     
   }
 
+	void coredump() {
+		
+	}
+
+	inline bool verify() {
+
+	  MatrixElement Energies_copy[2]={Energies[0],Energies[1]};  
+	  std::set<Boson*> _broken_lines_copy=_broken_lines;
+	  int _NBWL_copy=_NBWL;
+	  TSum *_tsum_copy;
+
+		_tsum_copy=new TSum[2*noffsets()];
+		for(int rl=0;rl<2;++rl) 
+			for(int i=0;i<noffsets();++i) {
+				_tsum_copy[rl*noffsets()+i]=_tsum[rl*noffsets()+i];
+			}
+
+
+		rebuild();
+
+		
+		bool flag_NBWL=(_NBWL==_NBWL_copy);
+		bool flag_broken_lines=(_broken_lines==_broken_lines_copy);
+		double DiffEnergies=fabs(Energies[0]-Energies_copy[0])+fabs(Energies[1]-Energies_copy[1]);
+
+		double TreeDiff=0.0;
+		for(int rl=0;rl<2;++rl) 
+			for(int i=0;i<noffsets();++i) {
+				int index=rl*noffsets()+i;
+				for(int term=0;term<Kinetic.size();++term)
+					TreeDiff+=fabs(_tsum_copy[index](term)-_tsum[index](term));
+			}
+		
+		
+		char c[2]={'F','P'};
+		std::cout<<"  :"<<c[flag_NBWL]<<c[flag_broken_lines]<<":\t"<<DiffEnergies<<"\t"<<TreeDiff;
+
+		delete [] _tsum_copy;
+
+		return true;
+	}
+
+	friend class ProbabilitiesDebug;
+};
+
+
+class ProbabilitiesDebug {
+	Probabilities Pcorrect,Pfast;
+public:
+	ProbabilitiesDebug(const Hamiltonian &T,const Hamiltonian &V) : Pcorrect(T,V), Pfast(T,V) {}
+  inline MatrixElement Energy(int direction) const {return Pfast.Energy(direction);}
+
+  inline MatrixElement G() const {return Pfast.G();};                  // The value of the Green Operator for the given broken lines
+  inline MatrixElement G(int offset) const {return Pfast.G();}  // The value of the Green Operator given the total broken lines and the offset.
+	inline int NBrokenLines() const {return Pfast.NBrokenLines();}
+  const std::set<Boson*> &ListBrokenLines() const {return Pfast.ListBrokenLines();};  // A set of the boson indices that are broken.
+
+	inline double weight(int rl) const {return Pcorrect.weight(rl);}
+
+	inline void GreenInit(int nsites) {
+		Pcorrect.GF.initialize(nsites);
+		Pfast.GF.initialize(nsites);
+	}
+  
+
+	const HamiltonianTerm* choose(int rl) const { return Pcorrect.choose(rl);	}
+
+	inline void update(const HamiltonianTerm* term,int rl,int arflag) {
+		Pcorrect.slow_update(term,rl,arflag);
+		Pfast.update(term,rl,arflag);
+		diff();
+	}
+	
+	inline void diff() {
+
+		
+		bool flag_NBWL=(Pcorrect._NBWL==Pfast._NBWL);
+		bool flag_broken_lines=(Pcorrect._broken_lines==Pfast._broken_lines);
+		double DiffEnergies=fabs(Pcorrect.Energies[0]-Pfast.Energies[0])+fabs(Pcorrect.Energies[1]-Pfast.Energies[1]);
+
+		double TreeDiff=0.0;
+		for(int rl=0;rl<2;++rl) 
+			for(int i=0;i<Pcorrect.noffsets();++i) {
+				int index=rl*Pcorrect.noffsets()+i;
+				for(int term=0;term<Pcorrect.Kinetic.size();++term)
+					TreeDiff+=fabs(Pcorrect._tsum[index](term)-Pfast._tsum[index](term));
+			}
+		
+		
+		char c[2]={'F','P'};
+		std::cout<<"  :"<<c[flag_NBWL]<<c[flag_broken_lines]<<":\t"<<DiffEnergies<<"\t"<<TreeDiff<<std::endl;
+		
+	}
+	
 };
 
 }
