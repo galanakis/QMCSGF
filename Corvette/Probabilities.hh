@@ -8,6 +8,7 @@
 #include <vector>
 #include <list>
 #include <set>
+#include <queue>
 
 namespace SGF {
 
@@ -122,19 +123,78 @@ class TSum {
 	std::vector<MatrixElement> _sums;
 	long double _head; // a copy of the _sums[0] is stored here. The redundancy is used for error tracking.
 	
+	struct _buffer_data {
+		uint index;
+		MatrixElement me;
+		_buffer_data(uint i,MatrixElement m) : index(i),me(m) {}
+	};
+	
+	struct _buffer_comparison { inline bool operator()(_buffer_data a1,_buffer_data a2) {return a1.index<a2.index;} };
+	
+	std::priority_queue<_buffer_data,std::vector<_buffer_data>,_buffer_comparison> _buffer;
+	
 	// Chop off small numerical values. The thresshold is Tolerance which is set as the minimum coefficient of any kinetic operator.
 	long double Crop(long double x) const { return (fabs(x)>Tolerance)?x:0; }
 
 public:
   static MatrixElement Tolerance;
 
-	TSum() {}
-	TSum(uint N) : _sums(N,MatrixElement(0)),_head(0) {}
-	TSum(const TSum &o) : _sums(o._sums),_head(0) {}
+	TSum() : _buffer(), _sums(), _head(0) {std::cout<<"Tsum init"<<std::endl;}
+	//TSum(uint N) : _sums(N,MatrixElement(0)),_head(0),_buffer() {std::cout<<"Tsum init"<<std::endl;}
+	//TSum(const TSum &o) : _sums(o._sums),_head(0),_buffer(o._buffer) {std::cout<<"Tsum copy"<<std::endl;}
 	~TSum() {}
 	
 	/* resizes the vector */
 	inline void resize(uint N) {_sums.resize(N,MatrixElement(0));}
+
+	
+	inline void push(uint index,MatrixElement me) { 
+		if(me!=0) {
+			_head+=me;
+			_buffer.push(_buffer_data(index,me));
+		}
+	}
+	
+	
+	
+	
+	inline void flush() {
+		
+		//std::cout<<"Begin flush"<<_buffer.size()<<std::endl;
+		
+		while(!_buffer.empty()) {
+			_buffer_data data=_buffer.top();
+			_buffer.pop();
+
+			while(!_buffer.empty() && _buffer.top().index==data.index) {
+				data.me+=_buffer.top().me;
+				_buffer.pop();
+			}
+			
+			_sums[data.index]+=data.me;
+
+			if(data.index!=0) {
+			 data.index=((data.index+1)>>1)-1;
+			 _buffer.push(data);
+		  }
+
+		}
+		
+	}
+	
+	/*
+	inline void flush() {
+		
+		while(!_buffer.empty()) {
+			update(_buffer.top().index,_buffer.top().me);
+			_buffer.pop();
+		}
+		
+	}
+	*/
+	
+	//inline void flush() {}
+	//inline void push(int index,MatrixElement me) {update(index,me);}
 	
 	inline void update(uint index,MatrixElement me) {
 		if(me!=0) {
@@ -148,9 +208,12 @@ public:
 	}
 
 	// Debug
-	inline MatrixElement &operator()(unsigned int i) {return _sums[i];}
+	//inline MatrixElement &operator()(unsigned int i) {return _sums[i];}
 
-	inline uint choose() const {
+	inline uint choose() {
+		
+		flush();
+		
 		int _nterms=_sums.size();
 		int index=0;
 		while(index<_nterms) {
@@ -174,6 +237,7 @@ public:
 
 	/* Makes all elements zero */
 	inline void reset() {
+		flush();
 		_head=0;
 		for(uint i=0;i<_sums.size();++i)
 			_sums[i]=MatrixElement(0);	
@@ -181,7 +245,7 @@ public:
 	
 	/* Returns the sum of all the partial probabilities which is stored at the root */
 	inline MatrixElement norm() const { return Crop(_head); }
-	inline MatrixElement error() const {return fabs(_head-_sums[0]);}
+	//inline MatrixElement error() const {return fabs(_head-_sums[0]);}
 
 };
 
@@ -427,16 +491,24 @@ public:
       if(ioffset!=foffset) {
         MatrixElement jme =nbr->me(!rl);
         // Note that those statements are parallelizable
-				tsum( rl,offsets(ioffset)).update(fndex,-ime);
-				tsum( rl,offsets(foffset)).update(fndex,+fme);
-				tsum(!rl,offsets(ioffset)).update(fndex,-jme);
-				tsum(!rl,offsets(foffset)).update(fndex,+jme);
+				tsum( rl,offsets(ioffset)).push(fndex,-ime);
+				tsum( rl,offsets(foffset)).push(fndex,+fme);
+				tsum(!rl,offsets(ioffset)).push(fndex,-jme);
+				tsum(!rl,offsets(foffset)).push(fndex,+jme);
       }
       else 
-				tsum( rl,offsets(ioffset)).update(fndex,fme-ime);
+				tsum( rl,offsets(ioffset)).update(fndex,fme-ime);			
 
     }
-    
+
+		/*
+		for(int rl=0;rl<2;++rl) 
+    	for(int i=0;i<noffsets();++i)
+				tsum(rl,i).flush();
+
+	*/
+			
+			
     for(nbr=pot_adjacency[index].begin();nbr!=pot_adjacency[index].end();++nbr) 
       Energies[rl]+=nbr->me(rl,arflag)-nbr->me(rl);
       
@@ -452,6 +524,7 @@ public:
     
   }
 
+	/*
 	inline bool verify() {
 
 	  MatrixElement Energies_copy[2]={Energies[0],Energies[1]};  
@@ -490,6 +563,7 @@ public:
 		return true;
 	}
 
+	*/
 };
 
 }
