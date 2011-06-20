@@ -5,11 +5,14 @@
 class Simulation
   {
     static int Progress;
-    static long long NumWarmUpdates,NumMeasUpdates;
-		static long long NumDirectedWarmUpdates,NumDirectedMeasUpdates;
-		static double ActualWarmTime,ActualMeasTime;
+    static unsigned long long NumWarmUpdates,NumMeasUpdates;
+		static unsigned long long NumDirectedWarmUpdates,NumDirectedMeasUpdates;
+		static unsigned long long WarmTime,MeasTime;
+		static unsigned long long WarmIterations, MeasIterations;
 		
-    static double StatusLength,ClockLength,WarmTime,MeasTime;
+		static double ActualWarmTime,ActualMeasTime,ITERATIONS_PER_SEC;
+		
+    static double StatusLength,ClockLength;
     static time_t StatusStart,ClockStart;
     static char Status[100],*Ptr;
     
@@ -52,82 +55,92 @@ class Simulation
             rename(OldStatus,Status);
           }
       }
-      
-    static inline bool KeepWorking(void)
-      {
-        static time_t End;
-        time(&End);
-        return (difftime(End,ClockStart)<ClockLength);
-      }
-      
+            
     public:
       static void Thermalize(SGF::OperatorStringType &OpString)
         {
-					clock_t starttime=clock();
           WarmTime=MathExpression::GetValue("#WarmTime").Re();
+					WarmIterations=(MathExpression::Find("WarmIterations")!=NULL) ? static_cast<unsigned long long>(MathExpression::GetValue("WarmIterations").Re()) : std::numeric_limits<unsigned long long>::max();
+					
+          InitStatus("Thermalizing",WarmTime);
+          InitClock(WarmTime);
 
           NumWarmUpdates=0;
 					NumDirectedWarmUpdates=0;
-          InitStatus("Thermalizing",WarmTime);
-          InitClock(WarmTime);
-          
-          unsigned long long Iteration=0;
-          
-          do
-            {
+ 					int BenckmarkIterations=100000;
+
+					clock_t StartTime=clock();
+					clock_t EndTime=StartTime+WarmTime*CLOCKS_PER_SEC;
+
+					// Run a few iterations first to determine the cpu speed.
+					do {
+            NumWarmUpdates+=OpString.directed_update();   // Perform an update.
+						++NumDirectedWarmUpdates;						
+					} while(NumWarmUpdates<BenckmarkIterations);
+					
+				  ITERATIONS_PER_SEC=NumWarmUpdates*CLOCKS_PER_SEC/double(clock()-StartTime);
+				
+				  std::cout<<"Thermalizing for "<<WarmTime<<" seconds or "<<WarmIterations<<" iterations( ~"<<WarmIterations/ITERATIONS_PER_SEC<<" seconds ), whichever finishes first, at "<<ITERATIONS_PER_SEC<<" iterations per second."<<std::endl;
+
+          do {
               UpdateStatus();                               // Update the percentage of progress, if needed.
               NumWarmUpdates+=OpString.directed_update();   // Perform an update.
 							++NumDirectedWarmUpdates;
-              if (++Iteration%100000==99999)
-                OpString.AlphaUpdate(); 
+              if (++NumDirectedWarmUpdates%100000==99999) OpString.AlphaUpdate(); 
               
-            } while (Iteration<WarmTime);
+          } while ( NumWarmUpdates<WarmIterations && clock()<EndTime );
 
           while (OpString.NBrokenLines()!=0)  {              // Perform extra updates until we end up
             NumWarmUpdates+=OpString.directed_update();     // in a diagonal configuration.
-						++Iteration;
+						++NumDirectedWarmUpdates;
 					}
           
-					ActualWarmTime=double(clock()-starttime)/CLOCKS_PER_SEC;
-					std::cout<<"Done Thermalizing after "<<Iteration<<" updates in "<<ActualWarmTime<<" seconds."<<std::endl;
+					ActualWarmTime=double(clock()-StartTime)/CLOCKS_PER_SEC;
+					ITERATIONS_PER_SEC=NumWarmUpdates/ActualWarmTime;
+					std::cout<<"Done Thermalizing after "<<NumWarmUpdates<<" updates ("<<NumDirectedWarmUpdates<<" directed) in "<<ActualWarmTime<<" seconds."<<std::endl;
 					
           remove(Status);
         }
         
       static void Measure(SGF::OperatorStringType &OpString,SGF::Measurable &MeasuredOp)
         {
-					clock_t starttime=clock();
-          int NumBins=MathExpression::GetValue("#Bins").Re();
           MeasTime=MathExpression::GetValue("#MeasTime").Re();
+					MeasIterations=(MathExpression::Find("MeasIterations")!=NULL) ? static_cast<unsigned long long>(MathExpression::GetValue("MeasIterations").Re()) : std::numeric_limits<unsigned long long>::max();
+
+					std::cout<<"Measuring for "<<MeasTime<<" seconds or "<<MeasIterations<<" iterations( ~"<<MeasIterations/ITERATIONS_PER_SEC<<" seconds ), whichever finishes first, at "<<ITERATIONS_PER_SEC<<" iterations per second."<<std::endl;
+
+					clock_t StartTime=clock();
+					clock_t EndTime=StartTime+MeasTime*CLOCKS_PER_SEC;
+
+          InitStatus("Measuring",MeasTime);
+          unsigned long long NumBins=MathExpression::GetValue("#Bins").Re();
+
           NumMeasUpdates=0;
 					NumDirectedMeasUpdates=0;
-          InitStatus("Measuring",MeasTime);
-
-					unsigned long long Iterations=0;
 
           for (int i=0;i<NumBins;i++)
             {
               InitClock(MeasTime/NumBins);
 							unsigned long long counter=0;
-              do
-                {
-									++Iterations;
-									++counter;
+              do {
                   UpdateStatus();                               // Update the percentage of progress, if needed.
-                  NumMeasUpdates+=OpString.directed_update();   // Perform an update.
+                  counter+=OpString.directed_update();   // Perform an update.
 									++NumDirectedMeasUpdates;
                   MeasuredOp.measure(OpString);                 // Perform measurements.
-                } while (counter<MeasTime/NumBins);
+              } while ( counter<MeasIterations/NumBins && clock()<EndTime );
 
-              while (OpString.NBrokenLines()!=0) {               // Perform extra updates until we end up
+							NumMeasUpdates+=counter;
+								
+              while (OpString.NBrokenLines()!=0) {              // Perform extra updates until we end up
                 NumMeasUpdates+=OpString.directed_update();     // in a diagonal configuration.
-								++Iterations;
+								++NumDirectedMeasUpdates;
+                MeasuredOp.measure(OpString);                   // Perform measurements.
 							}
               MeasuredOp.flush();                               // Bin the data.
             }
           
-					ActualMeasTime=double(clock()-starttime)/CLOCKS_PER_SEC;
-					std::cout<<"Done Measuring after "<<Iterations<<" updates in "<<ActualMeasTime<<" seconds."<<std::endl;
+					ActualMeasTime=double(clock()-StartTime)/CLOCKS_PER_SEC;
+					std::cout<<"Done Measuring after "<<NumDirectedMeasUpdates<<" updates ("<<NumDirectedMeasUpdates<<" directed) in "<<ActualMeasTime<<" seconds."<<std::endl;
           remove(Status);
         }
         
@@ -186,9 +199,11 @@ class Simulation
           cout << "  * Operator string statistics *\n";
           cout << "  ******************************\n\n";
           cout << "    Number of updates for thermalization: " << NumWarmUpdates << " ("<<ActualWarmTime*1000000000/NumWarmUpdates << " seconds per billion updates)\n";
-          cout << "    Number of updates for measurements: " << NumMeasUpdates << " ("<<ActualMeasTime*1000000000/NumMeasUpdates << " seconds per billion updates)\n";  
           cout << "    Number of directed updates for thermalization: " << NumDirectedWarmUpdates << " ("<<WarmTime*1000000000/NumDirectedWarmUpdates << " seconds per billion updates)\n";
+					cout << "    Directed update length for thermalization: "<< double(NumDirectedWarmUpdates)/NumWarmUpdates<<std::endl;
+          cout << "    Number of updates for measurements: " << NumMeasUpdates << " ("<<ActualMeasTime*1000000000/NumMeasUpdates << " seconds per billion updates)\n";  
           cout << "    Number of directed updates for measurements: " << NumDirectedMeasUpdates << " ("<<MeasTime*1000000000/NumDirectedMeasUpdates << " seconds per billion updates)\n";  
+					cout << "    Directed update length for measurements: "<< double(NumDirectedMeasUpdates)/NumMeasUpdates<<std::endl;
           cout << "    Number of measurements: " << MeasuredOp.count() << "\n\n";
           MeasuredOp.print_histogram();
           cout << endl;
@@ -437,15 +452,18 @@ class Simulation
 char Simulation::Status[100];
 char *Simulation::Ptr;
 int Simulation::Progress;
-long long Simulation::NumWarmUpdates;
-long long Simulation::NumMeasUpdates;
-long long Simulation::NumDirectedWarmUpdates;
-long long Simulation::NumDirectedMeasUpdates;
+unsigned long long Simulation::NumWarmUpdates;
+unsigned long long Simulation::NumMeasUpdates;
+unsigned long long Simulation::NumDirectedWarmUpdates;
+unsigned long long Simulation::NumDirectedMeasUpdates;
+unsigned long long Simulation::WarmIterations;
+unsigned long long Simulation::MeasIterations;
 double Simulation::ActualWarmTime;
 double Simulation::ActualMeasTime;
+double Simulation::ITERATIONS_PER_SEC;
 double Simulation::StatusLength;
 double Simulation::ClockLength;
-double Simulation::WarmTime;
-double Simulation::MeasTime;
+unsigned long long Simulation::WarmTime;
+unsigned long long Simulation::MeasTime;
 time_t Simulation::StatusStart;
 time_t Simulation::ClockStart;

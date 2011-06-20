@@ -5,6 +5,7 @@
 #include "HamiltonianTerm.hh"
 #include "GreenOperator.hh"
 #include "AdjacencyList.hh"
+#include "TSum.hh"
 #include <vector>
 #include <list>
 #include <set>
@@ -93,163 +94,6 @@ public:
   
 };
 
-/*
-	class TSum
-	This is a helper class which consists of a vector of matrix elements.
-	The class interprets this vector as a balanced binary tree. To get the 
-	path of the i^th element we just look at the binary representation of i+1,
-	where the most significant digit corresponds to ancestor nodes.
-	The number of elements of the tree are meant to be fixed. Each
-	element contains a value which is interpreted as a relative probability
-	At each node we don't need to store that relative probability, but
-	only the total sum of the probability of the node and all its children.
-	The probability can be deduced by subtracting the sum of a node
-	minus the sums of its children.	When a probability is changed this change 
-	is propagated to the node's parents with logarithmic complexity. 
-	Selecting a term according to its relative probability is also done
-	with logarithmic complexity algorithm. We start from the root of the
-	tree and select either a left or right branch or the root node itself
-	(three way selection). We continue in the branch we selected or return
-	the root.
-	
-	The key functions are:
-	update(index,me): change the probability of the index by "me".
-	choose(): randomly chose an index using its relative probability (sum-sum_Left-sum_Right)
-	norm(): returns the sum of all relative probabilities
-	
-*/
-
-class TSum {
-	std::vector<MatrixElement> _sums;
-	long double _head; // a copy of the _sums[0] is stored here. The redundancy is used for error tracking.
-	
-	struct _buffer_data {
-		uint index;
-		MatrixElement me;
-		_buffer_data(uint i,MatrixElement m) : index(i),me(m) {}
-	};
-	
-	struct _buffer_comparison { inline bool operator()(_buffer_data a1,_buffer_data a2) {return a1.index<a2.index;} };
-	
-	std::priority_queue<_buffer_data,std::vector<_buffer_data>,_buffer_comparison> _buffer;
-	
-	// Chop off small numerical values. The thresshold is Tolerance which is set as the minimum coefficient of any kinetic operator.
-	long double Crop(long double x) const { return (fabs(x)>Tolerance)?x:0; }
-
-public:
-  static MatrixElement Tolerance;
-
-	TSum() : _buffer(), _sums(), _head(0) {std::cout<<"Tsum init"<<std::endl;}
-	//TSum(uint N) : _sums(N,MatrixElement(0)),_head(0),_buffer() {std::cout<<"Tsum init"<<std::endl;}
-	//TSum(const TSum &o) : _sums(o._sums),_head(0),_buffer(o._buffer) {std::cout<<"Tsum copy"<<std::endl;}
-	~TSum() {}
-	
-	/* resizes the vector */
-	inline void resize(uint N) {_sums.resize(N,MatrixElement(0));}
-
-	
-	inline void push(uint index,MatrixElement me) { 
-		if(me!=0) {
-			_head+=me;
-			_buffer.push(_buffer_data(index,me));
-		}
-	}
-	
-	
-	
-	
-	inline void flush() {
-		
-		//std::cout<<"Begin flush"<<_buffer.size()<<std::endl;
-		
-		while(!_buffer.empty()) {
-			_buffer_data data=_buffer.top();
-			_buffer.pop();
-
-			while(!_buffer.empty() && _buffer.top().index==data.index) {
-				data.me+=_buffer.top().me;
-				_buffer.pop();
-			}
-			
-			_sums[data.index]+=data.me;
-
-			if(data.index!=0) {
-			 data.index=((data.index+1)>>1)-1;
-			 _buffer.push(data);
-		  }
-
-		}
-		
-	}
-	
-	/*
-	inline void flush() {
-		
-		while(!_buffer.empty()) {
-			update(_buffer.top().index,_buffer.top().me);
-			_buffer.pop();
-		}
-		
-	}
-	*/
-	
-	//inline void flush() {}
-	//inline void push(int index,MatrixElement me) {update(index,me);}
-	
-	inline void update(uint index,MatrixElement me) {
-		if(me!=0) {
-			index++;
-			while(index>0) {
-			  _sums[index-1]+=me;
-        index>>=1;
-	    }
-			_head+=me;
-    }
-	}
-
-	// Debug
-	//inline MatrixElement &operator()(unsigned int i) {return _sums[i];}
-
-	inline uint choose() {
-		
-		flush();
-		
-		int _nterms=_sums.size();
-		int index=0;
-		while(index<_nterms) {
-			int indr=(index+1)<<1;
-			int indl=indr-1;
-
-			MatrixElement w =Crop(_sums[index]);
-			MatrixElement wr=(indr<_nterms) ? Crop(_sums[indr]) : MatrixElement(0);
-			MatrixElement wl=(indl<_nterms) ? Crop(_sums[indl]) : MatrixElement(0);
-
-			if(w*RNG::Uniform()>=wl+wr)
-				return index; 
-			else
-				index=((wl+wr)*RNG::Uniform()>=wr)?indl:indr;
-		}
-		std::cout<<"TSum::choose has reached a dead end. Cannot choose term"<<std::endl;
-		exit(13);
-		return _nterms;
-
-	}
-
-	/* Makes all elements zero */
-	inline void reset() {
-		flush();
-		_head=0;
-		for(uint i=0;i<_sums.size();++i)
-			_sums[i]=MatrixElement(0);	
-	}
-	
-	/* Returns the sum of all the partial probabilities which is stored at the root */
-	inline MatrixElement norm() const { return Crop(_head); }
-	//inline MatrixElement error() const {return fabs(_head-_sums[0]);}
-
-};
-
-MatrixElement TSum::Tolerance;
 
 class ProbabilitiesBase {
   static MatrixElement GetMinCoefficient(const Hamiltonian &T) {
@@ -358,8 +202,6 @@ class Probabilities : public ProbabilitiesBase {
 
 	bool ExtraLock;                  // whether to ignore the extra terms or not. 0 means ignore, 1 means accept.
 
-	unsigned long long UpdateCounter;
-
   TSum *_tsum;
 	TSum & tsum(int direction,int indoffset) const {return _tsum[direction*noffsets()+indoffset];}
 public:
@@ -387,7 +229,6 @@ public:
 				tsum(rl,i).resize(Kinetic.size());
 			}
 		
-		UpdateCounter=0;	
 		rebuild();
 	}
 
@@ -437,38 +278,12 @@ public:
 
 
   inline void update(const HamiltonianTerm* term,int rl,int arflag) {
-		++UpdateCounter;
 
-		if(UpdateCounter%100000==99999) std::cout<<term_index(term)<<std::endl;
-
-		//std::cout<<term_index(term)<<"\t    : "<<term->me(rl)<<",\t"<<term->offset(arflag)<<"\t";
-
-
-
-		
-		// If an extra term appears, the toggle the lock.
-		//if(term->atom()) ExtraLock!=ExtraLock;
-
-		//std::cout<<UpdateCounter<<"\t"<<_NBWL<<"\t|\t";
-		//for(int i=0;i<2*noffsets();++i)
-		//	std::cout<<_tsum[i].norm()<<"\t";
-
-	
-    /* This needs to be confirmed: the tree needs to be rebuilt from time
-      to time to fix accumulated floating points errors */
-    if((++NUpdates % RebuildPeriod)==0) {
-		// Slow update: update the state and rebuild
-			//std::cout<<"\tRebuild:  ";
-			//term->update_psi(rl,arflag);
+    if((++NUpdates % RebuildPeriod)==0) 
 			slow_update(term,rl,arflag);
-		}
-		else {
+		else 
 			fast_update(term,rl,arflag);
-			//std::cout<<"\t        :";
-		}
-		
-	
-		//std::cout<<std::endl;
+
 	}
 
   inline void slow_update(const HamiltonianTerm* term,int rl,int arflag) {
@@ -500,14 +315,6 @@ public:
 				tsum( rl,offsets(ioffset)).update(fndex,fme-ime);			
 
     }
-
-		/*
-		for(int rl=0;rl<2;++rl) 
-    	for(int i=0;i<noffsets();++i)
-				tsum(rl,i).flush();
-
-	*/
-			
 			
     for(nbr=pot_adjacency[index].begin();nbr!=pot_adjacency[index].end();++nbr) 
       Energies[rl]+=nbr->me(rl,arflag)-nbr->me(rl);
@@ -524,46 +331,6 @@ public:
     
   }
 
-	/*
-	inline bool verify() {
-
-	  MatrixElement Energies_copy[2]={Energies[0],Energies[1]};  
-	  std::set<Boson*> _broken_lines_copy=_broken_lines;
-	  int _NBWL_copy=_NBWL;
-	  TSum *_tsum_copy;
-
-		_tsum_copy=new TSum[2*noffsets()];
-		for(int rl=0;rl<2;++rl) 
-			for(int i=0;i<noffsets();++i) {
-				_tsum_copy[rl*noffsets()+i]=_tsum[rl*noffsets()+i];
-			}
-
-
-		rebuild();
-
-		
-		bool flag_NBWL=(_NBWL==_NBWL_copy);
-		bool flag_broken_lines=(_broken_lines==_broken_lines_copy);
-		double DiffEnergies=fabs(Energies[0]-Energies_copy[0])+fabs(Energies[1]-Energies_copy[1]);
-
-		double TreeDiff=0.0;
-		for(int rl=0;rl<2;++rl) 
-			for(int i=0;i<noffsets();++i) {
-				int index=rl*noffsets()+i;
-				for(int term=0;term<Kinetic.size();++term)
-					TreeDiff+=fabs(_tsum_copy[index](term)-_tsum[index](term));
-			}
-		
-		
-		char c[2]={'F','P'};
-		std::cout<<"  :"<<c[flag_NBWL]<<c[flag_broken_lines]<<":\t"<<DiffEnergies<<"\t"<<TreeDiff;
-
-		delete [] _tsum_copy;
-
-		return true;
-	}
-
-	*/
 };
 
 }
