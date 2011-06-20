@@ -13,7 +13,6 @@
 
 namespace SGF {
 
-
 /*
 	class TSum
 	This is a helper class which consists of a vector of matrix elements.
@@ -42,115 +41,63 @@ namespace SGF {
 
 class TSum {
 	std::vector<MatrixElement> _sums;
-	long double _head; // a copy of the _sums[0] is stored here. The redundancy is used for error tracking.
-	
-	struct _buffer_data {
-		uint index;
-		MatrixElement me;
-		_buffer_data(uint i,MatrixElement m) : index(i),me(m) {}
-	};
-	
-	struct _buffer_comparison { inline bool operator()(_buffer_data a1,_buffer_data a2) {return a1.index<a2.index;} };
-	
-	std::priority_queue<_buffer_data,std::vector<_buffer_data>,_buffer_comparison> _buffer;
-	
+		
 	// Chop off small numerical values. The thresshold is Tolerance which is set as the minimum coefficient of any kinetic operator.
 	long double Crop(long double x) const { return (fabs(x)>Tolerance)?x:0; }
 
 public:
   static MatrixElement Tolerance;
 
-	TSum() : _buffer(), _sums(), _head(0) {}
-	//TSum(uint N) : _sums(N,MatrixElement(0)),_head(0),_buffer() {std::cout<<"Tsum init"<<std::endl;}
-	//TSum(const TSum &o) : _sums(o._sums),_head(0),_buffer(o._buffer) {std::cout<<"Tsum copy"<<std::endl;}
+	TSum() : _sums() {}
+	TSum(uint NTerms) : _sums() { resize(NTerms); }
+	TSum(const TSum &o) : _sums(o._sums) {}
 	~TSum() {}
 	
 	/* resizes the vector */
-	inline void resize(uint N) {_sums.resize(N,MatrixElement(0));}
-
-	
-	inline void push(uint index,MatrixElement me) { 
-		if(me!=0) {
-			_head+=me;
-			_buffer.push(_buffer_data(index,me));
-		}
+	inline void resize(uint NTerms) {
+		uint _size=1;
+		while(_size<2*NTerms) _size<<=1;
+		_sums.resize(_size,MatrixElement(0));
 	}
-	
-	
-	
-	
-	inline void flush() {
-		
-		//std::cout<<"Begin flush"<<_buffer.size()<<std::endl;
-		
-		while(!_buffer.empty()) {
-			_buffer_data data=_buffer.top();
-			_buffer.pop();
 
-			while(!_buffer.empty() && _buffer.top().index==data.index) {
-				data.me+=_buffer.top().me;
-				_buffer.pop();
-			}
-			
-			_sums[data.index]+=data.me;
-
-			if(data.index!=0) {
-			 data.index=((data.index+1)>>1)-1;
-			 _buffer.push(data);
-		  }
-
-		}
-		
-	}
-	
 	
 	inline void update(uint index,MatrixElement me) {
 		if(me!=0) {
-			index++;
+			index+=1+_sums.size()/2;
 			while(index>0) {
 			  _sums[index-1]+=me;
         index>>=1;
 	    }
-			_head+=me;
     }
 	}
 
+	inline uint choose() const {
+		uint _nterms=_sums.size();
+		uint index=0;
+		while(index<_nterms/2) {
+			
+			uint indr=(index+1)<<1;
+			uint indl=indr-1;
 
-	inline uint choose() {
-		
-		flush();
-		
-		int _nterms=_sums.size();
-		int index=0;
-		while(index<_nterms) {
-			int indr=(index+1)<<1;
-			int indl=indr-1;
-
-			MatrixElement w =Crop(_sums[index]);
-			MatrixElement wr=(indr<_nterms) ? Crop(_sums[indr]) : MatrixElement(0);
-			MatrixElement wl=(indl<_nterms) ? Crop(_sums[indl]) : MatrixElement(0);
-
-			if(w*RNG::Uniform()>=wl+wr)
-				return index; 
-			else
-				index=((wl+wr)*RNG::Uniform()>=wr)?indl:indr;
+			MatrixElement wr=Crop(_sums[indr]);
+			MatrixElement wl=Crop(_sums[indl]);
+			
+			index=((wr+wl)*RNG::Uniform()<wl) ? indl : indr;
 		}
-		std::cout<<"TSum::choose has reached a dead end. Cannot choose term"<<std::endl;
-		exit(13);
-		return _nterms;
-
+		
+		return index-_nterms/2;
+		
 	}
+
 
 	/* Makes all elements zero */
 	inline void reset() {
-		flush();
-		_head=0;
-		for(uint i=0;i<_sums.size();++i)
-			_sums[i]=MatrixElement(0);	
+		for(std::vector<MatrixElement>::iterator it=_sums.begin();it!=_sums.end();++it)
+			*it=MatrixElement(0);
 	}
 	
 	/* Returns the sum of all the partial probabilities which is stored at the root */
-	inline MatrixElement norm() const { return Crop(_head); }
+	inline MatrixElement norm() const { return Crop(_sums[0]); }
 
 };
 

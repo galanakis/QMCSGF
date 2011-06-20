@@ -306,10 +306,10 @@ public:
       if(ioffset!=foffset) {
         MatrixElement jme =nbr->me(!rl);
         // Note that those statements are parallelizable
-				tsum( rl,offsets(ioffset)).push(fndex,-ime);
-				tsum( rl,offsets(foffset)).push(fndex,+fme);
-				tsum(!rl,offsets(ioffset)).push(fndex,-jme);
-				tsum(!rl,offsets(foffset)).push(fndex,+jme);
+				tsum( rl,offsets(ioffset)).update(fndex,-ime);
+				tsum( rl,offsets(foffset)).update(fndex,+fme);
+				tsum(!rl,offsets(ioffset)).update(fndex,-jme);
+				tsum(!rl,offsets(foffset)).update(fndex,+jme);
       }
       else 
 				tsum( rl,offsets(ioffset)).update(fndex,fme-ime);			

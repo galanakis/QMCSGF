@@ -200,10 +200,10 @@ class Simulation
           cout << "  ******************************\n\n";
           cout << "    Number of updates for thermalization: " << NumWarmUpdates << " ("<<ActualWarmTime*1000000000/NumWarmUpdates << " seconds per billion updates)\n";
           cout << "    Number of directed updates for thermalization: " << NumDirectedWarmUpdates << " ("<<WarmTime*1000000000/NumDirectedWarmUpdates << " seconds per billion updates)\n";
-					cout << "    Directed update length for thermalization: "<< double(NumDirectedWarmUpdates)/NumWarmUpdates<<std::endl;
+					cout << "    Directed update length for thermalization: "<< double(NumWarmUpdates)/NumDirectedWarmUpdates<<std::endl;
           cout << "    Number of updates for measurements: " << NumMeasUpdates << " ("<<ActualMeasTime*1000000000/NumMeasUpdates << " seconds per billion updates)\n";  
           cout << "    Number of directed updates for measurements: " << NumDirectedMeasUpdates << " ("<<MeasTime*1000000000/NumDirectedMeasUpdates << " seconds per billion updates)\n";  
-					cout << "    Directed update length for measurements: "<< double(NumDirectedMeasUpdates)/NumMeasUpdates<<std::endl;
+					cout << "    Directed update length for measurements: "<< double(NumMeasUpdates)/NumDirectedMeasUpdates<<std::endl;
           cout << "    Number of measurements: " << MeasuredOp.count() << "\n\n";
           MeasuredOp.print_histogram();
           cout << endl;
