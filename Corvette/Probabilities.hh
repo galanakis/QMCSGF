@@ -52,7 +52,7 @@ uint RebuildPeriod=1000000;
 class OffsetMap {
   std::vector<uint> _index;    // Map from an offset to consecutive integers
   std::vector<int> _offsets;   // Keeps a sorted list of the offsets
-
+  
   inline int MinOffset() const {return _offsets[0];}    // Minimum possible offset
   inline int MaxOffset() const {return _offsets[_offsets.size()-1];}    // Maximum possible offset
 
@@ -83,10 +83,12 @@ class OffsetMap {
   
 public:
 
+  typedef std::vector<int>::size_type size_type;
+
   OffsetMap(const Hamiltonian &T) {initialize(T);}
     
   // Number of different offsets
-  inline uint size() const {return _offsets.size();}
+  inline size_type size() const {return _offsets.size();}
   // OffsetMap(int offset) will return a consecutive integer
   inline uint operator()(int offset) const {return _index[offset-MinOffset()];}
   // OffsetMap[int i] will return the i^th smallest offset
@@ -135,14 +137,14 @@ protected:
   GreenOperator<long double> GF;                // Defines the Green operator function
 
 
-  inline uint noffsets() const {return offsets.size();}
-  inline uint term_index(const HamiltonianTerm* term) const {return term-&Kinetic[0];}
-	inline const HamiltonianTerm * index_term(uint iterm) const {return &Kinetic[iterm];}
+  inline OffsetMap::size_type noffsets() const {return offsets.size();}
+  inline Hamiltonian::size_type term_index(const HamiltonianTerm* term) const {return term-&Kinetic[0];}
+	inline const HamiltonianTerm * index_term(Hamiltonian::size_type iterm) const {return &Kinetic[iterm];}
 
 	uint _ensemble;
 	
-	uint nextra() const {return 2*_indices.size()*_ensemble;}
-	uint nregular() const {return Kinetic.size()-nextra();}
+	std::vector<Boson*>::size_type nextra() const {return 2*_indices.size()*_ensemble;}
+  Hamiltonian::size_type nregular() const {return Kinetic.size()-nextra();}
 public:
   inline void GreenInit(int nsites) {GF.initialize(nsites);}
 
@@ -293,11 +295,11 @@ public:
 
   inline void fast_update(const HamiltonianTerm* term,int rl,int arflag) { 
 		_NBWL+=term->offset(arflag);
-		uint index=term_index(term);
+    Hamiltonian::size_type index=term_index(term);
 
     adjacency_list_t::const_iterator nbr;
     for(nbr=kin_adjacency[index].begin();nbr!=kin_adjacency[index].end();++nbr) {
-      int fndex= term_index(nbr->term());
+      Hamiltonian::size_type fndex= term_index(nbr->term());
       int ioffset = nbr->offset();
       int foffset = nbr->offset(arflag);
       MatrixElement ime = nbr->me(rl);

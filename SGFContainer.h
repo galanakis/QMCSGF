@@ -19,15 +19,14 @@ public:
   inline double Beta() const {return _Beta;}
   inline int Ensemble() const {return _Ensemble;}
   inline int Seed() const {return _Seed;}
-  inline int Nsites() const {return _Psi.size();} 
+  inline std::vector<SGF::Boson>::size_type Nsites() const {return _Psi.size();} 
   
-  inline unsigned int boson2index(SGF::Boson *a) const {return a-&_Psi[0];}
   
   inline void print_term(const SGF::HamiltonianTerm &term) const {
     char name[100][10]={"","","A","C","AA","AC","CA","CC","AAA","AAC","ACA","ACC","CAA","CAC","CCA","CCC","AAAA","AAAC","AACA","AACC","ACAA","ACAC","ACCA","ACCC","CAAA","CAAC","CACA","CACC","CCAA","CCAC","CCCA","CCCC",};
     std::cout<<(term.coefficient())<<"*";
     for(int i=0;i<term.product().size();++i) {
-      int index=term.product()[i].particle_id()-&_Psi[0];
+      long index=term.product()[i].particle_id()-&_Psi[0];
       int prodelem=term.product()[i].id();
       std::cout<<name[prodelem]<<"["<<index<<"]";
     }
@@ -39,7 +38,7 @@ public:
     char name[100][10]={"","","A","C","AA","AC","CA","CC","AAA","AAC","ACA","ACC","CAA","CAC","CCA","CCC","AAAA","AAAC","AACA","AACC","ACAA","ACAC","ACCA","ACCC","CAAA","CAAC","CACA","CACC","CCAA","CCAC","CCCA","CCCC",};
     std::cout<<(term.coefficient())<<"*";
     for(int i=0;i<term.product().size();++i) {
-      int index=term.product()[i].particle_id()-&_Psi[0];
+      long index=term.product()[i].particle_id()-&_Psi[0];
       int prodelem=term.product()[i].id();
       std::cout<<name[prodelem]<<"["<<index<<"->("<<_Psi[index].n(SGF::LEFT)<<","<<_Psi[index].n(SGF::RIGHT)<<","<<_Psi[index].nmax()<<")] ";
     }

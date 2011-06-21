@@ -27,7 +27,7 @@ public:
   inline void pop(int direction) { direction ? que.pop_front() : que.pop_back(); }
   inline void push(int direction,const T& data) { direction ?  que.push_front(data) : que.push_back(data); }
   inline const T& top(int direction) const { return direction ? que.front() : que.back(); }
-  inline int length() const {return que.size();}
+  inline typename std::deque<T>::size_type length() const {return que.size();}
   inline bool empty() const {return que.empty();} 
 }; 
 

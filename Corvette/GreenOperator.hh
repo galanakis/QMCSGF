@@ -21,7 +21,7 @@ double a=G(13);
 template<class T>
 class GreenOperator {
   std::vector<T> cache;
-  int NSites;
+  unsigned long NSites;
 public:
   T _GreenOperator(int n) const { 
     double result=1.0;
@@ -36,7 +36,7 @@ public:
     return (n<cache.size() && n>=0)?cache[n]:0.0; 
   }
 
-  void initialize(uint _nsites) {
+  void initialize(unsigned long _nsites) {
     if(_nsites==0) {
       std::cout<<"Number of sites cannot be zero"<<std::endl;
       exit(123);

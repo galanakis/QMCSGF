@@ -312,7 +312,7 @@ public:
 
         if (File.is_open())
         {
-            int FileSize=File.tellg();
+            streamoff FileSize=File.tellg();
             File.seekg(0);
             char *Buffer=new char[FileSize+1];
             File.read(Buffer,FileSize);

@@ -39,9 +39,13 @@ namespace SGF {
 	
 */
 
+
+  
 class TSum {
 	std::vector<MatrixElement> _sums;
-		
+  
+  typedef std::vector<MatrixElement>::size_type index_type;
+  
 	// Chop off small numerical values. The thresshold is Tolerance which is set as the minimum coefficient of any kinetic operator.
 	long double Crop(long double x) const { return (fabs(x)>Tolerance)?x:0; }
 
@@ -49,19 +53,18 @@ public:
   static MatrixElement Tolerance;
 
 	TSum() : _sums() {}
-	TSum(uint NTerms) : _sums() { resize(NTerms); }
 	TSum(const TSum &o) : _sums(o._sums) {}
 	~TSum() {}
 	
 	/* resizes the vector */
-	inline void resize(uint NTerms) {
-		uint _size=1;
+	inline void resize(index_type NTerms) {
+		index_type _size=1;
 		while(_size<2*NTerms) _size<<=1;
 		_sums.resize(_size,MatrixElement(0));
 	}
 
 	
-	inline void update(uint index,MatrixElement me) {
+	inline void update(index_type index,MatrixElement me) {
 		if(me!=0) {
 			index+=1+_sums.size()/2;
 			while(index>0) {
@@ -71,13 +74,13 @@ public:
     }
 	}
 
-	inline uint choose() const {
-		uint _nterms=_sums.size();
-		uint index=0;
+	inline index_type choose() const {
+		index_type _nterms=_sums.size();
+		index_type index=0;
 		while(index<_nterms/2) {
 			
-			uint indr=(index+1)<<1;
-			uint indl=indr-1;
+			index_type indr=(index+1)<<1;
+			index_type indl=indr-1;
 
 			MatrixElement wr=Crop(_sums[indr]);
 			MatrixElement wl=Crop(_sums[indl]);

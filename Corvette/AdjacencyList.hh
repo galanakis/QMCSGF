@@ -201,8 +201,8 @@ public:
   AdjacencyList(const Hamiltonian &T) { initialize(T,T); }
   
   // Total number of row terms
-  uint size() const {return _adjacency.size();}
-  const adjacency_list_t &operator[](int i) const {return _adjacency[i];}
+  std::vector<adjacency_list_t>::size_type size() const {return _adjacency.size();}
+  const adjacency_list_t &operator[](Hamiltonian::size_type i) const {return _adjacency[i];}
    
 };
 
