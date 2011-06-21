@@ -132,7 +132,7 @@ namespace SGF {
       else {  // diagonal configuration
         ++_ndiagonal;
         _BoltzmannWeight+=Weight;
-        _accumulator_float MeasKinetic=-OperatorString.length()/OperatorString.Beta();
+        _accumulator_float MeasKinetic=-static_cast<_accumulator_float>(OperatorString.length())/OperatorString.Beta();
         _accumulator_float MeasPotential=OperatorString.Energy(RIGHT);        
         _Kinetic.push(MeasKinetic,Weight);
         _Potential.push(MeasPotential,Weight);
