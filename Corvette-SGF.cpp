@@ -124,13 +124,15 @@ int main(int NumArg,char **Arg)
 // _____________________________________________________________________
 SGFContainer Container;
 SGF::RebuildPeriod=MathExpression::GetValue("RebuildPeriod").Re();
+int GreenOperatorLines=MathExpression::GetValue("GreenOperatorLines").Re();
+
 const SGF::Hamiltonian &T=Container.Kinetic();
 const SGF::Hamiltonian &V=Container.Potential();
 double Beta=Container.Beta();
 SGF::OperatorStringType OperatorString(T,V,Beta);
 OperatorString.alpha(SGF::ADD)=0.95;
 OperatorString.alpha(SGF::REMOVE)=0.95;
-OperatorString.GreenInit(Container.NSites());
+OperatorString.GreenInit(Container.NSites(),GreenOperatorLines);
 SGF::Measurable MeasuredOperators(Container.MeasurableOperators());
 // _____________________________________________________________________
     

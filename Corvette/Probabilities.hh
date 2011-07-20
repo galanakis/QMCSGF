@@ -146,13 +146,13 @@ protected:
 	std::vector<Boson*>::size_type nextra() const {return 2*_indices.size()*_ensemble;}
   Hamiltonian::size_type nregular() const {return Kinetic.size()-nextra();}
 public:
-  inline void GreenInit(int nsites) {GF.initialize(nsites);}
+  inline void GreenInit(int nsites,int cutoff) {GF.initialize(nsites,cutoff);}
 
   ProbabilitiesBase(const Hamiltonian &T,const Hamiltonian &V) :  _indices(GetIndices(T)), Kinetic(T), offsets(Kinetic), Potential(V), kin_adjacency(Kinetic), pot_adjacency(Kinetic,Potential) {
 		/* Initialize the Green operator function.
 		The number of sites is just the number of different
 		indices appearing in the Kinetic operators */
-		GF.initialize(_indices.size());
+		GF.initialize(_indices.size(),2);
 	  TSum::Tolerance=0.5*GetMinCoefficient(T);
 	
 		// The SGFContainer class has put the extra kinetic terms at the end. So we only count to indirectly extract the ensemble.
