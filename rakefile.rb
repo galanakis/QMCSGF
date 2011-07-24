@@ -1,6 +1,6 @@
-Include="-I./Interface -I./Corvette -I."
+Include="-Isource/Interface -Isource/Corvette -Isource"
 Executable="corvette"+"."+%x{uname}
-Source="Corvette-SGF.cpp"
+Source="source/Corvette-SGF.cpp"
 Flags="-DRNG_MT"
 
 task :default do

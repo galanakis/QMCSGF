@@ -1,1 +1,0 @@
-g++ -o Corvette-SGF ../Corvette-SGF.cpp -I .. -I ../Corvette -I ../Interface/ -O3
