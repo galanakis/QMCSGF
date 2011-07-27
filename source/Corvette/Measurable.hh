@@ -24,22 +24,6 @@ namespace SGF {
 
   inline std::ostream& operator<<(std::ostream& output, const Measurement &o) { return output<<o.value<<" +/- "<<o.error; }
 
-   
-  class BosonDeltaMap {
-    std::map<Boson*,int> indices;
-  public:
-    BosonDeltaMap(const HamiltonianTerm * const term) {
-      for(int i=0;i<term->product().size();++i)
-        indices[term->product()[i].particle_id()]=-term->product()[i].delta();
-    }
-    BosonDeltaMap(const std::set<Boson*> &s) {
-      std::set<Boson*>::const_iterator it;
-      for(it=s.begin();it!=s.end();++it)
-        indices[*it]=(*it)->delta();
-    }
-    const std::map<Boson*,int> &map() const {return indices;}
-  };
-
 
   class MeasAccumulators {
     const HamiltonianTerm *term;
@@ -57,6 +41,54 @@ namespace SGF {
   };
 
 
+	
+	typedef std::vector< std::pair<Boson*,int> > BosonDeltaMapType;
+	
+	// This one is ok to be slow since it is called only in the initializer
+	inline BosonDeltaMapType map(const HamiltonianTerm * const term) {
+		std::map<Boson*,int> indices;
+    for(int i=0;i<term->product().size();++i)
+			indices[term->product()[i].particle_id()]=-term->product()[i].delta();
+
+		BosonDeltaMapType vmap;
+		vmap.reserve(indices.size());
+		std::map<Boson*,int>::const_iterator it;
+		for(it=indices.begin();it!=indices.end();++it)
+			vmap.push_back(*it);
+			
+		return vmap;
+	}
+	
+	
+	// This one must be very fast
+	inline BosonDeltaMapType map(const std::set<Boson*> &s) {
+		BosonDeltaMapType vmap;
+		vmap.reserve(s.size());
+		std::set<Boson*>::const_iterator it;
+		for(it=s.begin();it!=s.end();++it)
+			vmap.push_back(std::pair<Boson*,int>(*it,(*it)->delta()));
+		return vmap;
+	}	
+	
+/*
+	typedef std::map<Boson*,int> BosonDeltaMapType;
+	inline BosonDeltaMapType map(const HamiltonianTerm * const term) {
+		BosonDeltaMapType indices;
+    for(int i=0;i<term->product().size();++i)
+			indices[term->product()[i].particle_id()]=-term->product()[i].delta();
+		return indices;	
+	}
+
+	inline BosonDeltaMapType map(const std::set<Boson*> &s) {
+		BosonDeltaMapType indices;
+		std::set<Boson*>::const_iterator it;
+		for(it=s.begin();it!=s.end();++it)
+			indices[*it]=(*it)->delta();
+		return indices;
+	}		
+
+*/
+
   class Measurable {
     _counter_int _ndiagonal;
     _counter_int _nflush;
@@ -65,7 +97,7 @@ namespace SGF {
 
     const unsigned long _size;
     std::vector<MeasAccumulators> Diag_Acc;
-    std::map<std::map<Boson*,int>,std::vector<MeasAccumulators> > OD_Acc;
+    std::map<BosonDeltaMapType,std::vector<MeasAccumulators> > OD_Acc;
     BinnedAccumulatorME _Kinetic;
     BinnedAccumulatorME _Potential;
     BinnedAccumulatorME _TotalEnergy;
@@ -85,7 +117,7 @@ namespace SGF {
         else if(term->diagonal())
           Diag_Acc.push_back(MeasAccumulators(term,&Sums[i]));
         else
-          OD_Acc[BosonDeltaMap(term).map()].push_back(MeasAccumulators(term,&Sums[i]));
+          OD_Acc[map(term)].push_back(MeasAccumulators(term,&Sums[i]));
       }
     }
                               
@@ -116,13 +148,13 @@ namespace SGF {
 
     void measure(const OperatorStringType &OperatorString) {
       
-      const std::set<Boson*> &list=OperatorString.ListBrokenLines();
       const _accumulator_float Weight=OperatorString.BoltzmannWeight();
 
       BrokenHistogram[OperatorString.NBrokenLines()]+=1;
       
       if(OperatorString.NBrokenLines()!=0) {  // Off diagonal configurations
-        std::map<std::map<Boson*,int>,std::vector<MeasAccumulators> >::const_iterator it(OD_Acc.find(BosonDeltaMap(list).map()));
+	      const std::set<Boson*> &list=OperatorString.ListBrokenLines();
+        std::map<BosonDeltaMapType,std::vector<MeasAccumulators> >::const_iterator it(OD_Acc.find(map(list)));
         if(it!=OD_Acc.end()) {
           const std::vector<MeasAccumulators> &v=it->second;
 					std::vector<MeasAccumulators>::const_iterator v_it;
