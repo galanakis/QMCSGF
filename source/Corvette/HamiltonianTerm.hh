@@ -52,6 +52,7 @@ protected:
   Boson* particle;
 public:
   IndexedProductElement() : ProductElement(), particle(NULL) {}
+	IndexedProductElement(const IndexedProductElement &o) : ProductElement(o), particle(o.particle) {}
   IndexedProductElement(const ProductElement peprod,Boson* _p) : ProductElement(peprod),particle(_p) {}
   Boson* particle_id() const {return particle;}
   inline int n(int direction) const {return particle->n(direction)-delta()*!direction;}

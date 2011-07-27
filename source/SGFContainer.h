@@ -1,4 +1,5 @@
 #include "EasyMathExpression.h" // For access to the interface
+#include <sstream>
 #include <set>
 
 class SGFContainer {
@@ -88,7 +89,7 @@ public:
 		}
 
 
-    std::vector<std::string> opnames=EasyMathExpression::MeasurableNameList();
+    std::vector<std::string> &opnames=EasyMathExpression::MeasurableNameList();
     _MeasurableOperators.resize(opnames.size());
 
     for(int i=0;i<opnames.size();++i) {
@@ -98,6 +99,48 @@ public:
         _MeasurableOperators[i].push_back(oit.Term());
 
     }
+
+		/* Adding a default measurable set */
+		
+		int nsites=_Psi.size();
+		_MeasurableOperators.resize(opnames.size()+nsites*nsites);
+		int i=opnames.size();
+/*		opnames.resize(i+1);
+
+		SGF::HamiltonianTerm Term(1.0,SGF::C*SGF::A,&_Psi[0]);
+		SGF::HamiltonianTerm Term2(_MeasurableOperators[i-1][0]);
+		SGF::HamiltonianTerm Term3(1.0,SGF::C,&_Psi[0],SGF::A,&_Psi[1]);
+
+		std::cout<<Term.product().size()<<": "<<Term.product()[0].particle_id()-&_Psi[0]<<", "<<Term.product()[1].particle_id()-&_Psi[0]<<std::endl;
+		std::cout<<Term2.product().size()<<": "<<Term2.product()[0].particle_id()-&_Psi[0]<<", "<<Term2.product()[1].particle_id()-&_Psi[0]<<std::endl;
+		std::cout<<Term3.product().size()<<": "<<Term3.product()[0].particle_id()-&_Psi[0]<<", "<<Term3.product()[1].particle_id()-&_Psi[0]<<std::endl;
+		
+
+		opnames[i]=opnames[i-1];
+		_MeasurableOperators[i].push_back(Term3);
+*/
+
+
+		for(int a=0;a<nsites;++a)
+			for(int b=0;b<nsites;++b) {
+				std::stringstream ss;
+				ss<<"<C[ "<<a<<" ]A[ "<<b<<" ]>";
+				opnames.push_back(ss.str());
+				if(a!=b) {
+					SGF::HamiltonianTerm Term(1.0,SGF::C,&_Psi[a],SGF::A,&_Psi[b]);
+					_MeasurableOperators[i].push_back(Term);
+				}
+				else {
+					SGF::HamiltonianTerm Term(1.0,SGF::C*SGF::A,&_Psi[a]);
+					_MeasurableOperators[i].push_back(Term);
+				}
+					
+				++i;
+			}
+
+
+		std::cout<<"Number of measurable operators: "<<_MeasurableOperators.size()<<", "<<EasyMathExpression::MeasurableNameList().size()<<std::endl;
+
 
 
 		/* Determining conserved charges */

@@ -2642,7 +2642,8 @@ class MathExpression
           else
             return false;
         }
-      
+
+
       static std::vector<string> &GetMeasurableList()
 	{
 	  return MeasurableList;
