@@ -67,7 +67,7 @@ class Simulation
 
           NumWarmUpdates=0;
 					NumDirectedWarmUpdates=0;
- 					int BenckmarkIterations=100000;
+ 					int BenchmarkIterations=100000;
 
 					clock_t StartTime=clock();
 					clock_t EndTime=StartTime+WarmTime*CLOCKS_PER_SEC;
@@ -76,7 +76,7 @@ class Simulation
 					do {
             NumWarmUpdates+=OpString.directed_update();   // Perform an update.
 						++NumDirectedWarmUpdates;						
-					} while(NumWarmUpdates<BenckmarkIterations);
+					} while(NumWarmUpdates<BenchmarkIterations);
 					
 				  ITERATIONS_PER_SEC=NumWarmUpdates*CLOCKS_PER_SEC/double(clock()-StartTime);
 				
@@ -199,10 +199,10 @@ class Simulation
           cout << "  * Operator string statistics *\n";
           cout << "  ******************************\n\n";
           cout << "    Number of updates for thermalization: " << NumWarmUpdates << " ("<<ActualWarmTime*1000000000/NumWarmUpdates << " seconds per billion updates)\n";
-          cout << "    Number of directed updates for thermalization: " << NumDirectedWarmUpdates << " ("<<WarmTime*1000000000/NumDirectedWarmUpdates << " seconds per billion updates)\n";
+          cout << "    Number of directed updates for thermalization: " << NumDirectedWarmUpdates << " ("<<ActualWarmTime*1000000000/NumDirectedWarmUpdates << " seconds per billion updates)\n";
 					cout << "    Directed update length for thermalization: "<< double(NumWarmUpdates)/NumDirectedWarmUpdates<<std::endl;
           cout << "    Number of updates for measurements: " << NumMeasUpdates << " ("<<ActualMeasTime*1000000000/NumMeasUpdates << " seconds per billion updates)\n";  
-          cout << "    Number of directed updates for measurements: " << NumDirectedMeasUpdates << " ("<<MeasTime*1000000000/NumDirectedMeasUpdates << " seconds per billion updates)\n";  
+          cout << "    Number of directed updates for measurements: " << NumDirectedMeasUpdates << " ("<<ActualMeasTime*1000000000/NumDirectedMeasUpdates << " seconds per billion updates)\n";  
 					cout << "    Directed update length for measurements: "<< double(NumMeasUpdates)/NumDirectedMeasUpdates<<std::endl;
           cout << "    Number of measurements: " << MeasuredOp.count() << "\n\n";
           MeasuredOp.print_histogram();

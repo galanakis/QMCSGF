@@ -45,7 +45,6 @@ public:
     }
     NSites=_nsites;
 		LinesCutoff=_cutoff;
-		std::cout<<"GreenOperator Initialize, nsites= "<<NSites<<", cutoff= "<<LinesCutoff<<std::endl;
     cache.clear();
     T value;
     int i=0;
