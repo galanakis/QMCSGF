@@ -135,10 +135,16 @@ OperatorString.alpha(SGF::REMOVE)=0.95;
 OperatorString.GreenInit(Container.NSites(),GreenOperatorLines);
 SGF::Measurable MeasuredOperators(Container.MeasurableOperators());
 // _____________________________________________________________________
+
+
+/* Initializing the simulation. Thermalize, Measure and pring the results */
+Simulation simul(OperatorString,MeasuredOperators);
     
-        Simulation::Thermalize(OperatorString);                 // We start warm up iterations.
-        Simulation::Measure(OperatorString,MeasuredOperators);  // We start measurement iterations.
-        Simulation::Results(MeasuredOperators);                 // We display the results of simulation.
+simul.Thermalize();                 // We start warm up iterations.
+simul.Measure();  									// We start measurement iterations.
+simul.Results();                    // We display the results of simulation.
+
+
       }
       
     else if (File==Arg[2])
