@@ -101,7 +101,8 @@ public:
     }
 
 		/* Adding a default measurable set */
-		
+		 
+		/*
 		int nsites=_Psi.size();
 		_MeasurableOperators.resize(opnames.size()+nsites*nsites);
 		int i=opnames.size();
@@ -126,7 +127,7 @@ public:
 				++i;
 			}
 
-
+     */
 
 		/* Determining conserved charges */
 		

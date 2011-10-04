@@ -6,10 +6,13 @@ template<class T> T Max(const T &a,const T &b) {return (a>b)?a:b;}
  
 
 class FileNameProgressBar {
-	 char Status[100],*Ptr;
-	 double Progress;
+	 static const int StringLength=200;
+	 char Status[StringLength],*Ptr;
+	 double Progress; 
+	 clock_t Time;
 public:
 	 FileNameProgressBar(const char *Name) : Progress(0) {
+		 Time=clock();
 		 strcpy(Status,MathExpression::GetSimulName());
      strcpy(Status+strlen(Status)," - ");
      strcpy(Status+strlen(Status),Name);
@@ -23,20 +26,30 @@ public:
 		remove(Status);
 	 }
    
-	 void Update(double prog) {
+	 inline void Update(double prog) {
 		if(prog<0) prog=0.0;
 		if(prog>1) prog=1.0;
 		if(static_cast<int>(100*(prog-Progress))!=0) {
 			Progress=prog;
-		  char OldStatus[100];
+			clock_t Now=clock();
+			double DeltaSeconds=double(Now-Time)/CLOCKS_PER_SEC;
+			Time=Now;
+			unsigned int SecondsLeft=100*(1-Progress)*DeltaSeconds;
+			unsigned int HoursLeft=SecondsLeft/3600;
+			SecondsLeft%=3600;
+			unsigned int MinutesLeft=SecondsLeft/60;
+			SecondsLeft%=60;
+			
+		  char OldStatus[StringLength];
       strcpy(OldStatus,Status);
 			int percent=static_cast<int>(100*Progress);
-			Ptr[0]=percent/100+48;
-      Ptr[1]=(percent/10)%10+48;
-      Ptr[2]=percent%10+48;
+			
+			sprintf(Ptr,"%.3d - %.3d:%.2d:%.2d",percent,HoursLeft,MinutesLeft,SecondsLeft);
+
       rename(OldStatus,Status);
 		}
 	}
+	
 
 };
 
