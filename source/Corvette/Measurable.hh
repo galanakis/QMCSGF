@@ -144,9 +144,8 @@ namespace SGF {
 			
       const _accumulator_float Weight=OperatorString.BoltzmannWeight();
 			const std::vector<MeasAccumulators> &v=_Acc[map(OperatorString.ListBrokenLines())];
-			for(std::vector<MeasAccumulators>::const_iterator it=v.begin();it!=v.end();++it) {
+			for(std::vector<MeasAccumulators>::const_iterator it=v.begin();it!=v.end();++it) 
 				it->sum->push( it->term->me(RIGHT) * Weight );
-			}
 
 			MeasureDefaults::measure(OperatorString);
 
