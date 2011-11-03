@@ -11,192 +11,150 @@
 
 namespace SGF {
 
-	typedef long double _accumulator_float;
-	typedef unsigned long long _counter_int;
+	class MeasureDefaults {
+	public:
+		typedef long double _accumulator_float;
+		typedef unsigned long long _counter_int;
+		typedef BinnedAccumulator<_accumulator_float> BinnedAccumulatorME;
+		typedef std::map<unsigned int,_counter_int> BrokenHistogramType;
 
-	typedef BinnedAccumulator<_accumulator_float> BinnedAccumulatorME;
-
-  struct Measurement {
-    _accumulator_float value;
-    _accumulator_float error;
-    Measurement(_accumulator_float v,_accumulator_float e) : value(v), error(e) {}
-  };
-
-  inline std::ostream& operator<<(std::ostream& output, const Measurement &o) { return output<<o.value<<" +/- "<<o.error; }
-
-
-  class MeasAccumulators {
-    const HamiltonianTerm *term;
-    BinnedAccumulatorME *sum;
-  public:
-    MeasAccumulators() {};
-    MeasAccumulators(const HamiltonianTerm * const t,BinnedAccumulatorME * const s) : term(t), sum(s) {} 
-    MeasAccumulators(const MeasAccumulators &o) : term(o.term), sum(o.sum) {}
-    MeasAccumulators &operator=(MeasAccumulators &o) {
-      term=o.term;
-      sum=o.sum; 
-      return *this;
-    }
-    inline void measure(_accumulator_float Weight) const { sum->push( term->me(RIGHT) ,Weight); }
-  };
-
-
-	
-	typedef std::vector< std::pair<Boson*,int> > BosonDeltaMapType;
-	
-	// This one is ok to be slow since it is called only in the initializer
-	inline BosonDeltaMapType map(const HamiltonianTerm * const term) {
-		std::map<Boson*,int> indices;
-    for(int i=0;i<term->product().size();++i)
-			indices[term->product()[i].particle_id()]=-term->product()[i].delta();
-
-		BosonDeltaMapType vmap;
-		vmap.reserve(indices.size());
-		std::map<Boson*,int>::const_iterator it;
-		for(it=indices.begin();it!=indices.end();++it)
-			vmap.push_back(*it);
-			
-		return vmap;
-	}
-	
-	
-	// This one must be very fast
-	inline BosonDeltaMapType map(const std::set<Boson*> &s) {
-		BosonDeltaMapType vmap;
-		vmap.reserve(s.size());
-		std::set<Boson*>::const_iterator it;
-		for(it=s.begin();it!=s.end();++it)
-			vmap.push_back(std::pair<Boson*,int>(*it,(*it)->delta()));
-		return vmap;
-	}	
-	
-/*
-	typedef std::map<Boson*,int> BosonDeltaMapType;
-	inline BosonDeltaMapType map(const HamiltonianTerm * const term) {
-		BosonDeltaMapType indices;
-    for(int i=0;i<term->product().size();++i)
-			indices[term->product()[i].particle_id()]=-term->product()[i].delta();
-		return indices;	
-	}
-
-	inline BosonDeltaMapType map(const std::set<Boson*> &s) {
-		BosonDeltaMapType indices;
-		std::set<Boson*>::const_iterator it;
-		for(it=s.begin();it!=s.end();++it)
-			indices[*it]=(*it)->delta();
-		return indices;
-	}		
-
-*/
-
-  class Measurable {
-    _counter_int _ndiagonal;
-    _counter_int _nflush;
-    std::vector<BinnedAccumulatorME> Sums;
-    std::vector<MatrixElement> Constants;
-
-    const unsigned long _size;
-    std::vector<MeasAccumulators> Diag_Acc;
-    std::map<BosonDeltaMapType,std::vector<MeasAccumulators> > OD_Acc;
+	private:
     BinnedAccumulatorME _Kinetic;
     BinnedAccumulatorME _Potential;
     BinnedAccumulatorME _TotalEnergy;
-    _accumulator_float _BoltzmannWeight;
-    
-    std::map<unsigned int,_counter_int> BrokenHistogram;
 
-  public:
-    Measurable(const std::vector<Hamiltonian> &HList) : _ndiagonal(0), _nflush(0), Sums(HList.size()), Constants(HList.size()), _size(HList.size()), _Kinetic(), _TotalEnergy(), _BoltzmannWeight(0) {
+		BrokenHistogramType _BrokenHistogram;
+  
+ 	protected:
+		MatrixElement BoltzmannWeight;
+	public:
+		MeasureDefaults() : _Kinetic(), _Potential(), _TotalEnergy(), BoltzmannWeight(0) {}
 
-      for(unsigned int i=0;i<HList.size();++i)
-      for(unsigned int j=0;j<HList[i].size();++j) {
-        const HamiltonianTerm *term=&HList[i][j];
-
-        if(term->constant())
-          Constants[i]+=term->coefficient(); 
-        else if(term->diagonal())
-          Diag_Acc.push_back(MeasAccumulators(term,&Sums[i]));
-        else
-          OD_Acc[map(term)].push_back(MeasAccumulators(term,&Sums[i]));
-      }
-    }
-                              
-    inline void reset() {
-      _ndiagonal=0;
-      _nflush=0;
-      _Kinetic.reset();
-      _Potential.reset(); 
-      _TotalEnergy.reset();
-
-			std::vector<BinnedAccumulatorME>::iterator it;
-			for(it=Sums.begin();it!=Sums.end();++it) it->reset();
-			
-      _BoltzmannWeight=0;
-      BrokenHistogram.clear();
-    }
-    
     inline void flush() {
-      ++_nflush;
-      _Kinetic.flush(_BoltzmannWeight);
-      _Potential.flush(_BoltzmannWeight);
-      _TotalEnergy.flush(_BoltzmannWeight);
-
-			std::vector<BinnedAccumulatorME>::iterator it;
-			for(it=Sums.begin();it!=Sums.end();++it) it->flush(_BoltzmannWeight);
-      _BoltzmannWeight=0;
-    }
-
+      _Kinetic.flush(BoltzmannWeight);
+      _Potential.flush(BoltzmannWeight);
+      _TotalEnergy.flush(BoltzmannWeight);
+			BoltzmannWeight=0;
+		}
+		
     void measure(const OperatorStringType &OperatorString) {
       
       const _accumulator_float Weight=OperatorString.BoltzmannWeight();
 
-      BrokenHistogram[OperatorString.NBrokenLines()]+=1;
+      _BrokenHistogram[OperatorString.NBrokenLines()]+=1;
       
-      if(OperatorString.NBrokenLines()!=0) {  // Off diagonal configurations
-	      const std::set<Boson*> &list=OperatorString.ListBrokenLines();
-        std::map<BosonDeltaMapType,std::vector<MeasAccumulators> >::const_iterator it(OD_Acc.find(map(list)));
-        if(it!=OD_Acc.end()) {
-          const std::vector<MeasAccumulators> &v=it->second;
-					std::vector<MeasAccumulators>::const_iterator v_it;
-					for(v_it=v.begin();v_it!=v.end();++v_it) v_it->measure(Weight);
-        }
+      if(OperatorString.NBrokenLines()==0) {
+				BoltzmannWeight+=Weight;
+        _accumulator_float Kinetic=-static_cast<_accumulator_float>(OperatorString.length())/OperatorString.Beta();
+        _accumulator_float Potential=OperatorString.Energy(RIGHT);        
+        _Kinetic.push( Kinetic*Weight );
+        _Potential.push( Potential*Weight );
+        _TotalEnergy.push( (Kinetic+Potential)*Weight );
       }
-      else {  // diagonal configuration
-        ++_ndiagonal;
-        _BoltzmannWeight+=Weight;
-        _accumulator_float MeasKinetic=-static_cast<_accumulator_float>(OperatorString.length())/OperatorString.Beta();
-        _accumulator_float MeasPotential=OperatorString.Energy(RIGHT);        
-        _Kinetic.push(MeasKinetic,Weight);
-        _Potential.push(MeasPotential,Weight);
-        _TotalEnergy.push(MeasKinetic+MeasPotential,Weight);
+
+		}		
 				
-				std::vector<MeasAccumulators>::const_iterator it;
-				for(it=Diag_Acc.begin();it!=Diag_Acc.end();++it) it->measure(Weight);
-      }
+		inline const BrokenHistogramType &BrokenHistogram() const {return _BrokenHistogram;}
 
-    }
-
-    inline unsigned long size() const {return _size;}
-    inline _counter_int count() const {return _ndiagonal;} 
-    inline const Measurement operator[](unsigned long i) const {return Measurement(Constants[i]+Sums[i].average(),Sums[i].sigma());}
-    inline const Measurement KineticEnergy() const {return Measurement(_Kinetic.average(),_Kinetic.sigma());}
-    inline const Measurement PotentialEnergy() const {return Measurement(_Potential.average(),_Potential.sigma());}
-    inline const Measurement TotalEnergy() const {return Measurement(_TotalEnergy.average(),_TotalEnergy.sigma());}
-    
-    void print_histogram() const {
-      std::cout<<"  *******************************\n";
-      std::cout<<"  * Broken worldlines histogram *\n";
-      std::cout<<"  *******************************\n\n";
-      std::cout<<"    N lines\tCount\tProbability\n\n";
-
-      std::map<unsigned int,_counter_int>::const_iterator it;
-      _accumulator_float Normalization=0;
-      for(it=BrokenHistogram.begin();it!=BrokenHistogram.end();++it)
+		inline _accumulator_float BrokenNormalization() const {
+			_accumulator_float Normalization=0;
+      for(BrokenHistogramType::const_iterator it=_BrokenHistogram.begin();it!=_BrokenHistogram.end();++it)
         Normalization+=it->second;
+			return Normalization;
+		}
 
-      for(it=BrokenHistogram.begin();it!=BrokenHistogram.end();++it)
-        std::cout<<"    "<<it->first<<"\t\t"<<it->second<<"\t"<<it->second/Normalization<<std::endl;
+		inline _counter_int count(unsigned int i=0) { return _BrokenHistogram[i]; }
+    inline const BinnedAccumulatorME &KineticEnergy() const {return _Kinetic;}
+    inline const BinnedAccumulatorME &PotentialEnergy() const {return _Potential;}
+    inline const BinnedAccumulatorME &TotalEnergy() const {return _TotalEnergy;}
+
+	};
+
+
+  class Measurable : public MeasureDefaults {
+ 
+    std::vector<BinnedAccumulatorME> Sums;
+
+	  struct MeasAccumulators {
+	    const HamiltonianTerm *term;
+	    BinnedAccumulatorME *sum;
+	    MeasAccumulators(const HamiltonianTerm * const t,BinnedAccumulatorME * const s) : term(t), sum(s) {} 
+	  };
+
+
+		typedef std::vector< std::pair<Boson*,int> > BosonDeltaMapType; 
+    std::map<BosonDeltaMapType,std::vector<MeasAccumulators> > _Acc;
+
+		// This one is ok to be slow since it is called only in the initializer
+		inline BosonDeltaMapType map(const HamiltonianTerm * const term) {
+			std::map<Boson*,int> indices;
+	    for(int i=0;i<term->product().size();++i) {
+				int delta=-term->product()[i].delta();
+				if(delta!=0) indices[term->product()[i].particle_id()]=delta;
+			}
+
+			BosonDeltaMapType vmap;
+			vmap.reserve(indices.size());
+			std::map<Boson*,int>::const_iterator it;
+			for(it=indices.begin();it!=indices.end();++it)
+				vmap.push_back(*it);
+
+			return vmap;
+		}
+
+
+		// This one must be very fast
+		inline BosonDeltaMapType map(const std::set<Boson*> &s) {
+			BosonDeltaMapType vmap;
+			vmap.reserve(s.size());
+			std::set<Boson*>::const_iterator it;
+			for(it=s.begin();it!=s.end();++it) {
+				int delta=(*it)->delta();
+				if(delta!=0) vmap.push_back(std::pair<Boson*,int>(*it,delta));
+			}
+			return vmap;
+		}	
+
+	
+  public:
+    Measurable(const std::vector<Hamiltonian> &HList) : MeasureDefaults(), Sums(HList.size()) {
+
+      for(unsigned int i=0;i<HList.size();++i)
+      for(unsigned int j=0;j<HList[i].size();++j) {
+        const HamiltonianTerm *term=&HList[i][j];
+				_Acc[map(term)].push_back(MeasAccumulators(&HList[i][j],&Sums[i]));
+      }
+			
+			std::cout<<"Diagonal Operators "<<_Acc[BosonDeltaMapType()].size()<<std::endl;
+			std::cout<<"All Operators "<<_Acc.size()<<std::endl;
     }
+    
+    inline void flush() {
+      
+			for(std::vector<BinnedAccumulatorME>::iterator it=Sums.begin();it!=Sums.end();++it) 
+				it->flush(BoltzmannWeight);
+
+			MeasureDefaults::flush();
+
+    }
+
+    void measure(const OperatorStringType &OperatorString) {
+
+			bool diagonal=(OperatorString.NBrokenLines()==0);
+			
+      const _accumulator_float Weight=OperatorString.BoltzmannWeight();
+			const std::vector<MeasAccumulators> &v=_Acc[map(OperatorString.ListBrokenLines())];
+			for(std::vector<MeasAccumulators>::const_iterator it=v.begin();it!=v.end();++it) {
+				it->sum->push( it->term->me(RIGHT) * Weight );
+			}
+
+			MeasureDefaults::measure(OperatorString);
+
+		}
+		
+    inline unsigned long size() const {return Sums.size();}
+    inline const BinnedAccumulatorME &operator[](unsigned long i) const {return Sums[i];}
+                                                  
   };  
 
 }  

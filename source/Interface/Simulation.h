@@ -14,10 +14,8 @@ public:
 	 FileNameProgressBar(const char *Name) : Progress(0) {
 		 Time=clock();
 		 strcpy(Status,MathExpression::GetSimulName());
-     strcpy(Status+strlen(Status)," - ");
-     strcpy(Status+strlen(Status),Name);
-     strcpy(Status+strlen(Status)," 000 %");
-     Ptr=Status+strlen(Status)-5;
+		 Ptr=Status+strlen(Status);   
+		 sprintf(Ptr," - 000 - 000:00:00");     
      fstream File;
      File.open(Status,ios::out);
      File.close();    
@@ -40,11 +38,17 @@ public:
 			unsigned int MinutesLeft=SecondsLeft/60;
 			SecondsLeft%=60;
 			
+			
 		  char OldStatus[StringLength];
       strcpy(OldStatus,Status);
 			int percent=static_cast<int>(100*Progress);
 			
-			sprintf(Ptr,"%.3d - %.3d:%.2d:%.2d",percent,HoursLeft,MinutesLeft,SecondsLeft);
+			sprintf(Ptr," - %.3d - %.3d:%.2d:%.2d",percent,HoursLeft,MinutesLeft,SecondsLeft);
+      
+			for(int i=0;i<strlen(Status);++i)
+				cout<<'\b';  
+			std::cout<<Status<<std::flush;
+
 
       rename(OldStatus,Status);
 		}
@@ -224,8 +228,19 @@ public:
           cout << "    Number of directed updates for measurements: " << NumDirectedMeasUpdates << " ("<<ActualMeasTime*1000000000/NumDirectedMeasUpdates << " seconds per billion updates)\n";  
 					cout << "    Directed update length for measurements: "<< double(NumMeasUpdates)/NumDirectedMeasUpdates<<std::endl;
           cout << "    Number of measurements: " << MeasuredOp.count() << "\n\n";
-          MeasuredOp.print_histogram();
+
+					std::cout<<::std::endl;
+		      std::cout<<"  *******************************\n";
+		      std::cout<<"  * Broken worldlines histogram *\n";
+		      std::cout<<"  *******************************\n\n";
+		      std::cout<<"    N lines\tCount\tProbability\n\n";
+          
+					SGF::Measurable::BrokenHistogramType BrokenHistogram=MeasuredOp.BrokenHistogram();
+					double Normalization=MeasuredOp.BrokenNormalization();
+		      for(SGF::Measurable::BrokenHistogramType::const_iterator it=BrokenHistogram.begin();it!=BrokenHistogram.end();++it)
+		        std::cout<<"    "<<it->first<<"\t\t"<<it->second<<"\t"<<it->second/Normalization<<std::endl;
           cout << endl;
+
           cout << "  ***********************************************************************************\n";
           cout << "  * Energies (obtained from operator string length and Green operator state energy) *\n";
           cout << "  ***********************************************************************************\n\n";
