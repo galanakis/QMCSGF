@@ -35,10 +35,10 @@ public:
 
 
 // This returns x/(1-exp(-x))
-inline double expweight(long double x) { long double d=1.0-exp(-x); return (d!=0.0)?x/d:1.0; }
+inline long double expweight(long double x) { long double d=1.0-exp(-x); return (d!=0.0)?x/d:1.0; }
 
 // This returns log(1-x*(1-exp(A)))/A which is a monotonic function between 0 and 1 if x is in the same interval
-inline double logexponential(long double A,long double x) { return fabs(A)<0.000000001?x:log(1-x*(1-exp(A)))/A; }
+inline long double logexponential(long double A,long double x) { return fabs(A)<0.000000001?x:log(1-x*(1-exp(A)))/A; }
 
 /*
   class OperatorStringType
@@ -126,7 +126,7 @@ public:
     update(term,!direction,ADD);
     push(!direction,Operator(_GreenTime,term));
     double KeepDestroy=KeepDestroying(!direction);
-    AccumulateAlpha[REMOVE].push(KeepDestroy,1);
+    AccumulateAlpha[REMOVE].push(KeepDestroy);
     return RNG::Uniform()<KeepDestroy;
   }
   
@@ -136,7 +136,7 @@ public:
     update(top(direction).Term,direction,REMOVE);
     pop(direction);
     double KeepCreate=KeepCreating(!direction);
-    AccumulateAlpha[ADD].push(KeepCreate,1);
+    AccumulateAlpha[ADD].push(KeepCreate);
     return RNG::Uniform()<KeepCreate;
   }
 
