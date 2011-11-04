@@ -88,7 +88,7 @@ namespace SGF {
 		// This one is ok to be slow since it is called only in the initializer
 		inline BosonDeltaMapType map(const HamiltonianTerm * const term) {
 			std::map<Boson*,int> indices;
-	    for(int i=0;i<term->product().size();++i) {
+	    for(unsigned int i=0;i<term->product().size();++i) {
 				int delta=-term->product()[i].delta();
 				if(delta!=0) indices[term->product()[i].particle_id()]=delta;
 			}
@@ -122,11 +122,9 @@ namespace SGF {
       for(unsigned int i=0;i<HList.size();++i)
       for(unsigned int j=0;j<HList[i].size();++j) {
         const HamiltonianTerm *term=&HList[i][j];
-				_Acc[map(term)].push_back(MeasAccumulators(&HList[i][j],&Sums[i]));
+				_Acc[map(term)].push_back(MeasAccumulators(term,&Sums[i]));
       }
-			
-			std::cout<<"Diagonal Operators "<<_Acc[BosonDeltaMapType()].size()<<std::endl;
-			std::cout<<"All Operators "<<_Acc.size()<<std::endl;
+
     }
     
     inline void flush() {
@@ -156,4 +154,4 @@ namespace SGF {
                                                   
   };  
 
-}  
+}
