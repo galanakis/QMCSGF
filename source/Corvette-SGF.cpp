@@ -123,14 +123,14 @@ int main(int NumArg,char **Arg)
 // *****************************
 // _____________________________________________________________________
 SGFContainer Container;
-SGF::RebuildPeriod=MathExpression::GetValue("RebuildPeriod").Re();
-int GreenOperatorLines=MathExpression::GetValue("GreenOperatorLines").Re();
+SGF::RebuildPeriod=Container.RebuildPeriod();
+int GreenOperatorLines=Container.GreenOperatorLines();
 
 const SGF::Hamiltonian &T=Container.Kinetic();
 const SGF::Hamiltonian &V=Container.Potential();
 double Beta=Container.Beta();
 SGF::OperatorStringType OperatorString(T,V,Beta);
-double AlphaParameter=MathExpression::GetValue("AlphaParameter").Re();
+double AlphaParameter=Container.AlphaParameter();
 OperatorString.alpha()=AlphaParameter;
 OperatorString.alpha(SGF::ADD)=AlphaParameter;
 OperatorString.alpha(SGF::REMOVE)=AlphaParameter;
