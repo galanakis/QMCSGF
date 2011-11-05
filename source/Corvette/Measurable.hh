@@ -137,8 +137,6 @@ namespace SGF {
     }
 
     void measure(const OperatorStringType &OperatorString) {
-
-			bool diagonal=(OperatorString.NBrokenLines()==0);
 			
       const _accumulator_float Weight=OperatorString.BoltzmannWeight();
 			const std::vector<MeasAccumulators> &v=_Acc[map(OperatorString.ListBrokenLines())];

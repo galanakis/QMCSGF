@@ -84,39 +84,43 @@ enum {LATER,EARLIER};
 class OperatorStringType : public CircDList<Operator>, public Probabilities {
   CircularTime _GreenTime;  // The time of the Green operator
   
-  double Alpha[2];
+  double Alpha[2],AlphaParameter;
   Accumulator<2,long double> AccumulateAlpha[2];    
   double _Beta;             // Inverse temperature.
 
 public:
   OperatorStringType(const Hamiltonian &T,const Hamiltonian &V,double _beta) : CircDList<Operator>(), Probabilities(T,V), _Beta(_beta) {
-    Alpha[ADD]=Alpha[REMOVE]=0;
+    Alpha[ADD]=Alpha[REMOVE]=AlphaParameter=0;
   }
 
   void AlphaUpdate() {
-    double P[2];
-    double alpha=0.95;
-    P[REMOVE]=AccumulateAlpha[REMOVE](1)/Alpha[REMOVE];
-    P[ADD]=AccumulateAlpha[ADD](1)/Alpha[ADD];
-    
-    Alpha[REMOVE]=alpha*P[ADD]/Max(P[ADD],P[REMOVE]);
-    Alpha[ADD]=alpha*P[REMOVE]/Max(P[ADD],P[REMOVE]);
-    
-    AccumulateAlpha[0].reset();
-    AccumulateAlpha[1].reset();
+	  
+		double Acc[2];
+
+		Acc[0]=AccumulateAlpha[0](1);
+		Acc[1]=AccumulateAlpha[1](1);
+		
+ 		Alpha[0]=AlphaParameter*Acc[1]/Max(Acc[1],Acc[0]);
+		Alpha[1]=AlphaParameter*Acc[0]/Max(Acc[1],Acc[0]);
+     
+		print_alphas();
+		AccumulateAlpha[0].reset();
+		AccumulateAlpha[1].reset();
     
   }
 
   inline void print_alphas() {
-    std::cout<<"AlphaD: "<<Alpha[REMOVE]<<", Pkd: "<<AccumulateAlpha[REMOVE](1)<<std::endl;
-    std::cout<<"AlphaC: "<<Alpha[ADD]<<", Pkc: "<<AccumulateAlpha[ADD](1)<<std::endl;
+		std::cout<<"Alpha\t"<<AlphaParameter<<std::endl;
+    std::cout<<"AlphaD:\t"<<Alpha[REMOVE]<<", Pkd: "<<AccumulateAlpha[REMOVE](1)<<std::endl;
+    std::cout<<"AlphaC:\t"<<Alpha[ADD]<<", Pkc: "<<AccumulateAlpha[ADD](1)<<std::endl;
   }
 
   inline double DeltaV() const {return Energy(LEFT)-Energy(RIGHT);} // The difference between the energies
   inline double DeltaTau() const { return Beta()*(top(LEFT).Time-top(RIGHT).Time).time(); }
   inline double Beta() const {return _Beta;}
   inline double& Beta() {return _Beta;} 
-
+  
+	inline double &alpha() {return AlphaParameter;}
   inline double &alpha(int action) {return Alpha[action];}
   inline CircularTime& GreenTime() {return _GreenTime;}
 
@@ -127,7 +131,7 @@ public:
     push(!direction,Operator(_GreenTime,term));
     double KeepDestroy=KeepDestroying(!direction);
     AccumulateAlpha[REMOVE].push(KeepDestroy);
-    return RNG::Uniform()<KeepDestroy;
+    return RNG::Uniform()<Alpha[REMOVE]*KeepDestroy;
   }
   
   // Destroy an operator along the direction of motion of the green operator
@@ -137,7 +141,7 @@ public:
     pop(direction);
     double KeepCreate=KeepCreating(!direction);
     AccumulateAlpha[ADD].push(KeepCreate);
-    return RNG::Uniform()<KeepCreate;
+    return RNG::Uniform()<Alpha[ADD]*KeepCreate;
   }
 
 /* 
@@ -157,10 +161,10 @@ public:
   DestructionWeight(RIGHT)=empty() ? 0 : (1-Alpha[REMOVE]*Min(1.0,exp( DeltaV()*DeltaTau())))*expweight(-DeltaV()*DeltaTau())/DeltaTau();
 */
 
-  inline double KeepCreating(int direction) const { return Alpha[ADD]*weight(direction)/Max(weight(LEFT),weight(RIGHT)); }
-  inline double KeepDestroying(int direction) const { return Alpha[REMOVE]*Min(1.0,exp(Sign[direction]*DeltaV()*DeltaTau())); }
-  inline double CreationWeight(int direction) const { return ((1-KeepCreating(direction))*weight(!direction))/G(); }
-  inline double DestructionWeight(int direction) const { return empty() ? 0 : (1-KeepDestroying(direction))*expweight(-Sign[direction]*DeltaV()*DeltaTau())/DeltaTau(); }
+  inline double KeepCreating(int direction) const { return weight(direction)/Max(weight(LEFT),weight(RIGHT)); }
+  inline double KeepDestroying(int direction) const { return Min(1.0,exp(Sign[direction]*DeltaV()*DeltaTau())); }
+  inline double CreationWeight(int direction) const { return ((1-Alpha[ADD]*KeepCreating(direction))*weight(!direction))/G(); }
+  inline double DestructionWeight(int direction) const { return empty() ? 0 : (1-Alpha[REMOVE]*KeepDestroying(direction))*expweight(-Sign[direction]*DeltaV()*DeltaTau())/DeltaTau(); }
   inline double BoltzmannWeight() const {return 1.0/G()/(CreationWeight(LEFT)+CreationWeight(RIGHT)+DestructionWeight(LEFT)+DestructionWeight(RIGHT));}
 
 /* 
@@ -260,26 +264,6 @@ we enter the main loop.
      if(action==(UpdateLength&1)) _GreenTime+=TimeShift(direction); 
      return UpdateLength;     
    }
-
-    inline int simple_update(int direction,int action) {
-      if(action==ADD) {
-        create(direction);
-        _GreenTime+=TimeShift(direction);
-      }
-      else {
-        destroy(direction);
-      }
-      return 1;
-    }
-
-  
-  inline void statistics() {
-    std::cout<<"___ Operator string statistics ____"<<std::endl;
-    std::cout<<"Beta= "<<_Beta<<std::endl;
-    std::cout<<"Final string length: "<<length()<<std::endl;
-    //for(int i=0;i<que.size();++i) { std::cout<<term_index(que[i].Term)<<"\t"<<que[i].Time<<std::endl;  }
-
-  }
   
 };
 

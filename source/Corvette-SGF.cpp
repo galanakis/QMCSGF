@@ -130,8 +130,10 @@ const SGF::Hamiltonian &T=Container.Kinetic();
 const SGF::Hamiltonian &V=Container.Potential();
 double Beta=Container.Beta();
 SGF::OperatorStringType OperatorString(T,V,Beta);
-OperatorString.alpha(SGF::ADD)=0.95;
-OperatorString.alpha(SGF::REMOVE)=0.95;
+double AlphaParameter=MathExpression::GetValue("AlphaParameter").Re();
+OperatorString.alpha()=AlphaParameter;
+OperatorString.alpha(SGF::ADD)=AlphaParameter;
+OperatorString.alpha(SGF::REMOVE)=AlphaParameter;
 OperatorString.GreenInit(Container.NSites(),GreenOperatorLines);
 SGF::Measurable MeasuredOperators(Container.MeasurableOperators());
 // _____________________________________________________________________
