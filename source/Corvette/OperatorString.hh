@@ -103,7 +103,6 @@ public:
  		Alpha[0]=AlphaParameter*Acc[1]/Max(Acc[1],Acc[0]);
 		Alpha[1]=AlphaParameter*Acc[0]/Max(Acc[1],Acc[0]);
      
-		print_alphas();
 		AccumulateAlpha[0].reset();
 		AccumulateAlpha[1].reset();
     
