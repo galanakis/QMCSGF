@@ -293,6 +293,7 @@ public:
 		rebuild();
 	}
 
+
   inline void fast_update(const HamiltonianTerm* term,int rl,int arflag) { 
 		_NBWL+=term->offset(arflag);
     Hamiltonian::size_type index=term_index(term);
@@ -304,18 +305,15 @@ public:
       int foffset = nbr->offset(arflag);
       MatrixElement ime = nbr->me(rl);
       MatrixElement fme = nbr->me(rl,arflag);
-      // The if statements decrease the time by 30%
-      if(ioffset!=foffset) {
-        MatrixElement jme =nbr->me(!rl);
-        // Note that those statements are parallelizable
+			if(ioffset!=foffset) {
+				MatrixElement jme = nbr->me(!rl); 
 				tsum( rl,offsets(ioffset)).update(fndex,-ime);
 				tsum( rl,offsets(foffset)).update(fndex,+fme);
 				tsum(!rl,offsets(ioffset)).update(fndex,-jme);
-				tsum(!rl,offsets(foffset)).update(fndex,+jme);
-      }
-      else 
-				tsum( rl,offsets(ioffset)).update(fndex,fme-ime);			
-
+				tsum(!rl,offsets(foffset)).update(fndex,+jme); 
+			}
+			else
+				tsum( rl,offsets(ioffset)).update(fndex,fme-ime);
     }
 			
     for(nbr=pot_adjacency[index].begin();nbr!=pot_adjacency[index].end();++nbr) 

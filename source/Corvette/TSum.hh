@@ -48,9 +48,13 @@ namespace SGF {
 
   
 class TSum {
-	std::vector<MatrixElement> _sums;
- 
   typedef std::vector<MatrixElement>::size_type index_type;
+
+	std::vector<MatrixElement> _sums;
+	MatrixElement _norm;
+	std::vector<MatrixElement> _buffer_sums;
+	std::vector<index_type> _buffer_indices;
+
 	inline index_type nsums() const {return _sums.size()/2;} // This is where the terms start.
  
 	// Chop off small numerical values. The thresshold is Tolerance which is set as the minimum coefficient of any kinetic operator.
@@ -59,8 +63,8 @@ class TSum {
 public:
   static MatrixElement Tolerance;
 
-	TSum() : _sums() {}
-	TSum(const TSum &o) : _sums(o._sums) {}
+	TSum() : _sums(), _norm(0), _buffer_sums(), _buffer_indices() {}
+	TSum(const TSum &o) : _sums(o._sums),_norm(o._norm), _buffer_sums(o._buffer_sums), _buffer_indices(o._buffer_indices) {}
 	~TSum() {}
 	
 	/* resizes the vector */
@@ -68,20 +72,35 @@ public:
 		index_type _size=1;
 		while(_size<2*NTerms) _size<<=1;
 		_sums.resize(_size-1,MatrixElement(0));
+		_buffer_sums.resize(NTerms);
 	}
-
+  
+	inline void flush() {
+		std::vector<index_type>::const_iterator rit;
+		for(rit=_buffer_indices.begin();rit!=_buffer_indices.end();++rit) {
+			index_type index=*rit+1+nsums();
+			MatrixElement &me=_buffer_sums[*rit];
+			if(me!=0) {
+				while(index>0) {
+			  	_sums[index-1]+=me;
+        	index>>=1;
+	    	}
+				me=0;
+			}
+		}
+		_buffer_indices.clear();
+	}
 	
 	inline void update(index_type index,MatrixElement me) {
 		if(me!=0) {
-			index+=1+nsums();
-			while(index>0) {
-			  _sums[index-1]+=me;
-        index>>=1;
-	    }
-    }
+			_norm+=me;
+			_buffer_sums[index]+=me;
+			_buffer_indices.push_back(index);			
+		}
 	}
 
-	inline index_type choose() const {
+	inline index_type choose() {
+		flush();
 		index_type _nterms=nsums();
 		index_type index=0;
 		while(index<_nterms) {
@@ -102,12 +121,14 @@ public:
 
 	/* Makes all elements zero */
 	inline void reset() {
+		flush();
+		_norm=0;
 		for(std::vector<MatrixElement>::iterator it=_sums.begin();it!=_sums.end();++it)
 			*it=MatrixElement(0);
 	}
 	
 	/* Returns the sum of all the partial probabilities which is stored at the root */
-	inline MatrixElement norm() const { return Crop(_sums[0]); }
+	inline MatrixElement norm() const { return Crop(_norm); }
 
 };
 
