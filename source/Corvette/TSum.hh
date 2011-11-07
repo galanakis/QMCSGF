@@ -3,13 +3,8 @@
 
 #include "RandomNumberGenerator.hh"
 #include "HamiltonianTerm.hh"
-#include "GreenOperator.hh"
-#include "AdjacencyList.hh"
 #include "TSum.hh"
 #include <vector>
-#include <list>
-#include <set>
-#include <queue>
 
 namespace SGF {
 
@@ -52,10 +47,10 @@ class TSum {
 
 	std::vector<MatrixElement> _sums;
 	MatrixElement _norm;
+	index_type _nsums;
 	std::vector<MatrixElement> _buffer_sums;
 	std::vector<index_type> _buffer_indices;
 
-	inline index_type nsums() const {return _sums.size()/2;} // This is where the terms start.
  
 	// Chop off small numerical values. The thresshold is Tolerance which is set as the minimum coefficient of any kinetic operator.
 	long double Crop(long double x) const { return (fabs(x)>Tolerance)?x:0; }
@@ -70,17 +65,18 @@ public:
 	/* resizes the vector */
 	inline void resize(index_type NTerms) {
 		index_type _size=1;
-		while(_size<2*NTerms) _size<<=1;
-		_sums.resize(_size-1,MatrixElement(0));
+		while(_size<NTerms) _size<<=1;
+		_sums.resize(2*_size-1,MatrixElement(0));
 		_buffer_sums.resize(NTerms);
+		_nsums=_size-1;
 	}
   
 	inline void flush() {
 		std::vector<index_type>::const_iterator rit;
 		for(rit=_buffer_indices.begin();rit!=_buffer_indices.end();++rit) {
-			index_type index=*rit+1+nsums();
 			MatrixElement &me=_buffer_sums[*rit];
 			if(me!=0) {
+				index_type index=*rit+1+_nsums;
 				while(index>0) {
 			  	_sums[index-1]+=me;
         	index>>=1;
@@ -101,7 +97,7 @@ public:
 
 	inline index_type choose() {
 		flush();
-		index_type _nterms=nsums();
+		index_type _nterms=_nsums;
 		index_type index=0;
 		while(index<_nterms) {
 			
