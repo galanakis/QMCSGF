@@ -34,7 +34,7 @@ public:
   inline void print_term(const SGF::HamiltonianTerm &term) const {
     char name[100][10]={"","","A","C","AA","AC","CA","CC","AAA","AAC","ACA","ACC","CAA","CAC","CCA","CCC","AAAA","AAAC","AACA","AACC","ACAA","ACAC","ACCA","ACCC","CAAA","CAAC","CACA","CACC","CCAA","CCAC","CCCA","CCCC",};
     std::cout<<(term.coefficient())<<"*";
-    for(int i=0;i<term.product().size();++i) {
+    for(SGF::HamiltonianTerm::size_type i=0;i<term.product().size();++i) {
       long index=term.product()[i].particle_id()-&_Psi[0];
       int prodelem=term.product()[i].id();
       std::cout<<name[prodelem]<<"["<<index<<"]";
@@ -46,7 +46,7 @@ public:
   inline void explicit_print_term(const SGF::HamiltonianTerm &term)  {
     char name[100][10]={"","","A","C","AA","AC","CA","CC","AAA","AAC","ACA","ACC","CAA","CAC","CCA","CCC","AAAA","AAAC","AACA","AACC","ACAA","ACAC","ACCA","ACCC","CAAA","CAAC","CACA","CACC","CCAA","CCAC","CCCA","CCCC",};
     std::cout<<(term.coefficient())<<"*";
-    for(int i=0;i<term.product().size();++i) {
+    for(SGF::HamiltonianTerm::size_type i=0;i<term.product().size();++i) {
       long index=term.product()[i].particle_id()-&_Psi[0];
       int prodelem=term.product()[i].id();
       std::cout<<name[prodelem]<<"["<<index<<"->("<<_Psi[index].n(SGF::LEFT)<<","<<_Psi[index].n(SGF::RIGHT)<<","<<_Psi[index].nmax()<<")] ";
@@ -84,8 +84,8 @@ public:
     }
 
     std::set<SGF::Boson*> indexset;
-    for(int i=0;i<_Kinetic.size();++i)
-      for(int j=0;j<_Kinetic[i].product().size();++j)
+    for(SGF::Hamiltonian::size_type i=0;i<_Kinetic.size();++i)
+      for(SGF::HamiltonianTerm::size_type j=0;j<_Kinetic[i].product().size();++j)
         indexset.insert(_Kinetic[i].product()[j].particle_id());
 
 
@@ -103,7 +103,7 @@ public:
     std::vector<std::string> &opnames=EasyMathExpression::MeasurableNameList();
     _MeasurableOperators.resize(opnames.size());
 
-    for(int i=0;i<opnames.size();++i) {
+    for(std::vector<std::string>::size_type i=0;i<opnames.size();++i) {
       EasyMathExpression::OperatorIterator oit(_Psi,opnames[i]);
 
       while(oit.increment())
@@ -154,9 +154,9 @@ public:
 		std::vector< std::vector<int> > SparceMatrix;
 		
 
-		for(int i=0;i<_Kinetic.size();++i) {
+		for(SGF::Hamiltonian::size_type i=0;i<_Kinetic.size();++i) {
 			std::map<unsigned int,int> temp_map;
-			for(int n=0;n<_Kinetic[i].product().size();++n) {
+			for(SGF::HamiltonianTerm::size_type n=0;n<_Kinetic[i].product().size();++n) {
 				unsigned int index=indexmap[_Kinetic[i].product()[n].particle_id()];
 				temp_map[index]=_Kinetic[i].product()[n].delta();
 				//SparceMatrix[index].push_back(i);
@@ -169,24 +169,9 @@ public:
     
   inline int NSites() const {return EasyMathExpression::NSites();}
   void print_matrix_elements() {
-    for(int i=0;i<Kinetic().size();++i) {
+    for(SGF::Hamiltonian::size_type i=0;i<Kinetic().size();++i) {
       std::cout<<"i="<<i<<" LEFT "<<Kinetic()[i].me(SGF::LEFT)<<" RIGHT "<<Kinetic()[i].me(SGF::RIGHT)<<std::endl;
     }
-  }
-
-  void print() {
-    std::cout<<"Beta:\t"<<_Beta<<std::endl;
-    std::cout<<"Ensemble:\t"<<_Ensemble<<std::endl;
-    std::cout<<"Seed:\t"<<_Seed<<std::endl; 
-
-    std::cout<<"Number of _Psi indices:\t"<<_Psi.size()<<std::endl;
-    std::cout<<"Number of _Kinetic Terms:\t"<<_Kinetic.size()<<std::endl;
-    std::cout<<"Number of _Potential Terms:\t"<<_Potential.size()<<std::endl;
-    std::cout<<"Number of measurable Terms:\t"<<_MeasurableOperators.size()<<std::endl;
-    for(int i=0;i<_MeasurableOperators.size();++i)
-      std::cout<<"Size of Operator ["<<i<<"] "<<_MeasurableOperators[i].size()<<std::endl;
-
-
   }
 
 

@@ -69,7 +69,7 @@ public:
 			
 			sprintf(Ptr," - %.3d - %.3d:%.2d:%.2d",percent,HoursLeft,MinutesLeft,SecondsLeft);
       
-			for(int i=0;i<strlen(Status);++i)
+			for(unsigned int i=0;i<strlen(Status);++i)
 				cout<<'\b';  
 			std::cout<<Status<<std::flush;
 
@@ -168,7 +168,7 @@ public:
 					NumDirectedMeasUpdates=0;
 
 					unsigned int ExtraUpdates=0;	
-					for (int i=0;i<NumBins;i++) {
+					for (unsigned int i=0;i<NumBins;i++) {
 
 						unsigned long long counter=0;
 						do {
@@ -284,7 +284,7 @@ public:
 
           int UserMeasurables=0;
           
-          for (int i=0;i<MeasuredOp.size();i++)
+          for (SGF::Measurable::size_type i=0;i<MeasuredOp.size();i++)
             if (Names[i][0]!='#')
               UserMeasurables++;
           
@@ -294,7 +294,7 @@ public:
               cout << "  * User's defined measurables *\n";
               cout << "  ******************************\n\n";
           
-              for (int i=0;i<MeasuredOp.size();i++)
+              for (SGF::Measurable::size_type i=0;i<MeasuredOp.size();i++)
                 if (Names[i][0]!='#')
                   cout << "    " << Names[i] << ": " << MeasuredOp[i] << endl;
             }

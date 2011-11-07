@@ -220,9 +220,9 @@ public:
 void AdjacencyList::initialize(const Hamiltonian &Trow,const Hamiltonian &Tcol)  {
 
   // Categorize the Tcol terms by index.
-  std::map<Boson*,std::set<int> > map_to_set;
-  for(int i=0;i<Tcol.size();++i) 
-    for(int j=0;j<Tcol[i].product().size();++j)
+  std::map<Boson*,std::set<Hamiltonian::size_type> > map_to_set;
+  for(Hamiltonian::size_type i=0;i<Tcol.size();++i) 
+    for(Hamiltonian::size_type j=0;j<Tcol[i].product().size();++j)
       map_to_set[Tcol[i].product()[j].particle_id()].insert(i);
   
   _adjacency.clear();
@@ -230,16 +230,16 @@ void AdjacencyList::initialize(const Hamiltonian &Trow,const Hamiltonian &Tcol) 
  
   /* For each term in Trow, merge the sets corresponding to it's indices
      Then, copy the set elements to a vector. */
-  for(int i=0;i<Trow.size();++i) {
-    std::set<int> merged;
-    for(int j=0;j<Trow[i].product().size();++j) {
+  for(Hamiltonian::size_type i=0;i<Trow.size();++i) {
+    std::set<Hamiltonian::size_type> merged;
+    for(Hamiltonian::size_type j=0;j<Trow[i].product().size();++j) {
       Boson* pid=Trow[i].product()[j].particle_id();
-      std::set<int> &s=map_to_set[pid];
+      std::set<Hamiltonian::size_type> &s=map_to_set[pid];
       merged.insert(s.begin(),s.end());
     }
     
     _adjacency[i].reserve(merged.size());
-    for(std::set<int>::const_iterator sit=merged.begin();sit!=merged.end();++sit)
+    for(std::set<Hamiltonian::size_type>::const_iterator sit=merged.begin();sit!=merged.end();++sit)
       _adjacency[i].push_back(AdjListData(&Trow[i],&Tcol[*sit]));
     
   }

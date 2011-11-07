@@ -118,6 +118,7 @@ public:
   HamiltonianTerm(const HamiltonianTerm &o) : _coefficient(o._coefficient), _product(o._product) {}
   
   typedef std::vector<IndexedProductElement>::const_iterator iterator;
+	typedef std::vector<IndexedProductElement>::size_type size_type;
   
   inline MatrixElement coefficient() const {return _coefficient;}; 
   inline void set_coefficient(MatrixElement c) {_coefficient=c;}
@@ -126,7 +127,7 @@ public:
   /* The total number of creation minus the number of annihilation operators */
   inline int delta() const {
     int result=0;
-    for(int i=0;i<_product.size();++i)
+    for(size_type i=0;i<_product.size();++i)
       result+=_product[i].delta();
     return result;         
   }
@@ -136,7 +137,7 @@ public:
   
   inline bool diagonal() const { 
     int result=0;
-    for(int i=0;i<_product.size();++i)
+    for(size_type i=0;i<_product.size();++i)
       result+=abs(_product[i].delta());
     return result==0;         
   }
@@ -144,7 +145,7 @@ public:
   /* The total number of creation and annihilation operators */
   inline int length() const {
     int result=0;
-    for(int i=0;i<_product.size();++i)
+    for(size_type i=0;i<_product.size();++i)
       result+=_product[i].length();
     return result;         
   }
@@ -152,7 +153,7 @@ public:
   /* offset after adding/removing the present term */
   inline int offset(int action=ADD) const {
     int result=0;
-    for(int i=0;i<_product.size();++i)
+    for(size_type i=0;i<_product.size();++i)
       result+=_product[i].offset(action);
     return result;      
   }
@@ -161,26 +162,26 @@ public:
      the operator to the left or the right */
   inline MatrixElement me(int direction) const {
     int result=1;
-    for(int i=0;i<_product.size();++i)
+    for(size_type i=0;i<_product.size();++i)
       result*=_product[i].amplitude(direction);
     return _coefficient*sqrt(result);
   }
                     
   inline void update_psi(int direction,int action) const {
-    for(int i=0;i<_product.size();++i)
+    for(size_type i=0;i<_product.size();++i)
       _product[i].update(direction,action);
   }
   
   inline int maxoffset() const {
     int result=0;
-    for(int i=0;i<_product.size();++i)
+    for(size_type i=0;i<_product.size();++i)
       result+=_product[i].maxoffset();
     return result;      
   }
 
   inline int minoffset() const {
     int result=0;
-    for(int i=0;i<_product.size();++i)
+    for(size_type i=0;i<_product.size();++i)
       result+=_product[i].minoffset();
     return result;      
   }

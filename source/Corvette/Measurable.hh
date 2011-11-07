@@ -146,8 +146,9 @@ namespace SGF {
 			MeasureDefaults::measure(OperatorString);
 
 		}
-		
-    inline unsigned long size() const {return Sums.size();}
+		 
+		typedef std::vector<BinnedAccumulatorME>::size_type size_type;
+    inline size_type size() const {return Sums.size();}
     inline const BinnedAccumulatorME &operator[](unsigned long i) const {return Sums[i];}
                                                   
   };  

@@ -86,7 +86,7 @@ public:
     
     SGF::Hamiltonian Kinetic,Potential;
     
-    for(int i=0;i<Psi.size();++i) {
+    for(std::vector<SGF::Boson>::size_type i=0;i<Psi.size();++i) {
       std::cout<<"Psi("<<i<<")="<<"("<<Psi[i].n(SGF::LEFT)<<","<<Psi[i].n(SGF::RIGHT)<<","<<Psi[i].nmax()<<")"<<std::endl;
     }
 

@@ -52,6 +52,7 @@ uint RebuildPeriod=1000000;
 class OffsetMap {
   std::vector<uint> _index;    // Map from an offset to consecutive integers
   std::vector<int> _offsets;   // Keeps a sorted list of the offsets
+
   
   inline int MinOffset() const {return _offsets[0];}    // Minimum possible offset
   inline int MaxOffset() const {return _offsets[_offsets.size()-1];}    // Maximum possible offset
@@ -62,7 +63,7 @@ class OffsetMap {
   void initialize(const Hamiltonian &T) {
     // Scan all kinetic terms to find all the lengths
     std::set<int> set_offsets;
-    for(int i=0;i<T.size();++i)
+    for(Hamiltonian::size_type i=0;i<T.size();++i)
       for(int offset=T[i].minoffset();offset<=T[i].maxoffset();offset+=2)
         set_offsets.insert(offset);
 
@@ -71,7 +72,7 @@ class OffsetMap {
     _offsets.insert(_offsets.begin(),set_offsets.begin(),set_offsets.end());
      
     _index.reserve(nindex());
-    for(int i=0;i<nindex();++i)
+    for(uint i=0;i<nindex();++i)
       _index.push_back(Infinity); // The default value is set to infinity
 
     std::vector<int>::const_iterator sit;
@@ -101,7 +102,7 @@ class ProbabilitiesBase {
   static MatrixElement GetMinCoefficient(const Hamiltonian &T) {
       /* Finding the minimum of all Kinetic operator coefficients */
       MatrixElement result=T[0].coefficient();
-      for(int term=0;term<T.size();++term)
+      for(Hamiltonian::size_type term=0;term<T.size();++term)
         result=Min(result,T[term].coefficient());
       return result;	
   }
@@ -110,8 +111,8 @@ class ProbabilitiesBase {
   // Scan all kinetic terms to find all the indices
   static std::vector<Boson*> GetIndices(const Hamiltonian &T) {
     std::set<Boson*> indexset;
-    for(int i=0;i<T.size();++i)
-      for(int j=0;j<T[i].product().size();++j)
+    for(Hamiltonian::size_type i=0;i<T.size();++i)
+      for(HamiltonianTerm::size_type j=0;j<T[i].product().size();++j)
         indexset.insert(T[i].product()[j].particle_id());
 
 	std::vector<Boson*> result;
@@ -157,7 +158,7 @@ public:
 	
 		// The SGFContainer class has put the extra kinetic terms at the end. So we only count to indirectly extract the ensemble.
 		uint _nextra=0;
-		for(int i=0;i<Kinetic.size();++i) {
+		for(Hamiltonian::size_type i=0;i<Kinetic.size();++i) {
 			if(Kinetic[i].atom()) _nextra++;
 		}
 		
@@ -218,7 +219,7 @@ public:
 
   inline double weight(int rl) const {
     double s=0.0;
-    for(int i=0;i<noffsets();++i) 
+    for(uint i=0;i<noffsets();++i) 
       s+=G(offsets[i])*tsum(rl,i).norm();
     return s;
   }
@@ -227,7 +228,7 @@ public:
 	Probabilities(const Hamiltonian &T,const Hamiltonian &V) : ProbabilitiesBase(T,V),ExtraLock(1) {
 		_tsum=new TSum[2*noffsets()];
 		for(int rl=0;rl<2;++rl) 
-			for(int i=0;i<noffsets();++i) {
+			for(uint i=0;i<noffsets();++i) {
 				tsum(rl,i).resize(Kinetic.size());
 			}
 		
@@ -254,13 +255,13 @@ public:
 
 		_broken_lines.clear();
 		for(int rl=0;rl<2;++rl) 
-    	for(int i=0;i<noffsets();++i)
+    	for(uint i=0;i<noffsets();++i)
 				tsum(rl,i).reset();
     Energies[LEFT]=Energies[RIGHT]=0;  
     NUpdates=0;
 		_NBWL=0;
 		
-		for(int i=0;i<_indices.size();++i) {
+		for(std::vector<Boson*>::size_type i=0;i<_indices.size();++i) {
      int delta=Abs(_indices[i]->delta());
      if(delta!=0) {
        _NBWL+=delta; 
@@ -321,7 +322,7 @@ public:
       
     term->update_psi(rl,arflag);   
     
-    for(int i=0;i<term->product().size();++i) {
+    for(HamiltonianTerm::size_type i=0;i<term->product().size();++i) {
         Boson *pind=term->product()[i].particle_id();
         if(pind->delta()!=0)
            _broken_lines.insert(pind);

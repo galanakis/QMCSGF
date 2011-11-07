@@ -22,20 +22,18 @@ double a=G(13);
 template<class T>
 class GreenOperator {
   std::vector<T> cache;
-  unsigned long NSites;
-	unsigned int LinesCutoff;
 public:
-  T _GreenOperator(int n) const { 
+  T _GreenOperator(unsigned int n,unsigned long NSites,unsigned int LinesCutoff) const { 
     double result=1.0;
     if(n <= LinesCutoff && n!=0) result=1.0/NSites;
-    if(n > LinesCutoff ) result=pow(1.0/NSites,n);
+    if(n > LinesCutoff ) result=pow(1.0/NSites,1.0*n);
     return result; 
   }
 public:
-  GreenOperator() : NSites(0), LinesCutoff(0) {}
-  GreenOperator(int _nsites,int lines) : NSites(_nsites),LinesCutoff(lines) {}
-  inline T operator()(int n) const { 
-    return (n<cache.size() && n>=0)?cache[n]:0.0; 
+  GreenOperator() {}
+	GreenOperator(unsigned long _nsites,unsigned int _cutoff) { initialize(_nsites,_cutoff); }
+  inline T operator()(unsigned int n) const { 
+    return (n<cache.size())?cache[n]:0.0; 
   }
 
   void initialize(unsigned long _nsites,unsigned int _cutoff) {
@@ -43,12 +41,10 @@ public:
       std::cout<<"Number of sites cannot be zero"<<std::endl;
       exit(123);
     }
-    NSites=_nsites;
-		LinesCutoff=_cutoff;
     cache.clear();
     T value;
-    int i=0;
-    while((value=_GreenOperator(i++)))
+    unsigned int i=0;
+    while((value=_GreenOperator(i++,_nsites,_cutoff)))
       cache.push_back(value);
     
   }

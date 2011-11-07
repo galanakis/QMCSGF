@@ -246,14 +246,14 @@ we enter the main loop.
     double Destroy[2]={DestructionWeight(LEFT), DestructionWeight(RIGHT)};
     
     // In those two lines the order of the arguments is dictated by the convensions
-    int direction=RNG::CoinFlip(Create[LEFT] + Destroy[LEFT], Create[RIGHT] + Destroy[RIGHT]);
-    int action=RNG::CoinFlip(Destroy[direction],Create[direction]);
+    unsigned int direction=RNG::CoinFlip(Create[LEFT] + Destroy[LEFT], Create[RIGHT] + Destroy[RIGHT]);
+    unsigned int action=RNG::CoinFlip(Destroy[direction],Create[direction]);
     
     return directed_update(direction,action);
   }
 
   
-   inline int directed_update(int direction,int action) {
+   inline uint directed_update(unsigned int direction,unsigned int action) {
      uint UpdateLength=0;
 
      bool keepgoing=true;    
