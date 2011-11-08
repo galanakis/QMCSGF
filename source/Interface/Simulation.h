@@ -28,7 +28,7 @@ public:
 }; 
 
 class FileNameProgressBar {
-	static const int StringLength=200;
+	static const int StringLength=300;
 	char Status[StringLength],*Ptr;
 	double Progress;
 	unsigned long NumUpdates;
@@ -40,7 +40,7 @@ public:
 		std::string append=std::string(": ")+std::string(Name)+std::string(" ");
 		strcpy(Status+strlen(Status),append.c_str());
 		Ptr=Status+strlen(Status);   
-		sprintf(Ptr," - 000 - 000:00:00");     
+		sprintf(Ptr," - 000 - 000h 00m 00s");     
 		fstream File;
 		File.open(Status,ios::out);
 		File.close();    
@@ -74,12 +74,12 @@ public:
 			strcpy(OldStatus,Status);
 			int percent=static_cast<int>(100*Progress);
 
-			sprintf(Ptr," - %.3d %% - %.3d:%.2d:%.2d - %6d updates/second",percent,HoursLeft,MinutesLeft,SecondsLeft,Speed);
+			sprintf(Ptr," - %.3d %% - %.3dh %.2dm %.2ds - %6d updates per second",percent,HoursLeft,MinutesLeft,SecondsLeft,Speed);
       
 			reset_cout();
 			std::cout<<Status<<std::flush;
 
-
+      
 			rename(OldStatus,Status);
 
 
