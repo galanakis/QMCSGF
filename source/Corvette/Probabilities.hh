@@ -298,12 +298,11 @@ public:
       MatrixElement fme = nbr->me(rl,arflag);
 			tsum( rl,offsets(foffset)).update(fndex,fme);
 			if(ioffset!=foffset) {
-				MatrixElement jme = nbr->me(!rl); 
+				MatrixElement jme = tsum(!rl,offsets(ioffset)).element(fndex); 
 				tsum( rl,offsets(ioffset)).update(fndex,0);
 				tsum(!rl,offsets(ioffset)).update(fndex,0);
 				tsum(!rl,offsets(foffset)).update(fndex,jme); 
 			}
-
     }
 			
     for(nbr=pot_adjacency[index].begin();nbr!=pot_adjacency[index].end();++nbr) 
