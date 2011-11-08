@@ -46,14 +46,15 @@ class TSum {
   typedef std::vector<MatrixElement>::size_type index_type;
 
 	std::vector<MatrixElement> _sums;
+	MatrixElement *_elements;
 	MatrixElement _norm;
 	index_type _nsums,_base;
 	std::vector<index_type> _buffer_indices;
 
 public:
 
-	TSum() : _sums(), _norm(0), _base(0), _buffer_indices() {}
-	TSum(const TSum &o) : _sums(o._sums),_norm(o._norm), _base(o._base), _buffer_indices(o._buffer_indices) {}
+	TSum() : _sums(), _elements(0), _norm(0), _base(0), _buffer_indices() {}
+	TSum(const TSum &o) : _sums(o._sums),_elements(o._elements), _norm(o._norm), _base(o._base), _buffer_indices(o._buffer_indices) {}
 	~TSum() {}
 	
 	/* resizes the vector */
@@ -63,6 +64,7 @@ public:
 		_sums.resize(2*_size-1,MatrixElement(0));
 		_nsums=_size-1;
 		_base=(1+_nsums)/2;
+		_elements=&_sums[_nsums];
 	}
   
 	inline void flush() {
@@ -84,15 +86,14 @@ public:
 
 	}
 	
-	
+	inline MatrixElement element(index_type index) const {return _elements[index];}
 	
 	inline void update(index_type index,MatrixElement me) {
-		MatrixElement delta=me-_sums[index+_nsums];
-		if(delta!=0) {
-			_norm+=delta;
+		if(_elements[index]!=me) {
+			_norm+=me-_elements[index];
 			_buffer_indices.push_back(index/2+_base);			
+			_elements[index]=me;
 		}
-		_sums[index+_nsums]=me;
 	}
 
 	inline index_type choose() {

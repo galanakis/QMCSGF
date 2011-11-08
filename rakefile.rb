@@ -4,7 +4,7 @@ Source="source/Corvette-SGF.cpp"
 Flags="-DRNG_MT"
 
 task :default do
- puts cmd="/opt/intel/composerxe/bin/icc -fast -Wall #{Flags} #{Include} #{Source} -o #{Executable}"
+ puts cmd="/opt/intel/composerxe/bin/icc -fast -fp-model precise -Wall #{Flags} #{Include} #{Source} -o #{Executable}"
  puts %x{#{cmd}}
 end
 task :clang do

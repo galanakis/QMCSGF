@@ -21,7 +21,7 @@ protected:
   occupancy_t _occupancy[2];      // The left and right occupancy 
 public:
   Boson() : _maximum_occupancy(0) {
-    _occupancy[LEFT]=_occupancy[RIGHT]=0;
+    _occupancy[0]=_occupancy[1]=0;
   };
   Boson(occupancy_t nL,occupancy_t nR,occupancy_t maxn) : _maximum_occupancy(maxn) {
     _occupancy[LEFT]=nL;
@@ -30,8 +30,8 @@ public:
   Boson(const Boson &o) { *this=o; }
   Boson &operator=(const Boson &o) {
     _maximum_occupancy=o._maximum_occupancy;
-    _occupancy[LEFT]=o._occupancy[LEFT];
-    _occupancy[RIGHT]=o._occupancy[RIGHT];
+    _occupancy[0]=o._occupancy[0];
+    _occupancy[1]=o._occupancy[1];
     return *this;    
   }
   inline occupancy_t &n(int direction) {return _occupancy[direction];};

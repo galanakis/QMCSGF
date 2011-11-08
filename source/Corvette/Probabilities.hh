@@ -218,11 +218,9 @@ public:
 
 	Probabilities(const Hamiltonian &T,const Hamiltonian &V) : ProbabilitiesBase(T,V),ExtraLock(1) {
 		_tsum=new TSum[2*noffsets()];
-		for(int rl=0;rl<2;++rl) 
-			for(uint i=0;i<noffsets();++i) {
-				tsum(rl,i).resize(Kinetic.size());
-			}
-		
+		for(int count=0;count<2*noffsets();++count)
+			_tsum[count].resize(Kinetic.size());
+					
 		rebuild();
 	}
 
@@ -245,10 +243,9 @@ public:
   inline void rebuild() {
 
 		_broken_lines.clear();
-		for(int rl=0;rl<2;++rl) 
-    	for(uint i=0;i<noffsets();++i)
-				tsum(rl,i).reset();
-    Energies[LEFT]=Energies[RIGHT]=0;  
+		for(int count=0;count<2*noffsets();++count)
+			_tsum[count].reset();
+    Energies[0]=Energies[1]=0;  
     NUpdates=0;
 		_NBWL=0;
 		
@@ -293,17 +290,16 @@ public:
     adjacency_list_t::const_iterator nbr;
     for(nbr=kin_adjacency[index].begin();nbr!=kin_adjacency[index].end();++nbr) {
       Hamiltonian::size_type fndex= term_index(nbr->term());
-      int ioffset = nbr->offset();
-      int foffset = nbr->offset(arflag);
+      int ioffset = offsets(nbr->offset());
+      int foffset = offsets(nbr->offset(arflag));
       MatrixElement fme = nbr->me(rl,arflag);
-			tsum( rl,offsets(foffset)).update(fndex,fme);
+			tsum( rl,foffset).update(fndex,fme);
 			if(ioffset!=foffset) {
-				MatrixElement jme = nbr->me(!rl); 
-				tsum( rl,offsets(ioffset)).update(fndex,0);
-				tsum(!rl,offsets(ioffset)).update(fndex,0);
-				tsum(!rl,offsets(foffset)).update(fndex,jme); 
+				MatrixElement jme = tsum(!rl,ioffset).element(fndex); 
+				tsum( rl,ioffset).update(fndex,0);
+				tsum(!rl,ioffset).update(fndex,0);
+				tsum(!rl,foffset).update(fndex,jme); 
 			}
-
     }
 			
     for(nbr=pot_adjacency[index].begin();nbr!=pot_adjacency[index].end();++nbr) 
