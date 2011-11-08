@@ -82,8 +82,9 @@ namespace SGF {
 	  };
 
 
-		typedef std::vector< std::pair<Boson*,int> > BosonDeltaMapType; 
-    std::map<BosonDeltaMapType,std::vector<MeasAccumulators> > _Acc;
+		typedef std::vector< std::pair<Boson*,int> > BosonDeltaMapType;
+		typedef std::map<BosonDeltaMapType,std::vector<MeasAccumulators> > AccType; 
+    AccType _Acc;
 
 		// This one is ok to be slow since it is called only in the initializer
 		inline BosonDeltaMapType map(const HamiltonianTerm * const term) {
@@ -138,10 +139,11 @@ namespace SGF {
 
     void measure(const OperatorStringType &OperatorString) {
 			
-      const _accumulator_float Weight=OperatorString.BoltzmannWeight();
-			const std::vector<MeasAccumulators> &v=_Acc[map(OperatorString.ListBrokenLines())];
-			for(std::vector<MeasAccumulators>::const_iterator it=v.begin();it!=v.end();++it) 
-				it->sum->push( it->term->me(RIGHT) * Weight );
+      const _accumulator_float Weight=OperatorString.BoltzmannWeight(); 
+			AccType::const_iterator v_it=_Acc.find(map(OperatorString.ListBrokenLines()));
+			if(v_it!=_Acc.end()
+				for(std::vector<MeasAccumulators>::const_iterator it=v_it->second.begin();it!=v_it->second.end();++it) 
+					it->sum->push( it->term->me(RIGHT) * Weight );
 
 			MeasureDefaults::measure(OperatorString);
 
