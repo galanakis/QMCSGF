@@ -99,15 +99,7 @@ public:
 
 
 class ProbabilitiesBase {
-  static MatrixElement GetMinCoefficient(const Hamiltonian &T) {
-      /* Finding the minimum of all Kinetic operator coefficients */
-      MatrixElement result=T[0].coefficient();
-      for(Hamiltonian::size_type term=0;term<T.size();++term)
-        result=Min(result,T[term].coefficient());
-      return result;	
-  }
-	
-	
+
   // Scan all kinetic terms to find all the indices
   static std::vector<Boson*> GetIndices(const Hamiltonian &T) {
     std::set<Boson*> indexset;
@@ -154,7 +146,6 @@ public:
 		The number of sites is just the number of different
 		indices appearing in the Kinetic operators */
 		GF.initialize(_indices.size(),2);
-	  TSum::Tolerance=0.5*GetMinCoefficient(T);
 	
 		// The SGFContainer class has put the extra kinetic terms at the end. So we only count to indirectly extract the ensemble.
 		uint _nextra=0;
@@ -304,17 +295,15 @@ public:
       Hamiltonian::size_type fndex= term_index(nbr->term());
       int ioffset = nbr->offset();
       int foffset = nbr->offset(arflag);
-      MatrixElement ime = nbr->me(rl);
       MatrixElement fme = nbr->me(rl,arflag);
+			tsum( rl,offsets(foffset)).update(fndex,fme);
 			if(ioffset!=foffset) {
 				MatrixElement jme = nbr->me(!rl); 
-				tsum( rl,offsets(ioffset)).update(fndex,-ime);
-				tsum( rl,offsets(foffset)).update(fndex,+fme);
-				tsum(!rl,offsets(ioffset)).update(fndex,-jme);
-				tsum(!rl,offsets(foffset)).update(fndex,+jme); 
+				tsum( rl,offsets(ioffset)).update(fndex,0);
+				tsum(!rl,offsets(ioffset)).update(fndex,0);
+				tsum(!rl,offsets(foffset)).update(fndex,jme); 
 			}
-			else
-				tsum( rl,offsets(ioffset)).update(fndex,fme-ime);
+
     }
 			
     for(nbr=pot_adjacency[index].begin();nbr!=pot_adjacency[index].end();++nbr) 

@@ -47,19 +47,13 @@ class TSum {
 
 	std::vector<MatrixElement> _sums;
 	MatrixElement _norm;
-	index_type _nsums;
-	std::vector<MatrixElement> _buffer_sums;
+	index_type _nsums,_base;
 	std::vector<index_type> _buffer_indices;
 
- 
-	// Chop off small numerical values. The thresshold is Tolerance which is set as the minimum coefficient of any kinetic operator.
-	long double Crop(long double x) const { return (fabs(x)>Tolerance)?x:0; }
-
 public:
-  static MatrixElement Tolerance;
 
-	TSum() : _sums(), _norm(0), _buffer_sums(), _buffer_indices() {}
-	TSum(const TSum &o) : _sums(o._sums),_norm(o._norm), _buffer_sums(o._buffer_sums), _buffer_indices(o._buffer_indices) {}
+	TSum() : _sums(), _norm(0), _base(0), _buffer_indices() {}
+	TSum(const TSum &o) : _sums(o._sums),_norm(o._norm), _base(o._base), _buffer_indices(o._buffer_indices) {}
 	~TSum() {}
 	
 	/* resizes the vector */
@@ -67,68 +61,70 @@ public:
 		index_type _size=1;
 		while(_size<NTerms) _size<<=1;
 		_sums.resize(2*_size-1,MatrixElement(0));
-		_buffer_sums.resize(NTerms);
 		_nsums=_size-1;
+		_base=(1+_nsums)/2;
 	}
   
 	inline void flush() {
-		std::vector<index_type>::const_iterator rit;
-		for(rit=_buffer_indices.begin();rit!=_buffer_indices.end();++rit) {
-			MatrixElement &me=_buffer_sums[*rit];
-			if(me!=0) {
-				index_type index=*rit+1+_nsums;
-				while(index>0) {
-			  	_sums[index-1]+=me;
-        	index>>=1;
-	    	}
-				me=0;
+
+		for(std::vector<index_type>::size_type i=0;i<_buffer_indices.size();++i) {
+
+			index_type index=_buffer_indices[i];
+			MatrixElement newme=_sums[2*index-1]+_sums[2*index];
+			MatrixElement &oldme=_sums[index-1];
+			
+			if(index!=0 && newme!=oldme) {
+				oldme=newme;
+				_buffer_indices.push_back(index/2);
 			}
-		}
+ 		}
+
+		_norm=_sums[0];
 		_buffer_indices.clear();
+
 	}
 	
+	
+	
 	inline void update(index_type index,MatrixElement me) {
-		if(me!=0) {
-			_norm+=me;
-			_buffer_sums[index]+=me;
-			_buffer_indices.push_back(index);			
+		MatrixElement delta=me-_sums[index+_nsums];
+		if(delta!=0) {
+			_norm+=delta;
+			_buffer_indices.push_back(index/2+_base);			
 		}
+		_sums[index+_nsums]=me;
 	}
 
 	inline index_type choose() {
 		flush();
-		index_type _nterms=_nsums;
-		index_type index=0;
-		while(index<_nterms) {
-			
-			index_type indr=(index+1)<<1;
-			index_type indl=indr-1;
 
-			MatrixElement wr=Crop(_sums[indr]);
-			MatrixElement wl=Crop(_sums[indl]);
-			
-			index=((wr+wl)*RNG::Uniform()<wl) ? indl : indr;
+		MatrixElement w,wl;
+		index_type index=0;
+		while(index<_nsums) {
+			w =_sums[index];
+			index=((index+1)<<1)-1;
+			wl=_sums[index];
+			index+=!(w*RNG::Uniform()<wl);
 		}
 		
-		return index-_nterms;
+		return index-_nsums;
 		
 	}
 
 
 	/* Makes all elements zero */
 	inline void reset() {
-		flush();
+		_buffer_indices.clear();
 		_norm=0;
 		for(std::vector<MatrixElement>::iterator it=_sums.begin();it!=_sums.end();++it)
 			*it=MatrixElement(0);
 	}
 	
 	/* Returns the sum of all the partial probabilities which is stored at the root */
-	inline MatrixElement norm() const { return Crop(_norm); }
+	inline MatrixElement norm()  {  return _norm; }
 
 };
 
-MatrixElement TSum::Tolerance;
 
 }
 
