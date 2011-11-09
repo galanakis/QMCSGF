@@ -24,9 +24,9 @@ protected:
   std::deque<T> que;
 public:
   CircDList() : que() {};
-  inline void pop(int direction) { direction ? que.pop_front() : que.pop_back(); }
-  inline void push(int direction,const T& data) { direction ?  que.push_front(data) : que.push_back(data); }
-  inline const T& top(int direction) const { return direction ? que.front() : que.back(); }
+  inline void pop(int direction) { direction==RIGHT ? que.pop_front() : que.pop_back(); }
+  inline void push(int direction,const T& data) { direction==RIGHT ?  que.push_front(data) : que.push_back(data); }
+  inline const T& top(int direction) const { return direction==RIGHT ? que.front() : que.back(); }
   inline typename std::deque<T>::size_type length() const {return que.size();}
   inline bool empty() const {return que.empty();} 
 }; 

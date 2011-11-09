@@ -23,7 +23,7 @@ template<class T>
 class GreenOperator {
   std::vector<T> cache;
 public:
-  T _GreenOperator(unsigned int n,unsigned long NSites,unsigned int LinesCutoff) const { 
+  static T _GreenOperator(unsigned int n,unsigned long NSites,unsigned int LinesCutoff) { 
     double result=1.0;
     if(n <= LinesCutoff && n!=0) result=1.0/NSites;
     if(n > LinesCutoff ) result=pow(1.0/NSites,1.0*n);

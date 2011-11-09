@@ -282,17 +282,30 @@ public:
 		rebuild();
 	}
 
+	std::vector<int> ioffset_cache; // Temporary storage for the initial offset during the fast updates
 
   inline void fast_update(const HamiltonianTerm* term,int rl,int arflag) { 
 		_NBWL+=term->offset(arflag);
     Hamiltonian::size_type index=term_index(term);
-
-    adjacency_list_t::const_iterator nbr;
-    for(nbr=kin_adjacency[index].begin();nbr!=kin_adjacency[index].end();++nbr) {
-      Hamiltonian::size_type fndex= term_index(nbr->term());
-      int ioffset = offsets(nbr->offset());
-      int foffset = offsets(nbr->offset(arflag));
-      MatrixElement fme = nbr->me(rl,arflag);
+    
+		AdjacencyList::adjacency_list_t::const_iterator nbr;
+    
+    
+		// Temporary storage of the initial offset
+		for(nbr=kin_adjacency[index].begin();nbr!=kin_adjacency[index].end();++nbr)
+			ioffset_cache.push_back(offsets((*nbr)->offset()));
+    			
+    for(nbr=pot_adjacency[index].begin();nbr!=pot_adjacency[index].end();++nbr) 
+      Energies[rl]+=-(*nbr)->me(rl);
+      
+    term->update_psi(rl,arflag);   
+    
+		std::vector<int>::size_type i;
+    for(nbr=kin_adjacency[index].begin(),i=0;nbr!=kin_adjacency[index].end();++nbr,++i) {
+      Hamiltonian::size_type fndex= term_index(*nbr);
+      int ioffset = ioffset_cache[i];
+      int foffset = offsets((*nbr)->offset());
+      MatrixElement fme = (*nbr)->me(rl);
 			tsum( rl,foffset).update(fndex,fme);
 			if(ioffset!=foffset) {
 				MatrixElement jme = tsum(!rl,ioffset).element(fndex); 
@@ -301,11 +314,13 @@ public:
 				tsum(!rl,foffset).update(fndex,jme); 
 			}
     }
-			
+		
+		ioffset_cache.clear();
+
+
     for(nbr=pot_adjacency[index].begin();nbr!=pot_adjacency[index].end();++nbr) 
-      Energies[rl]+=nbr->me(rl,arflag)-nbr->me(rl);
-      
-    term->update_psi(rl,arflag);   
+      Energies[rl]+=(*nbr)->me(rl);
+
     
     for(HamiltonianTerm::size_type i=0;i<term->product().size();++i) {
         Boson *pind=term->product()[i].particle_id();
