@@ -115,16 +115,15 @@ public:
     std::vector<SGF::Boson> _Psi;
     
     _Psi.resize(MathExpression::GetNumIndices());
-    for(int i=0;i<MathExpression::GetNumIndices();++i)
-      _Psi[i]=SGF::Boson(0,0,MathExpression::GetNmax(i));
 
     int NSites=MathExpression::GetNumIndices()/MathExpression::GetNumSpecies();
 
     for(int species=0;species<MathExpression::GetNumSpecies();++species) {
       for(int particle=0;particle<MathExpression::GetPopulation(species);++particle) {
         int i=NSites*species+particle%NSites;
-        _Psi[i].n(SGF::LEFT)++;
-        _Psi[i].n(SGF::RIGHT)++;
+        _Psi[i].n(0)++;
+        _Psi[i].n(1)++;
+				_Psi[i].nmax()=MathExpression::GetNmax(i);
       }
     }  
       

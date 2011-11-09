@@ -23,10 +23,6 @@ public:
   Boson() : _maximum_occupancy(0) {
     _occupancy[0]=_occupancy[1]=0;
   };
-  Boson(occupancy_t nL,occupancy_t nR,occupancy_t maxn) : _maximum_occupancy(maxn) {
-    _occupancy[LEFT]=nL;
-    _occupancy[RIGHT]=nR;
-  };
   Boson(const Boson &o) { *this=o; }
   Boson &operator=(const Boson &o) {
     _maximum_occupancy=o._maximum_occupancy;
