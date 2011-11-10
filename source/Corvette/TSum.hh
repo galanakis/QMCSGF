@@ -47,7 +47,7 @@ class TSum {
 
 	std::vector<MatrixElement> _sums;
 	MatrixElement *_elements;
-	MatrixElement _norm;
+	_float_accumulator _norm;
 	index_type _nsums,_base;
 	std::vector<index_type> _buffer_indices;
 

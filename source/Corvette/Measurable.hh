@@ -13,10 +13,8 @@ namespace SGF {
 
 	class MeasureDefaults {
 	public:
-		typedef long double _accumulator_float;
-		typedef unsigned long long _counter_int;
-		typedef BinnedAccumulator<_accumulator_float> BinnedAccumulatorME;
-		typedef std::map<unsigned int,_counter_int> BrokenHistogramType;
+		typedef BinnedAccumulator<_float_accumulator> BinnedAccumulatorME;
+		typedef std::map<unsigned int,_integer_counter> BrokenHistogramType;
 
 	private:
     BinnedAccumulatorME _Kinetic;
@@ -39,14 +37,14 @@ namespace SGF {
 		
     void measure(const OperatorStringType &OperatorString) {
       
-      const _accumulator_float Weight=OperatorString.BoltzmannWeight();
+      const _float_accumulator Weight=OperatorString.BoltzmannWeight();
 
       _BrokenHistogram[OperatorString.NBrokenLines()]+=1;
       
       if(OperatorString.NBrokenLines()==0) {
 				BoltzmannWeight+=Weight;
-        _accumulator_float Kinetic=-static_cast<_accumulator_float>(OperatorString.length())/OperatorString.Beta();
-        _accumulator_float Potential=OperatorString.Energy(RIGHT);        
+        _float_accumulator Kinetic=-static_cast<_float_accumulator>(OperatorString.length())/OperatorString.Beta();
+        _float_accumulator Potential=OperatorString.Energy(RIGHT);        
         _Kinetic.push( Kinetic*Weight );
         _Potential.push( Potential*Weight );
         _TotalEnergy.push( (Kinetic+Potential)*Weight );
@@ -56,14 +54,14 @@ namespace SGF {
 				
 		inline const BrokenHistogramType &BrokenHistogram() const {return _BrokenHistogram;}
 
-		inline _accumulator_float BrokenNormalization() const {
-			_accumulator_float Normalization=0;
+		inline _float_accumulator BrokenNormalization() const {
+			_float_accumulator Normalization(0);
       for(BrokenHistogramType::const_iterator it=_BrokenHistogram.begin();it!=_BrokenHistogram.end();++it)
         Normalization+=it->second;
 			return Normalization;
 		}
 
-		inline _counter_int count(unsigned int i=0) { return _BrokenHistogram[i]; }
+		inline _integer_counter count(unsigned int i=0) { return _BrokenHistogram[i]; }
     inline const BinnedAccumulatorME &KineticEnergy() const {return _Kinetic;}
     inline const BinnedAccumulatorME &PotentialEnergy() const {return _Potential;}
     inline const BinnedAccumulatorME &TotalEnergy() const {return _TotalEnergy;}
@@ -139,7 +137,7 @@ namespace SGF {
 
     void measure(const OperatorStringType &OperatorString) {
 			
-      const _accumulator_float Weight=OperatorString.BoltzmannWeight(); 
+      const _float_accumulator Weight=OperatorString.BoltzmannWeight(); 
 			AccType::const_iterator v_it=_Acc.find(map(OperatorString.ListBrokenLines()));
 			if(v_it!=_Acc.end())
 				for(std::vector<MeasAccumulators>::const_iterator it=v_it->second.begin();it!=v_it->second.end();++it) 
@@ -151,7 +149,7 @@ namespace SGF {
 		 
 		typedef std::vector<BinnedAccumulatorME>::size_type size_type;
     inline size_type size() const {return Sums.size();}
-    inline const BinnedAccumulatorME &operator[](unsigned long i) const {return Sums[i];}
+    inline const BinnedAccumulatorME &operator[](std::vector<BinnedAccumulatorME>::size_type i) const {return Sums[i];}
                                                   
   };  
 

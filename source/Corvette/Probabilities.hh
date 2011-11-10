@@ -189,15 +189,15 @@ public:
 
 
 class Probabilities : public ProbabilitiesBase {
-  long double Energies[2];         // energy of right and left state. It is an accumulator
+  _float_accumulator Energies[2];         // energy of right and left state. It is an accumulator
   std::set<Boson*> _broken_lines;  // A set of the boson indices that are broken.
-  unsigned long long NUpdates;     // Number of updates since last rebuild
+  _integer_counter NUpdates;     // Number of updates since last rebuild
   int _NBWL;                       // The number of broken world lines
 
 	bool ExtraLock;                  // whether to ignore the extra terms or not. 0 means ignore, 1 means accept.
 
-  TSum *_tsum;
-	TSum & tsum(int direction,int indoffset) const {return _tsum[direction*noffsets()+indoffset];}
+  TSum *_tsum[2];
+
 public:
 
   inline MatrixElement Energy(int direction) const {return Energies[direction];}
@@ -209,22 +209,27 @@ public:
 
 
   inline double weight(int rl) const {
-    double s=0.0;
+    _float_accumulator s=0.0;
     for(uint i=0;i<noffsets();++i) 
-      s+=G(offsets[i])*tsum(rl,i).norm();
+      s+=G(offsets[i])*_tsum[rl][i].norm();
     return s;
   }
 
 
 	Probabilities(const Hamiltonian &T,const Hamiltonian &V) : ProbabilitiesBase(T,V),ExtraLock(1) {
-		_tsum=new TSum[2*noffsets()];
-		for(int count=0;count<2*noffsets();++count)
-			_tsum[count].resize(Kinetic.size());
-					
+
+		for(int direction=0;direction<2;++direction) {
+			_tsum[direction]=new TSum[noffsets()];
+			for(int count=0;count<noffsets();++count) 
+				_tsum[direction][count].resize(Kinetic.size());
+		}			
 		rebuild();
 	}
 
-	~Probabilities() {delete [] _tsum;}
+	~Probabilities() {
+		delete [] _tsum[0];
+		delete [] _tsum[1];
+	}
 
 
 	/* Choose the offset first. This version
@@ -233,18 +238,20 @@ public:
 
 		double R=RNG::Uniform()*weight(rl);
 		int i=0;
-		while((R-=G(offsets[i])*tsum(rl,i).norm())>=0)
+		while((R-=G(offsets[i])*_tsum[rl][i].norm())>=0)
 			++i;
 
-		return index_term(tsum(rl,i).choose());
+		return index_term(_tsum[rl][i].choose());
 	}
 
   // Evaluates the matrix elements and populates the trees
   inline void rebuild() {
 
 		_broken_lines.clear();
-		for(int count=0;count<2*noffsets();++count)
-			_tsum[count].reset();
+		for(int direction=0;direction<2;++direction)
+			for(int count=0;count<noffsets();++count) 
+				_tsum[direction][count].reset();
+				
     Energies[0]=Energies[1]=0;  
     NUpdates=0;
 		_NBWL=0;
@@ -257,11 +264,11 @@ public:
       }
     }
 		
-    for(int rl=0;rl<2;++rl) {
+    for(int direction=0;direction<2;++direction) {
       for(uint i=0;i<Kinetic.size();++i)
-				tsum(rl,offsets(Kinetic[i].offset())).update(i,Kinetic[i].me(rl));
+				_tsum[direction][ offsets( Kinetic[i].offset() ) ].update(i,Kinetic[i].me(direction));
 			for(uint i=0;i<Potential.size();++i)
-        Energies[rl]+=Potential[i].me(rl);
+        Energies[direction]+=Potential[i].me(direction);
 		}
         
 
@@ -306,12 +313,12 @@ public:
       int ioffset = ioffset_cache[i];
       int foffset = offsets((*nbr)->offset());
       MatrixElement fme = (*nbr)->me(rl);
-			tsum( rl,foffset).update(fndex,fme);
+			_tsum[ rl][foffset].update(fndex,fme);
 			if(ioffset!=foffset) {
-				MatrixElement jme = tsum(!rl,ioffset).element(fndex); 
-				tsum( rl,ioffset).update(fndex,0);
-				tsum(!rl,ioffset).update(fndex,0);
-				tsum(!rl,foffset).update(fndex,jme); 
+				MatrixElement jme = _tsum[!rl][ioffset].element(fndex); 
+				_tsum[ rl][ioffset].update(fndex,0);
+				_tsum[!rl][ioffset].update(fndex,0);
+				_tsum[!rl][foffset].update(fndex,jme); 
 			}
     }
 		

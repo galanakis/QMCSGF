@@ -10,8 +10,9 @@ namespace SGF {
 
 typedef unsigned int uint;
 typedef unsigned long ulong;
-typedef unsigned short ushort;
-typedef long double MatrixElement;
+typedef double MatrixElement;
+typedef long double _float_accumulator;
+typedef unsigned long long _integer_counter;
 
 typedef uint occupancy_t;
 const uint Infinity=UINT_MAX; // The maximum possible integer is infinity

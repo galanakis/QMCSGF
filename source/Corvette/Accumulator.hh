@@ -17,7 +17,7 @@ other statistical moments.
 template<const int MomentOrder,class T>
 class Accumulator {
 	T _sum[MomentOrder];
-	unsigned long long _count;
+	_integer_counter _count;
 public:
 	Accumulator() { reset(); }
 	Accumulator(const Accumulator &o) {
@@ -37,7 +37,7 @@ public:
 		_count=0; 
 		for(int i=0;i<MomentOrder;++i) _sum[i]=T(0); 
 	}
-	inline unsigned long long count() const {return _count;}
+	inline _integer_counter count() const {return _count;}
 	inline T operator()(int i) const {return _sum[i]/_sum[0];}
 	inline int nmoments() const {return MomentOrder;}
 };
