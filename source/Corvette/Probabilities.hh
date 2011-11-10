@@ -189,7 +189,7 @@ public:
 
 
 class Probabilities : public ProbabilitiesBase {
-  MatrixElement Energies[2];       // energy of right and left state
+  long double Energies[2];         // energy of right and left state. It is an accumulator
   std::set<Boson*> _broken_lines;  // A set of the boson indices that are broken.
   unsigned long long NUpdates;     // Number of updates since last rebuild
   int _NBWL;                       // The number of broken world lines
