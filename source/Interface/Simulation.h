@@ -74,9 +74,10 @@ public:
 			strcpy(OldStatus,Status);
 			int percent=static_cast<int>(100*Progress);
 
+			reset_cout();
+
 			sprintf(Ptr," - %.3d %% - %.3dh %.2dm %.2ds - %6d updates per second",percent,HoursLeft,MinutesLeft,SecondsLeft,Speed);
       
-			reset_cout();
 			std::cout<<Status<<std::flush;
 
       
@@ -161,11 +162,12 @@ public:
 		for (unsigned int i=0;i<NumBins;++i) {
 
 			unsigned long long counter=0;
+			clock_t BinStart=clock();
 			do {
 				counter+=OpString.directed_update();   // Perform an update.
 				++NumDirectedMeasUpdates;
 				MeasuredOp.measure(OpString);          // Perform measurements.
-			} while ( counter<MeasIterations/NumBins && clock()<EndTime );
+			} while ( counter*NumBins<MeasIterations && (clock()-BinStart)*NumBins<MeasTime*CLOCKS_PER_SEC );
 
 			NumMeasUpdates+=counter;
 

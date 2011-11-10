@@ -35,10 +35,10 @@ public:
 
 
 // This returns x/(1-exp(-x))
-inline long double expweight(long double x) { long double d=1.0-exp(-x); return (d!=0.0)?x/d:1.0; }
+inline long double expweight(long double x) { long double d=1.0L-exp(-x); return (d!=0.0L)?x/d:1.0L; }
 
 // This returns log(1-x*(1-exp(A)))/A which is a monotonic function between 0 and 1 if x is in the same interval
-inline long double logexponential(long double A,long double x) { return fabs(A)<0.000000001?x:log(1-x*(1-exp(A)))/A; }
+inline long double logexponential(long double A,long double x) { return fabs(A)<0.000000001?x:log(1.0L-x*(1.0L-exp(A)))/A; }
 
 /*
   class OperatorStringType
@@ -105,7 +105,7 @@ public:
      
 		AccumulateAlpha[0].reset();
 		AccumulateAlpha[1].reset();
-    
+   
   }
 
   inline void print_alphas() {

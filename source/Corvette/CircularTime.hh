@@ -27,7 +27,7 @@ namespace SGF {
 */
 
 
-typedef double circulartime_t;
+typedef long double circulartime_t;
 
 class CircularTime {
 public:
