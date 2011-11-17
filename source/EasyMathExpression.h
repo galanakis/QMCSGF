@@ -113,17 +113,21 @@ public:
   static std::vector<SGF::Boson> GeneratePsi() {
     
     std::vector<SGF::Boson> _Psi;
+
+		unsigned int NumIndices=MathExpression::GetNumIndices();
+		unsigned int NumSpecies=MathExpression::GetNumSpecies();
+		unsigned int NumSites=NumIndices/NumSpecies;
     
-    _Psi.resize(MathExpression::GetNumIndices());
+    _Psi.resize(NumIndices);
 
-    int NSites=MathExpression::GetNumIndices()/MathExpression::GetNumSpecies();
+		for(int i=0;i<_Psi.size();++i)
+			_Psi[i].nmax()=MathExpression::GetNmax(i);
 
-    for(int species=0;species<MathExpression::GetNumSpecies();++species) {
+    for(int species=0;species<NumSpecies;++species) {
       for(int particle=0;particle<MathExpression::GetPopulation(species);++particle) {
-        int i=NSites*species+particle%NSites;
-        _Psi[i].n(0)++;
+        int i=NumSites*species+particle%NumSites;
+				_Psi[i].n(0)++;
         _Psi[i].n(1)++;
-				_Psi[i].nmax()=MathExpression::GetNmax(i);
       }
     }  
       
