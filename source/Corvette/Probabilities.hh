@@ -181,7 +181,7 @@ public:
   static Probabilites::Kinetic=Kinetic_Terms;   // Gives the path to the Kinetic energy Terms;
   Probabilities p();                            // Initializes the internal structures
   unsigned long p.choose(RIGHT);                // pick a term for RIGHT addition. Similarly for LEFT addition.
-  p.update(term,RIGHT or LEFT,ADD or REMOVE);   // update the probabilities, BEFORE updating the Psi's!
+  p.update(term,RIGHT or LEFT,ADD or REMOVE);   // update the probabilities and the psis.
   p.weight(RIGHT or LEFT);                      // gives the probability normalization constant
   p.rebuild();                                  // Fixes accumulated errors, by starting from scratch. This is slow
   

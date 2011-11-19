@@ -2,8 +2,7 @@
 #define __TSUM__
 
 #include "RandomNumberGenerator.hh"
-#include "HamiltonianTerm.hh"
-#include "TSum.hh"
+#include "Conventions.hh"
 #include <vector>
 
 namespace SGF {
@@ -35,8 +34,17 @@ namespace SGF {
 
 	The key functions are:
 	update(index,me): change the probability of the index by "me".
-	choose(): randomly chose an index using its relative probability (sum-sum_Left-sum_Right)
+	choose(): randomly chose an index using its relative probability.
 	norm(): returns the sum of all relative probabilities
+	
+	========== Usage =========
+	TSum t; 
+	t.resize(100);          // Keep the relative probabilities of 100 indices.
+	t.update(10,25);        // set the relative probability of index 10 to be 25.
+	double p=t.element(10); // return the relative probability of index 10.
+	double norm=t.norm();   // the sum of all relative probabilities
+	int index=t.choose();   // pick an index at random using their relative probabilities.  
+	t.reset();              // clear everything.
 	
 */
 
@@ -51,22 +59,6 @@ class TSum {
 	index_type _nsums,_base;
 	std::vector<index_type> _buffer_indices;
 
-public:
-
-	TSum() : _sums(), _elements(0), _norm(0), _base(0), _buffer_indices() {}
-	TSum(const TSum &o) : _sums(o._sums),_elements(o._elements), _norm(o._norm), _base(o._base), _buffer_indices(o._buffer_indices) {}
-	~TSum() {}
-	
-	/* resizes the vector */
-	inline void resize(index_type NTerms) {
-		index_type _size=1;
-		while(_size<NTerms) _size<<=1;
-		_sums.resize(2*_size-1,MatrixElement(0));
-		_nsums=_size-1;
-		_base=(1+_nsums)/2;
-		_elements=&_sums[_nsums];
-	}
-  
 	inline void flush() {
 
 		for(std::vector<index_type>::size_type i=0;i<_buffer_indices.size();++i) {
@@ -85,6 +77,23 @@ public:
 		_buffer_indices.clear();
 
 	}
+
+public:
+
+	TSum() : _sums(), _elements(0), _norm(0), _base(0), _buffer_indices() {}
+	TSum(const TSum &o) : _sums(o._sums),_elements(o._elements), _norm(o._norm), _base(o._base), _buffer_indices(o._buffer_indices) {}
+	~TSum() {}
+	
+	/* resizes the vector */
+	inline void resize(index_type NTerms) {
+		index_type _size=1;
+		while(_size<NTerms) _size<<=1;
+		_sums.resize(2*_size-1,MatrixElement(0));
+		_nsums=_size-1;
+		_base=(1+_nsums)/2;
+		_elements=&_sums[_nsums];
+	}
+  
 	
 	inline MatrixElement element(index_type index) const {return _elements[index];}
 	

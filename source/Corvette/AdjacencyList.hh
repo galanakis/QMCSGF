@@ -6,7 +6,6 @@
 #include <set>
 
 #include "HamiltonianTerm.hh"
-#include "Boson.hh"
 
 
 namespace SGF {

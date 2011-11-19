@@ -23,6 +23,7 @@ namespace SGF {
   Delta Tau would be the time of the left minus the time of the right
   operator, which are all the same operator. Then delta tau would be
   zero, the time shift would be zero and the algorithm would get stuck.
+	This is why the zero is excluded.
   
 */
 

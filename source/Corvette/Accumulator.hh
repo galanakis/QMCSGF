@@ -8,10 +8,22 @@
 
 namespace SGF {
 
-/* 
-class Accumulator
-You push values to it, and it remembers the average or
-other statistical moments.
+/*
+
+	class Accumulator
+	You push values to it, and it remembers the average or
+	other statistical moments.
+
+	=========== Usage ==========
+	Accumulator<3,double> acc;   // an accumulator of doubles that remembers the first 3 moments.
+	acc.push(data,weigth);       // push a value and the corresponding weight.
+	acc.push(data);              // the default weight is 1.0;
+	double average=acc(1);       // the first moment is the average;
+	double averagesquare=acc(2); // average of squares;
+	int count=acc.count();       // how many numbers have been pushed.
+	acc.reset();                 // clears everything.
+	int nmoments=acc.nmoments(); // how many moments this accumulator remembers, in this example "3".
+
 */
 
 template<const int MomentOrder,class T>
@@ -42,6 +54,23 @@ public:
 	inline int nmoments() const {return MomentOrder;}
 };
 
+
+/* 
+
+	class BinnedAccumulator
+  An accumulator that has bins. When you push data to it, it stores them in
+	a buffer until the bin is full in which case it pushes them in the bin.
+	
+	======== Usage ==========
+	BinnedAccumulator<double> bacc; // a binned accumulator of doubles
+	bacc.constant()=10;             // Constant offset.
+	bacc.push(data);                // push a value in to the buffer (repeat many times).
+	bacc.flush(Weight);             // push in to the bin the sum of the buffer divided by the Weight.
+	double average=bacc.average();  // get the average of the bins plus the constant value.
+	double sigma=bacc.sigma();      // get the standard deviation.
+	std::cout<<bacc<<std::endl;     // the "<<" has bee properly overloaded.
+	
+*/
 
 template<class T>
 class BinnedAccumulator {

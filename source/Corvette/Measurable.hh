@@ -10,6 +10,24 @@
 #include "OperatorString.hh"
 
 namespace SGF {
+   
+/*
+ * class MeasureDefaults
+
+ * Measures some basic quantities, such as the Kinetic, Potential and TotalEnergy and the
+ * count of occurences for each broken line number. This is a very light measurement
+ * class which can be used during thermalization.
+  
+ * ======= Usage ======
+ * MeasureDefaults md;
+ * md.measure(OperatorString); // Do a measurement.
+ * md.flush();                 // push into the bins.
+ * std::cout<<md.KineticEnergy()<<std::endl;
+ * std::cout<<md.PotentialEnergy()<<std::endl;
+ * std::cout<<md.TotalEnergy()<<std::endl;
+ * int count=md.count(i);      // how many times i lines were broken. 
+
+*/
 
 	class MeasureDefaults {
 	public:

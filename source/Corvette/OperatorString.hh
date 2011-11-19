@@ -2,13 +2,13 @@
 #define __OPERATORSTRING__
 
 #include <map>
+#include <deque>
 
 #include "CircularTime.hh"
 #include "HamiltonianTerm.hh"
 #include "Probabilities.hh"
 #include "RandomNumberGenerator.hh"
 #include "Accumulator.hh"
-#include <deque> 
 
 namespace SGF {
 
