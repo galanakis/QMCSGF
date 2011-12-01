@@ -77,9 +77,10 @@ public:
 			reset_cout();
 
 			sprintf(Ptr," - %.3d %% - %.3dh %.2dm %.2ds - %6d updates per second",percent,HoursLeft,MinutesLeft,SecondsLeft,Speed);
-      
-			std::cout<<Status<<std::flush;
 
+#ifdef CMDLINEPROGRESS      
+			std::cout<<Status<<std::flush;
+#endif
       
 			rename(OldStatus,Status);
 
@@ -142,9 +143,10 @@ public:
 		}
 
 		ActualWarmTime=double(clock()-StartTime)/CLOCKS_PER_SEC;
+#ifdef CMDLINEPROGRESS      
 		pbar.reset_cout();
 		std::cout<<"Done Thermalizing after "<<NumWarmUpdates<<" updates ("<<NumDirectedWarmUpdates<<" directed) in "<<ActualWarmTime<<" seconds at "<<NumWarmUpdates/ActualWarmTime<<" updates per second."<<std::endl;
-
+#endif
 	}
 
 	void Measure()
@@ -183,8 +185,11 @@ public:
 		}
 
 		ActualMeasTime=double(clock()-StartTime)/CLOCKS_PER_SEC; 
+		
+#ifdef CMDLINEPROGRESS      
 		pbar.reset_cout();
 		std::cout<<"Done Measuring after "<<NumMeasUpdates<<" updates ("<<NumDirectedMeasUpdates<<" directed) in "<<ActualMeasTime<<" seconds at "<<NumMeasUpdates/ActualMeasTime<<" updates/second."<<std::endl;
+#endif
 	}
 
 	void Results()

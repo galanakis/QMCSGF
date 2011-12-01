@@ -123,7 +123,6 @@ int main(int NumArg,char **Arg)
 // *****************************
 // _____________________________________________________________________
 SGFContainer Container;
-SGF::RebuildPeriod=Container.RebuildPeriod();
 int GreenOperatorLines=Container.GreenOperatorLines();
 
 const SGF::Hamiltonian &T=Container.Kinetic();

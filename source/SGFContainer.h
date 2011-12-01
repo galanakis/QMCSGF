@@ -25,7 +25,6 @@ public:
   inline int Ensemble() const {return _Ensemble;}
   inline int Seed() const {return _Seed;}
 	inline int GreenOperatorLines() const {return _GreenOperatorLines;}
-	inline unsigned int RebuildPeriod() const {return _RebuildPeriod;}
 	inline double AlphaParameter() const {return _AlphaParameter;}
 
   inline std::vector<SGF::Boson>::size_type Nsites() const {return _Psi.size();} 
@@ -64,7 +63,6 @@ public:
     _Beta=EasyMathExpression::Beta();
     _Ensemble=EasyMathExpression::Ensemble();
     _Seed=EasyMathExpression::Seed();
-		_RebuildPeriod=EasyMathExpression::RebuildPeriod();
 		_GreenOperatorLines=EasyMathExpression::GreenOperatorLines();
 		_AlphaParameter=EasyMathExpression::AlphaParameter();
 

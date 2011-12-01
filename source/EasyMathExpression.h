@@ -14,7 +14,6 @@ public:
   static inline std::vector<string> &MeasurableNameList() {return MathExpression::GetMeasurableList(); }
   static inline int NSites() {return MathExpression::GetNumIndices()/MathExpression::GetNumSpecies();}
 	static inline int GreenOperatorLines() {return MathExpression::GetValue("GreenOperatorLines").Re();}
-	static inline unsigned int RebuildPeriod() {return MathExpression::GetValue("RebuildPeriod").Re();}
 	static inline double AlphaParameter() {return MathExpression::GetValue("AlphaParameter").Re();}
 
   class Iterator {

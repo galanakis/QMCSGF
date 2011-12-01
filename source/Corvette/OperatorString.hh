@@ -160,7 +160,7 @@ public:
   DestructionWeight(RIGHT)=empty() ? 0 : (1-Alpha[REMOVE]*Min(1.0,exp( DeltaV()*DeltaTau())))*expweight(-DeltaV()*DeltaTau())/DeltaTau();
 */
 
-  inline double KeepCreating(int direction) const { return weight(direction)/Max(weight(LEFT),weight(RIGHT)); }
+  inline double KeepCreating(int direction) const { return Min(1.0,weight(direction)/weight(!direction)); }
   inline double KeepDestroying(int direction) const { return Min(1.0,exp(Sign[direction]*DeltaV()*DeltaTau())); }
   inline double CreationWeight(int direction) const { return ((1-Alpha[ADD]*KeepCreating(direction))*weight(!direction))/G(); }
   inline double DestructionWeight(int direction) const { return empty() ? 0 : (1-Alpha[REMOVE]*KeepDestroying(direction))*expweight(-Sign[direction]*DeltaV()*DeltaTau())/DeltaTau(); }

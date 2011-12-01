@@ -1,7 +1,7 @@
 Include="-Isource/Interface -Isource/Corvette -Isource"
 Executable="corvette"+"."+%x{uname}
 Source="source/Corvette-SGF.cpp"
-Flags="-DRNG_MT"
+Flags="-DRNG_MT -DCMDLINEPROGRESS -DDEBUG"
 
 task :default do
  puts cmd="/opt/intel/composerxe/bin/icc -fast -fp-model precise -Wall #{Flags} #{Include} #{Source} -o #{Executable}"

@@ -112,7 +112,7 @@ public:
 		index_type index=0;
 		while(index<_nsums) {
 			w =_sums[index];
-			index=((index+1)<<1)-1;
+			index=2*index+1;
 			wl=_sums[index];
 			index+=!(w*RNG::Uniform()<wl);
 		}

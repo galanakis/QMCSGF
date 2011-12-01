@@ -59,12 +59,14 @@ public:
   inline int offset(int action=ADD) const {return ProductElement::offset(Sign[action]*particle->delta());}
   inline uint amplitude(int direction) const {return ProductElement::amplitude(n(direction),particle->nmax());}
   inline void update(int direction,int action) const {
-    
+
+#ifdef DEBUG    
     if(particle->n(direction)==0 && delta()*Sign[action==direction]<0) {
       std::cout<<"Error: Negative occupancy encountered."<<std::endl;
       exit(2);
     }
-   
+#endif
+
     particle->n(direction) += delta()*Sign[action==direction];
      
   }
