@@ -198,7 +198,24 @@ class Probabilities : public ProbabilitiesBase {
 
   TSum *_tsum[2];
 
+	struct UpdateData {
+		int direction;
+		int action;
+		const HamiltonianTerm *term; 
+		UpdateData() : action(ADD), direction(RIGHT), term(0) {}
+		UpdateData(const UpdateData &o) : direction(o.direction), action(o.action), term(o.term) {}
+		inline void set(int o_direction,int o_action,const HamiltonianTerm *o_term) {
+			direction=o_direction;
+			action=o_action;
+			term=o_term;
+		}
+	};
+  
+	UpdateData _LastUpdate; // Remembers the action of the last update
+
 public:
+
+	const UpdateData & LastUpdate() const {return _LastUpdate;}
 
   inline MatrixElement Energy(int direction) const {return Energies[direction];}
 
@@ -276,6 +293,8 @@ public:
 
 
   inline void update(const HamiltonianTerm* term,int rl,int arflag) {
+	  
+		_LastUpdate.set(rl,arflag,term);
 
     if((++NUpdates % RebuildPeriod)==0) 
 			slow_update(term,rl,arflag);
@@ -285,6 +304,7 @@ public:
 	}
 
   inline void slow_update(const HamiltonianTerm* term,int rl,int arflag) {
+ 
 		term->update_psi(rl,arflag);
 		rebuild();
 	}

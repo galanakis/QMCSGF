@@ -116,12 +116,15 @@ public:
       _product.push_back(IndexedProductElement(it->second,it->first));
       
   }
-   
+  
+	HamiltonianTerm(const std::vector<IndexedProductElement> &p) : _coefficient(MatrixElement(1.0)), _product(p) {}
+ 
   HamiltonianTerm(const HamiltonianTerm &o) : _coefficient(o._coefficient), _product(o._product) {}
   
   typedef std::vector<IndexedProductElement>::const_iterator iterator;
 	typedef std::vector<IndexedProductElement>::size_type size_type;
   
+	inline MatrixElement coefficient() {return _coefficient;};
   inline MatrixElement coefficient() const {return _coefficient;}; 
   inline void set_coefficient(MatrixElement c) {_coefficient=c;}
   inline const std::vector<IndexedProductElement>& product() const {return _product;}
@@ -189,6 +192,16 @@ public:
   }
     
 };
+
+/* So that I can use the HamiltonianTerm as a key in a map */
+inline bool operator<(const IndexedProductElement &a,const IndexedProductElement &b) {
+	return a.particle_id() < b.particle_id() || a.particle_id() == b.particle_id() && a.id() < b.id();
+}
+
+bool operator<(const HamiltonianTerm &a,const HamiltonianTerm &b) {
+	return a.coefficient()<b.coefficient() || a.coefficient()==b.coefficient() && a.product() < b.product();
+}
+
 
 // Define the type of the Kinetic and Potential Part of the Hamiltonian
 typedef std::vector<HamiltonianTerm> Hamiltonian;

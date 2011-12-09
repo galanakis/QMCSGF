@@ -86,84 +86,135 @@ namespace SGF {
 
 	};
 
+ 
+
 
   class Measurable : public MeasureDefaults {
- 
-    std::vector<BinnedAccumulatorME> Sums;
-
-	  struct MeasAccumulators {
-	    const HamiltonianTerm *term;
-	    BinnedAccumulatorME *sum;
-	    MeasAccumulators(const HamiltonianTerm * const t,BinnedAccumulatorME * const s) : term(t), sum(s) {} 
-	  };
 
 
 		typedef std::vector< std::pair<Boson*,int> > BosonDeltaMapType;
-		typedef std::map<BosonDeltaMapType,std::vector<MeasAccumulators> > AccType; 
+
+			// This one is ok to be slow since it is called only in the initializer
+			inline BosonDeltaMapType map(const HamiltonianTerm &term) {
+				std::map<Boson*,int> indices;
+		    for(unsigned int i=0;i<term.product().size();++i) {
+					int delta=-term.product()[i].delta();
+					if(delta!=0) indices[term.product()[i].particle_id()]=delta;
+				}
+
+				BosonDeltaMapType vmap;
+				vmap.reserve(indices.size());
+				std::map<Boson*,int>::const_iterator it;
+				for(it=indices.begin();it!=indices.end();++it)
+					vmap.push_back(*it);
+
+				return vmap;
+			}
+
+
+			// This one must be very fast
+			inline BosonDeltaMapType map(const std::set<Boson*> &s) {
+				BosonDeltaMapType vmap;
+				vmap.reserve(s.size());
+				std::set<Boson*>::const_iterator it;
+				for(it=s.begin();it!=s.end();++it) {
+					int delta=(*it)->delta();
+					if(delta!=0) vmap.push_back(std::pair<Boson*,int>(*it,delta));
+				}
+				return vmap;
+			}	
+
+		  struct MeasurableData {
+				MatrixElement coefficient;
+		    BinnedAccumulatorME *sum;
+				MeasurableData(const MeasurableData &o) : coefficient(o.coefficient), sum(o.sum) {}
+		    MeasurableData(MatrixElement c,BinnedAccumulatorME * const s) : coefficient(c), sum(s) {}
+		  };
+
+		  class TermBuffer {
+				typedef std::vector<MeasurableData> MeasurableDataVectorType;
+				MeasurableDataVectorType _measurable_data_vector;
+				_float_accumulator buffer;
+			public:
+
+		    TermBuffer() : buffer(0), _measurable_data_vector() {}
+				TermBuffer(const TermBuffer &o) : buffer(o.buffer), _measurable_data_vector(o._measurable_data_vector) {}
+				inline void push_me(_float_accumulator value) { buffer += value; }
+
+				inline void push_buffers() {
+					for(MeasurableDataVectorType::iterator it=_measurable_data_vector.begin(); it!=_measurable_data_vector.end(); ++it) 
+						it->sum->push(buffer * it->coefficient);
+					buffer=0;
+				}
+
+				void push_back(MatrixElement c,BinnedAccumulatorME * const s) {
+					_measurable_data_vector.push_back(MeasurableData(c,s));
+				}
+
+		  };
+
+
+    std::vector<BinnedAccumulatorME> Sums;
+
+		typedef std::map<const HamiltonianTerm,TermBuffer> MapTermBufferType;
+		MapTermBufferType _MapTermBuffer;
+
+		typedef std::vector<MapTermBufferType::iterator> TermBufferVectorType; 
+		typedef std::map<BosonDeltaMapType,TermBufferVectorType> AccType; 
     AccType _Acc;
-
-		// This one is ok to be slow since it is called only in the initializer
-		inline BosonDeltaMapType map(const HamiltonianTerm * const term) {
-			std::map<Boson*,int> indices;
-	    for(unsigned int i=0;i<term->product().size();++i) {
-				int delta=-term->product()[i].delta();
-				if(delta!=0) indices[term->product()[i].particle_id()]=delta;
-			}
-
-			BosonDeltaMapType vmap;
-			vmap.reserve(indices.size());
-			std::map<Boson*,int>::const_iterator it;
-			for(it=indices.begin();it!=indices.end();++it)
-				vmap.push_back(*it);
-
-			return vmap;
-		}
-
-
-		// This one must be very fast
-		inline BosonDeltaMapType map(const std::set<Boson*> &s) {
-			BosonDeltaMapType vmap;
-			vmap.reserve(s.size());
-			std::set<Boson*>::const_iterator it;
-			for(it=s.begin();it!=s.end();++it) {
-				int delta=(*it)->delta();
-				if(delta!=0) vmap.push_back(std::pair<Boson*,int>(*it,delta));
-			}
-			return vmap;
-		}	
 
 	
   public:
     Measurable(const std::vector<Hamiltonian> &HList) : MeasureDefaults(), Sums(HList.size()) {
 
-      for(unsigned int i=0;i<HList.size();++i)
+			for(unsigned int i=0;i<HList.size();++i)
       for(unsigned int j=0;j<HList[i].size();++j) {
-        const HamiltonianTerm *term=&HList[i][j];
-				_Acc[map(term)].push_back(MeasAccumulators(term,&Sums[i]));
+				const HamiltonianTerm &term=HList[i][j];
+				if(term.constant()) 
+					Sums[i].constant()+=term.coefficient();
+				else {
+					_MapTermBuffer[term.product()].push_back(term.coefficient(),&Sums[i]);
+					_Acc[map(term.product())].push_back(_MapTermBuffer.find(term.product()));
+				}
       }
-
+      
     }
-    
+
+		inline void flush(MatrixElement BoltzmannW) {
+			for(MapTermBufferType::iterator it=_MapTermBuffer.begin(); it!=_MapTermBuffer.end(); ++it) 
+				it->second.push_buffers();
+
+			for(std::vector<BinnedAccumulatorME>::iterator it=Sums.begin();it!=Sums.end();++it) 
+				it->flush(BoltzmannW);
+			
+		}
+
+   	inline void measure(const std::set<Boson*> &ListBrokenLines,double Weight) {
+
+			AccType::iterator v_it=_Acc.find(map(ListBrokenLines));
+			if(v_it!=_Acc.end())
+				for(TermBufferVectorType::iterator it=v_it->second.begin();it!=v_it->second.end();++it) {
+					MatrixElement me=(*it)->first.me(RIGHT);
+					(*it)->second.push_me( Weight * me );
+				}
+	
+		}
+
+
+    inline void measure(const OperatorStringType &OperatorString) {
+
+			measure(OperatorString.ListBrokenLines(),OperatorString.BoltzmannWeight());
+			MeasureDefaults::measure(OperatorString);
+
+		}
+
     inline void flush() {
       
-			for(std::vector<BinnedAccumulatorME>::iterator it=Sums.begin();it!=Sums.end();++it) 
-				it->flush(BoltzmannWeight);
-
+			flush(BoltzmannWeight);
 			MeasureDefaults::flush();
 
     }
 
-    void measure(const OperatorStringType &OperatorString) {
-			
-      const _float_accumulator Weight=OperatorString.BoltzmannWeight(); 
-			AccType::const_iterator v_it=_Acc.find(map(OperatorString.ListBrokenLines()));
-			if(v_it!=_Acc.end())
-				for(std::vector<MeasAccumulators>::const_iterator it=v_it->second.begin();it!=v_it->second.end();++it) 
-					it->sum->push( it->term->me(RIGHT) * Weight );
-
-			MeasureDefaults::measure(OperatorString);
-
-		}
 		 
 		typedef std::vector<BinnedAccumulatorME>::size_type size_type;
     inline size_type size() const {return Sums.size();}
