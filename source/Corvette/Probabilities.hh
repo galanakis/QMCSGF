@@ -201,13 +201,13 @@ class Probabilities : public ProbabilitiesBase {
 	struct UpdateData {
 		int direction;
 		int action;
-		const HamiltonianTerm *term; 
-		UpdateData() : action(ADD), direction(RIGHT), term(0) {}
-		UpdateData(const UpdateData &o) : direction(o.direction), action(o.action), term(o.term) {}
-		inline void set(int o_direction,int o_action,const HamiltonianTerm *o_term) {
+		Hamiltonian::size_type index; 
+		UpdateData(int d=RIGHT,int a=ADD,int i=0) :direction(d),  action(a), index(i) {}
+		UpdateData(const UpdateData &o) : direction(o.direction), action(o.action), index(o.index) {}
+		inline void set(int o_direction,int o_action,Hamiltonian::size_type o_index) {
 			direction=o_direction;
 			action=o_action;
-			term=o_term;
+			index=o_index;
 		}
 	};
   
@@ -294,7 +294,7 @@ public:
 
   inline void update(const HamiltonianTerm* term,int rl,int arflag) {
 	  
-		_LastUpdate.set(rl,arflag,term);
+		_LastUpdate.set(rl,arflag,term_index(term));
 
     if((++NUpdates % RebuildPeriod)==0) 
 			slow_update(term,rl,arflag);

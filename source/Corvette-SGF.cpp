@@ -134,7 +134,14 @@ OperatorString.alpha()=AlphaParameter;
 OperatorString.alpha(SGF::ADD)=AlphaParameter;
 OperatorString.alpha(SGF::REMOVE)=AlphaParameter;
 OperatorString.GreenInit(Container.NSites(),GreenOperatorLines);
-SGF::Measurable MeasuredOperators(Container.MeasurableOperators());
+SGF::Measurable MeasuredOperators;
+MeasuredOperators.insert(MathExpression::GetMeasurableList(),Container.MeasurableOperators());
+
+SGF::PlusFunctor plusf;
+MeasuredOperators.insert_function("Potential",&plusf,V); 
+MeasuredOperators.insert_function("Potential",&plusf,V);
+MeasuredOperators.insert_function("Kinetic",&plusf,T);
+
 // _____________________________________________________________________
 
 

@@ -247,51 +247,16 @@ public:
 		cout << "  * Operator string statistics *\n";
 		cout << "  ******************************\n\n";
 		cout << "    == Thermalization ==\n";
-		cout << "    Number of creations/anihilations: \t" << NumWarmUpdates << "\t("<<ActualWarmTime*1000000000/NumWarmUpdates << " seconds per billion updates)\n";
+		cout << "    Number of creations/annihilations: \t" << NumWarmUpdates << "\t("<<ActualWarmTime*1000000000/NumWarmUpdates << " seconds per billion updates)\n";
 		cout << "    Number of directed updates:       \t" << NumDirectedWarmUpdates << "\t("<<ActualWarmTime*1000000000/NumDirectedWarmUpdates << " seconds per billion updates)\n";
 		cout << "    Directed update length:           \t"<< double(NumWarmUpdates)/NumDirectedWarmUpdates<<std::endl;
 		cout << "    == Measurements   ==\n";
-		cout << "    Number of creations/anihilations: \t" << NumMeasUpdates << "\t("<<ActualMeasTime*1000000000/NumMeasUpdates << " seconds per billion updates)\n";  
+		cout << "    Number of creations/annihilations: \t" << NumMeasUpdates << "\t("<<ActualMeasTime*1000000000/NumMeasUpdates << " seconds per billion updates)\n";  
 		cout << "    Number of directed updates:       \t" << NumDirectedMeasUpdates << "\t("<<ActualMeasTime*1000000000/NumDirectedMeasUpdates << " seconds per billion updates)\n";  
 		cout << "    Directed update length:           \t"<< double(NumMeasUpdates)/NumDirectedMeasUpdates<<std::endl;
 		cout << "    Number of measurements: " << MeasuredOp.count() << "\n\n";
 
-		std::cout<<::std::endl;
-		std::cout<<"  *******************************\n";
-		std::cout<<"  * Broken worldlines histogram *\n";
-		std::cout<<"  *******************************\n\n";
-		std::cout<<"    N lines\tCount\tProbability\n\n";
-
-		SGF::Measurable::BrokenHistogramType BrokenHistogram=MeasuredOp.BrokenHistogram();
-		double Normalization=MeasuredOp.BrokenNormalization();
-		for(SGF::Measurable::BrokenHistogramType::const_iterator it=BrokenHistogram.begin();it!=BrokenHistogram.end();++it)
-			std::cout<<"    "<<it->first<<"\t\t"<<it->second<<"\t"<<it->second/Normalization<<std::endl;
-		cout << endl;
-
-		cout << "  ***********************************************************************************\n";
-		cout << "  * Energies (obtained from operator string length and Green operator state energy) *\n";
-		cout << "  ***********************************************************************************\n\n";
-		cout << "    Total energy: " << MeasuredOp.TotalEnergy() << "\n";
-		cout << "    Diagonal energy: " << MeasuredOp.PotentialEnergy() << "\n";           
-		cout << "    Non-diagonal energy: " << MeasuredOp.KineticEnergy() << "\n\n";
-		std::vector<string> Names=MathExpression::GetMeasurableList();
-
-		int UserMeasurables=0;
-
-		for (SGF::Measurable::size_type i=0;i<MeasuredOp.size();i++)
-			if (Names[i][0]!='#')
-			UserMeasurables++;
-
-		if (UserMeasurables)
-		{
-			cout << "  ******************************\n";
-			cout << "  * User's defined measurables *\n";
-			cout << "  ******************************\n\n";
-
-			for (SGF::Measurable::size_type i=0;i<MeasuredOp.size();i++)
-				if (Names[i][0]!='#')
-				cout << "    " << Names[i] << ": " << MeasuredOp[i] << endl;
-		}
+		MeasuredOp.print();
 	}
 };
 

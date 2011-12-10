@@ -193,15 +193,7 @@ public:
     
 };
 
-/* So that I can use the HamiltonianTerm as a key in a map */
-inline bool operator<(const IndexedProductElement &a,const IndexedProductElement &b) {
-	return a.particle_id() < b.particle_id() || a.particle_id() == b.particle_id() && a.id() < b.id();
-}
-
-bool operator<(const HamiltonianTerm &a,const HamiltonianTerm &b) {
-	return a.coefficient()<b.coefficient() || a.coefficient()==b.coefficient() && a.product() < b.product();
-}
-
+inline bool operator==(const IndexedProductElement &a,const IndexedProductElement &b) { return a.id() == b.id() && a.particle_id() == b.particle_id(); }
 
 // Define the type of the Kinetic and Potential Part of the Hamiltonian
 typedef std::vector<HamiltonianTerm> Hamiltonian;
