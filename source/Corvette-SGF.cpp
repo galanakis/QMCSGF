@@ -137,11 +137,6 @@ OperatorString.GreenInit(Container.NSites(),GreenOperatorLines);
 SGF::Measurable MeasuredOperators;
 MeasuredOperators.insert(MathExpression::GetMeasurableList(),Container.MeasurableOperators());
 
-SGF::PlusFunctor plusf;
-MeasuredOperators.insert_function("Potential",&plusf,V); 
-MeasuredOperators.insert_function("Potential",&plusf,V);
-MeasuredOperators.insert_function("Kinetic",&plusf,T);
-
 // _____________________________________________________________________
 
 
