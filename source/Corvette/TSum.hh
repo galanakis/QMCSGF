@@ -60,16 +60,19 @@ class TSum {
 	std::vector<index_type> _buffer_indices;
 
 	inline void flush() {
-
+    
 		for(std::vector<index_type>::size_type i=0;i<_buffer_indices.size();++i) {
 
 			index_type index=_buffer_indices[i];
 			MatrixElement newme=_sums[2*index-1]+_sums[2*index];
-			MatrixElement &oldme=_sums[index-1];
+			MatrixElement oldme=_sums[index-1];
 			
-			if(index!=0 && newme!=oldme) {
-				oldme=newme;
-				_buffer_indices.push_back(index/2);
+			if(newme!=oldme) {
+				while(index) {
+					_sums[index-1] =  newme;
+					newme += _sums[index-2*(index&1)];
+					index/=2;
+				}
 			}
  		}
 
