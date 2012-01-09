@@ -125,10 +125,10 @@ public:
 
   /* Chose an operator randomly and push it in the string. direction is the direction of motion of the green operator */
   inline bool create(int direction) {
-    const HamiltonianTerm *term=choose(!direction);
-    update(term,!direction,ADD);
-    push(!direction,Operator(_GreenTime,term));
-    double KeepDestroy=KeepDestroying(!direction);
+    const HamiltonianTerm *term=choose(direction);
+    update(term,direction,ADD);
+    push(direction,Operator(_GreenTime,term));
+    double KeepDestroy=KeepDestroying(direction);
     AccumulateAlpha[REMOVE].push(KeepDestroy);
     return RNG::Uniform()<Alpha[REMOVE]*KeepDestroy;
   }
@@ -257,8 +257,8 @@ we enter the main loop.
      uint UpdateLength=0;
 
      bool keepgoing=true;    
-     if(action==ADD) keepgoing=keepgoing && ++UpdateLength && create(direction);
-     while((keepgoing=keepgoing && ++UpdateLength && destroy(direction) && ++UpdateLength && create(direction)))
+     if(action==ADD) keepgoing=keepgoing && ++UpdateLength && create(!direction);
+     while((keepgoing=keepgoing && ++UpdateLength && destroy(direction) && ++UpdateLength && create(!direction)))
        ; // Nothing to do.
      if(action==(UpdateLength&1)) _GreenTime+=TimeShift(direction); 
      return UpdateLength;     

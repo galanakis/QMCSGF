@@ -190,14 +190,17 @@ public:
 
 class Probabilities : public ProbabilitiesBase {
   _float_accumulator Energies[2];         // energy of right and left state. It is an accumulator
-  std::set<Boson*> _broken_lines;  // A set of the boson indices that are broken.
+	std::vector<MatrixElement> EnergyME[2];
   _integer_counter NUpdates;     // Number of updates since last rebuild
+
+  std::set<Boson*> _broken_lines;  // A set of the boson indices that are broken.
   int _NBWL;                       // The number of broken world lines
 
 	bool ExtraLock;                  // whether to ignore the extra terms or not. 0 means ignore, 1 means accept.
 
   TSum *_tsum[2];
   
+
 	std::vector<int> offset_cache; // remembers the offset of each operator
 
 	struct UpdateData {
@@ -242,7 +245,9 @@ public:
 			for(int count=0;count<noffsets();++count) 
 				_tsum[direction][count].resize(Kinetic.size());
 		}
-		offset_cache.resize(Kinetic.size());			
+		offset_cache.resize(Kinetic.size());
+		EnergyME[0].resize(Potential.size());
+		EnergyME[1].resize(Potential.size());			
 		rebuild();
 	}
 
@@ -252,8 +257,7 @@ public:
 	}
 
 
-	/* Choose the offset first. This version
-	calls TSum rather than weight and so it's faster */
+	/* Choose the offset first. */
 	const HamiltonianTerm* choose(int rl) const {
 
 		double R=RNG::Uniform()*weight(rl);
@@ -272,7 +276,6 @@ public:
 			for(int count=0;count<noffsets();++count) 
 				_tsum[direction][count].reset();
 				
-    Energies[0]=Energies[1]=0;  
     NUpdates=0;
 		_NBWL=0;
 		
@@ -293,26 +296,31 @@ public:
 			for(uint i=0;i<Potential.size();++i)
         Energies[direction]+=Potential[i].me(direction);
 		}
-        
+
+		rebuild_energies();
 
   }
+
+	inline void rebuild_energies() {
+    for(int direction=0;direction<2;++direction) {
+			Energies[direction]=0;
+			for(uint i=0;i<Potential.size();++i) {
+				MatrixElement me=Potential[i].me(direction);
+				EnergyME[direction][i]=me;
+        Energies[direction]+=me;
+			}
+		}
+		
+	}
 
 
   inline void update(const HamiltonianTerm* term,int rl,int arflag) {
 	  
 		_LastUpdate.set(rl,arflag,term_index(term));
+    fast_update(term,rl,arflag);
+    if((++NUpdates % RebuildPeriod)==0)
+			rebuild_energies();
 
-    if((++NUpdates % RebuildPeriod)==0) 
-			slow_update(term,rl,arflag);
-		else 
-			fast_update(term,rl,arflag);
-
-	}
-
-  inline void slow_update(const HamiltonianTerm* term,int rl,int arflag) {
- 
-		term->update_psi(rl,arflag);
-		rebuild();
 	}
 
 
@@ -322,9 +330,6 @@ public:
     
 		AdjacencyList::adjacency_list_t::const_iterator nbr;
     
-        			
-    for(nbr=pot_adjacency[index].begin();nbr!=pot_adjacency[index].end();++nbr) 
-      Energies[rl]+=-(*nbr)->me(rl);
       
     term->update_psi(rl,arflag);   
     
@@ -345,9 +350,12 @@ public:
 		
 
 
-    for(nbr=pot_adjacency[index].begin();nbr!=pot_adjacency[index].end();++nbr) 
-      Energies[rl]+=(*nbr)->me(rl);
-
+    for(nbr=pot_adjacency[index].begin();nbr!=pot_adjacency[index].end();++nbr) {
+			MatrixElement me=(*nbr)->me(rl);
+			std::vector<MatrixElement>::size_type i=(*nbr)-&Potential[0];
+			Energies[rl]+=me-EnergyME[rl][i];
+			EnergyME[rl][i]=me;
+    }
     
     for(HamiltonianTerm::size_type i=0;i<term->product().size();++i) {
         Boson *pind=term->product()[i].particle_id();
