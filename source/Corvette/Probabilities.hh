@@ -197,6 +197,8 @@ class Probabilities : public ProbabilitiesBase {
 	bool ExtraLock;                  // whether to ignore the extra terms or not. 0 means ignore, 1 means accept.
 
   TSum *_tsum[2];
+  
+	std::vector<int> offset_cache; // remembers the offset of each operator
 
 	struct UpdateData {
 		int direction;
@@ -239,7 +241,8 @@ public:
 			_tsum[direction]=new TSum[noffsets()];
 			for(int count=0;count<noffsets();++count) 
 				_tsum[direction][count].resize(Kinetic.size());
-		}			
+		}
+		offset_cache.resize(Kinetic.size());			
 		rebuild();
 	}
 
@@ -282,8 +285,11 @@ public:
     }
 		
     for(int direction=0;direction<2;++direction) {
-      for(uint i=0;i<Kinetic.size();++i)
-				_tsum[direction][ offsets( Kinetic[i].offset() ) ].update(i,Kinetic[i].me(direction));
+      for(uint i=0;i<Kinetic.size();++i) {
+				int ioffset = offsets(Kinetic[i].offset());
+				offset_cache[i] = ioffset;
+				_tsum[direction][ ioffset ].update(i,Kinetic[i].me(direction));
+			}
 			for(uint i=0;i<Potential.size();++i)
         Energies[direction]+=Potential[i].me(direction);
 		}
@@ -309,7 +315,6 @@ public:
 		rebuild();
 	}
 
-	std::vector<int> ioffset_cache; // Temporary storage for the initial offset during the fast updates
 
   inline void fast_update(const HamiltonianTerm* term,int rl,int arflag) { 
 		_NBWL+=term->offset(arflag);
@@ -317,24 +322,20 @@ public:
     
 		AdjacencyList::adjacency_list_t::const_iterator nbr;
     
-    
-		// Temporary storage of the initial offset
-		for(nbr=kin_adjacency[index].begin();nbr!=kin_adjacency[index].end();++nbr)
-			ioffset_cache.push_back(offsets((*nbr)->offset()));
-    			
+        			
     for(nbr=pot_adjacency[index].begin();nbr!=pot_adjacency[index].end();++nbr) 
       Energies[rl]+=-(*nbr)->me(rl);
       
     term->update_psi(rl,arflag);   
     
-		std::vector<int>::size_type i;
-    for(nbr=kin_adjacency[index].begin(),i=0;nbr!=kin_adjacency[index].end();++nbr,++i) {
+    for(nbr=kin_adjacency[index].begin();nbr!=kin_adjacency[index].end();++nbr) {
       Hamiltonian::size_type fndex= term_index(*nbr);
-      int ioffset = ioffset_cache[i];
+      int ioffset = offset_cache[fndex];
       int foffset = offsets((*nbr)->offset());
       MatrixElement fme = (*nbr)->me(rl);
 			_tsum[ rl][foffset].update(fndex,fme);
 			if(ioffset!=foffset) {
+				offset_cache[fndex] = foffset;
 				MatrixElement jme = _tsum[!rl][ioffset].element(fndex); 
 				_tsum[ rl][ioffset].update(fndex,0);
 				_tsum[!rl][ioffset].update(fndex,0);
@@ -342,7 +343,6 @@ public:
 			}
     }
 		
-		ioffset_cache.clear();
 
 
     for(nbr=pot_adjacency[index].begin();nbr!=pot_adjacency[index].end();++nbr) 
