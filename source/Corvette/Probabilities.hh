@@ -98,7 +98,7 @@ public:
 };
 
 
-class ProbabilitiesBase {
+class SGFBase {
 
   // Scan all kinetic terms to find all the indices
   static std::vector<Boson*> GetIndices(const Hamiltonian &T) {
@@ -127,35 +127,16 @@ protected:
   const AdjacencyList pot_adjacency;  // For each term it holds a list of other kinetic terms with one common site
 
 
-  GreenOperator<long double> GF;                // Defines the Green operator function
-
-
   inline OffsetMap::size_type noffsets() const {return offsets.size();}
-  inline Hamiltonian::size_type term_index(const HamiltonianTerm* term) const {return term-&Kinetic[0];}
-	inline const HamiltonianTerm * index_term(Hamiltonian::size_type iterm) const {return &Kinetic[iterm];}
+  inline Hamiltonian::size_type KineticHash(const HamiltonianTerm* term) const {return term-&Kinetic[0];}
+	inline const HamiltonianTerm * KineticTerm(Hamiltonian::size_type iterm) const {return &Kinetic[iterm];}
+  inline Hamiltonian::size_type PotentialHash(const HamiltonianTerm* term) const {return term-&Potential[0];}
+	inline const HamiltonianTerm * PotentialTerm(Hamiltonian::size_type iterm) const {return &Potential[iterm];}
 
-	uint _ensemble;
 	
-	std::vector<Boson*>::size_type nextra() const {return 2*_indices.size()*_ensemble;}
-  Hamiltonian::size_type nregular() const {return Kinetic.size()-nextra();}
 public:
-  inline void GreenInit(int nsites,int cutoff) {GF.initialize(nsites,cutoff);}
 
-  ProbabilitiesBase(const Hamiltonian &T,const Hamiltonian &V) :  _indices(GetIndices(T)), Kinetic(T), offsets(Kinetic), Potential(V), kin_adjacency(Kinetic), pot_adjacency(Kinetic,Potential) {
-		/* Initialize the Green operator function.
-		The number of sites is just the number of different
-		indices appearing in the Kinetic operators */
-		GF.initialize(_indices.size(),2);
-	
-		// The SGFContainer class has put the extra kinetic terms at the end. So we only count to indirectly extract the ensemble.
-		uint _nextra=0;
-		for(Hamiltonian::size_type i=0;i<Kinetic.size();++i) {
-			if(Kinetic[i].atom()) _nextra++;
-		}
-		
-		_ensemble=(_nextra==2*_indices.size())?GrandCanonical:Canonical;
-
-}
+  SGFBase(const Hamiltonian &T,const Hamiltonian &V) :  _indices(GetIndices(T)), Kinetic(T), offsets(Kinetic), Potential(V), kin_adjacency(Kinetic), pot_adjacency(Kinetic,Potential) {}
 
 };
 
@@ -188,39 +169,22 @@ public:
 */
 
 
-class Probabilities : public ProbabilitiesBase {
+class Probabilities : public SGFBase {
   _float_accumulator Energies[2];         // energy of right and left state. It is an accumulator
 	std::vector<MatrixElement> EnergyME[2];
-  _integer_counter NUpdates;     // Number of updates since last rebuild
+  _integer_counter NUpdates;     // Number of updates since last rebuild. This is only used to fix accumulating floating point errors for the energies
 
   std::set<Boson*> _broken_lines;  // A set of the boson indices that are broken.
   int _NBWL;                       // The number of broken world lines
 
-	bool ExtraLock;                  // whether to ignore the extra terms or not. 0 means ignore, 1 means accept.
+  GreenOperator<long double> GF;                // Defines the Green operator function
 
   TSum *_tsum[2];
   
 
 	std::vector<int> offset_cache; // remembers the offset of each operator
 
-	struct UpdateData {
-		int direction;
-		int action;
-		Hamiltonian::size_type index; 
-		UpdateData(int d=RIGHT,int a=ADD,int i=0) :direction(d),  action(a), index(i) {}
-		UpdateData(const UpdateData &o) : direction(o.direction), action(o.action), index(o.index) {}
-		inline void set(int o_direction,int o_action,Hamiltonian::size_type o_index) {
-			direction=o_direction;
-			action=o_action;
-			index=o_index;
-		}
-	};
-  
-	UpdateData _LastUpdate; // Remembers the action of the last update
-
 public:
-
-	const UpdateData & LastUpdate() const {return _LastUpdate;}
 
   inline MatrixElement Energy(int direction) const {return Energies[direction];}
 
@@ -228,6 +192,7 @@ public:
   inline MatrixElement G(int offset) const {return GF(NBrokenLines()+offset);}  // The value of the Green Operator given the total broken lines and the offset.
 	inline int NBrokenLines() const {return _NBWL;}
   const std::set<Boson*> &ListBrokenLines() const {return _broken_lines;};  // A set of the boson indices that are broken.
+  inline void GreenInit(int nsites,int cutoff) {GF.initialize(nsites,cutoff);}
 
 
   inline double weight(int rl) const {
@@ -238,7 +203,12 @@ public:
   }
 
 
-	Probabilities(const Hamiltonian &T,const Hamiltonian &V) : ProbabilitiesBase(T,V),ExtraLock(1) {
+	Probabilities(const Hamiltonian &T,const Hamiltonian &V) : SGFBase(T,V) {
+
+		/* Initialize the Green operator function.
+		The number of sites is just the number of different
+		indices appearing in the Kinetic operators */
+		GF.initialize(_indices.size(),2);
 
 		for(int direction=0;direction<2;++direction) {
 			_tsum[direction]=new TSum[noffsets()];
@@ -265,43 +235,44 @@ public:
 		while((R-=G(offsets[i])*_tsum[rl][i].norm())>=0)
 			++i;
 
-		return index_term(_tsum[rl][i].choose());
+		return KineticTerm(_tsum[rl][i].choose());
 	}
 
   // Evaluates the matrix elements and populates the trees
   inline void rebuild() {
 
-		_broken_lines.clear();
+		_NBWL=0;
+
 		for(int direction=0;direction<2;++direction)
 			for(int count=0;count<noffsets();++count) 
 				_tsum[direction][count].reset();
 				
-    NUpdates=0;
-		_NBWL=0;
-		
-		for(std::vector<Boson*>::size_type i=0;i<_indices.size();++i) {
-     int delta=Abs(_indices[i]->delta());
-     if(delta!=0) {
-       _NBWL+=delta; 
-       _broken_lines.insert(_indices[i]);
-      }
-    }
-		
     for(int direction=0;direction<2;++direction) {
       for(uint i=0;i<Kinetic.size();++i) {
 				int ioffset = offsets(Kinetic[i].offset());
 				offset_cache[i] = ioffset;
 				_tsum[direction][ ioffset ].update(i,Kinetic[i].me(direction));
 			}
-			for(uint i=0;i<Potential.size();++i)
-        Energies[direction]+=Potential[i].me(direction);
 		}
-
+    
+		rebuild_brokenlines();
 		rebuild_energies();
 
   }
 
+	inline void rebuild_brokenlines() {
+		_broken_lines.clear();
+		for(std::vector<Boson*>::size_type i=0;i<_indices.size();++i) {
+     int delta=Abs(_indices[i]->delta());
+     if(delta!=0) {
+       _NBWL+=delta; 
+       _broken_lines.insert(_indices[i]);
+      }
+    }		
+	}
+
 	inline void rebuild_energies() {
+    NUpdates=0;
     for(int direction=0;direction<2;++direction) {
 			Energies[direction]=0;
 			for(uint i=0;i<Potential.size();++i) {
@@ -310,31 +281,59 @@ public:
         Energies[direction]+=me;
 			}
 		}
-		
 	}
 
+ 
+	inline void update_energies(const HamiltonianTerm* term,int rl) {
+		const AdjacencyList::adjacency_list_t &adjlist=pot_adjacency[KineticHash(term)];
+    for(AdjacencyList::adjacency_list_t::const_iterator nbr=adjlist.begin();nbr!=adjlist.end();++nbr) {
+			MatrixElement me=(*nbr)->me(rl);
+			std::vector<MatrixElement>::size_type i=PotentialHash(*nbr);
+			Energies[rl]+=me-EnergyME[rl][i];
+			EnergyME[rl][i]=me;
+    }		
+	}
+	
+	inline void update_brokenlines(const HamiltonianTerm* term) {
+    for(HamiltonianTerm::size_type i=0;i<term->product().size();++i) {
+        Boson *pind=term->product()[i].particle_id();
+        if(pind->delta()!=0)
+           _broken_lines.insert(pind);
+        else
+           _broken_lines.erase(pind);
+    }		
+	}
 
   inline void update(const HamiltonianTerm* term,int rl,int arflag) {
-	  
-		_LastUpdate.set(rl,arflag,term_index(term));
-    fast_update(term,rl,arflag);
+		
+		/*********************************\  
+			The configuration changes here
+		\*********************************/  
+    term->update_psi(rl,arflag); 
+     
+		/* Updating the number of broken lines. 
+			if the update is before the configuration change then
+			_NBWL+=term->offset(arflag);
+			otherwise it is
+			_NBWL-=term->offset(!arflag); 
+		*/
+		_NBWL-=term->offset(!arflag);
+  
+    update_trees(term,rl);
+
+		update_energies(term,rl);
     if((++NUpdates % RebuildPeriod)==0)
 			rebuild_energies();
 
+		update_brokenlines(term);
 	}
 
 
-  inline void fast_update(const HamiltonianTerm* term,int rl,int arflag) { 
-		_NBWL+=term->offset(arflag);
-    Hamiltonian::size_type index=term_index(term);
-    
-		AdjacencyList::adjacency_list_t::const_iterator nbr;
-    
-      
-    term->update_psi(rl,arflag);   
-    
-    for(nbr=kin_adjacency[index].begin();nbr!=kin_adjacency[index].end();++nbr) {
-      Hamiltonian::size_type fndex= term_index(*nbr);
+  inline void update_trees(const HamiltonianTerm* term,int rl) { 
+
+		const AdjacencyList::adjacency_list_t &adjlist=kin_adjacency[KineticHash(term)];
+    for(AdjacencyList::adjacency_list_t::const_iterator nbr=adjlist.begin();nbr!=adjlist.end();++nbr) {
+      Hamiltonian::size_type fndex= KineticHash(*nbr);
       int ioffset = offset_cache[fndex];
       int foffset = offsets((*nbr)->offset());
       MatrixElement fme = (*nbr)->me(rl);
@@ -346,25 +345,7 @@ public:
 				_tsum[!rl][ioffset].update(fndex,0);
 				_tsum[!rl][foffset].update(fndex,jme); 
 			}
-    }
-		
-
-
-    for(nbr=pot_adjacency[index].begin();nbr!=pot_adjacency[index].end();++nbr) {
-			MatrixElement me=(*nbr)->me(rl);
-			std::vector<MatrixElement>::size_type i=(*nbr)-&Potential[0];
-			Energies[rl]+=me-EnergyME[rl][i];
-			EnergyME[rl][i]=me;
-    }
-    
-    for(HamiltonianTerm::size_type i=0;i<term->product().size();++i) {
-        Boson *pind=term->product()[i].particle_id();
-        if(pind->delta()!=0)
-           _broken_lines.insert(pind);
-        else
-           _broken_lines.erase(pind);
-    }
-    
+    }    
   }
 
 };
