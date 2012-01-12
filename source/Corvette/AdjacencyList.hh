@@ -20,9 +20,7 @@ namespace SGF {
 
 class AdjacencyList {
   void initialize(const Hamiltonian &,const Hamiltonian &);
-public:
 	typedef std::vector<const HamiltonianTerm *> adjacency_list_t;  // This is the type of the adjacency list
-private:
   std::vector<adjacency_list_t> _adjacency; // The adjacency list is stored here
 public:  
 
@@ -33,9 +31,14 @@ public:
   AdjacencyList(const Hamiltonian &Trow,const Hamiltonian &Tcol) { initialize(Trow,Tcol); }
   AdjacencyList(const Hamiltonian &T) { initialize(T,T); }
   
-  // Total number of row terms
-  std::vector<adjacency_list_t>::size_type size() const {return _adjacency.size();}
-  const adjacency_list_t &operator[](Hamiltonian::size_type i) const {return _adjacency[i];}
+	typedef adjacency_list_t::const_iterator const_iterator;
+	typedef std::pair<const_iterator,const_iterator> range_type;
+  
+	inline const range_type range(Hamiltonian::size_type i) const {
+		const adjacency_list_t &adjlist=_adjacency[i];
+		return range_type(adjlist.begin(),adjlist.end());
+	}
+
    
 };
 

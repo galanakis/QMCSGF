@@ -36,9 +36,6 @@ public:
   
 };
  
-// Defines a configuration (right and left state) which is a list of Boson occupancies
-typedef std::vector<Boson> Configuration;
-
 
 }
 
