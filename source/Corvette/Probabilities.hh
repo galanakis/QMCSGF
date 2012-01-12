@@ -96,13 +96,48 @@ public:
   
 };
 
+/*
+	class UpdatableObject
+	
+	This is class to be used as the pure base class of objects that update themselves
+	after each addition/insertion of an operator.
+	The constructor of the class will push the new object in a static
+	list of pointers. Then the Configuration object which is a 
+	friend, will read this list and call the update function of
+	the objects after each update. This way, all objects that
+	are declared UpdatableObject will be automatically updated.
+	This relies on the virtual function mechanism which is slightly
+	slow, so I only use it for measurable quantities.
+	
+*/
+
+
+
+class UpdatableObject {
+	static std::vector<UpdatableObject*> Objects;   // This lists contains pointers to all UpdatableObjects.
+public:
+	UpdatableObject() {Objects.push_back(this);}
+	virtual inline void update(const HamiltonianTerm*,int,int) = 0;
+
+	friend class Configuration;
+};
+
+std::vector<UpdatableObject*> UpdatableObject::Objects;
+ 
+
+
+/*
+	class Configuration
+	
+	holds the indices of the Bosons, together the number of broken world lines.
+	When updated it also updates all UpdatableObjects.
+*/
 
 class Configuration {
 protected:	
 	typedef std::vector<Boson*> boson_vector;
 	boson_vector _indices;
 	int _NBWL;
- 	GreenOperator<long double> GF;                // Defines the Green operator function
 
 public:
 	Configuration(const Hamiltonian &T) {
@@ -113,21 +148,29 @@ public:
 
 		_indices.insert(_indices.begin(),indexset.begin(),indexset.end());		
  
-		rebuild();
+		_NBWL=CountBrokenLines();
 		
 	}
 	
-	Configuration(const Configuration &o) : _indices(o._indices) {}
+	Configuration(const Configuration &o) : _indices(o._indices), _NBWL(o._NBWL) {}
 
-	inline void GreenInit(int nsites,int cutoff) {GF.initialize(nsites,cutoff);}
-  inline MatrixElement G() const {return GF(NBrokenLines());};                  // The value of the Green Operator for the given broken lines
-  inline MatrixElement G(int offset) const {return GF(NBrokenLines()+offset);}  // The value of the Green Operator given the total broken lines and the offset.
 
-	void rebuild() {
-		_NBWL=0;
+	int CountBrokenLines() const {
+		int result=0;
 		for(std::vector<Boson*>::size_type i=0;i<_indices.size();++i) 
-     _NBWL+=Abs(_indices[i]->delta()); 
+     result+=Abs(_indices[i]->delta()); 
+	  return result;
 	}
+
+	std::set<Boson*> GetListBrokenLines() const {
+		std::set<Boson*> _broken_lines;
+		for(std::vector<Boson*>::const_iterator it=_indices.begin();it!=_indices.end();++it) {
+			if((*it)->delta() != 0) 
+				_broken_lines.insert(*it);
+		}
+		return _broken_lines;		
+	}
+
   
 	// call this update you update the occupancies
 	inline void update(const HamiltonianTerm* term,int rl,int arflag) {
@@ -143,55 +186,60 @@ public:
 			_NBWL-=term->offset(!arflag); 
 		*/
 		_NBWL-=term->offset(!arflag);
+
+		for(int i=0;i<UpdatableObject::Objects.size();++i)
+			UpdatableObject::Objects[i]->update(term,rl,arflag);
+
 	}
 
 	inline int NBrokenLines() const {return _NBWL;}
 
-	inline const boson_vector &configuration() const {return _indices;}
 
 };
 
 
-class BrokenLines {
-	typedef std::set<Boson*> boson_set;
-	boson_set _broken_lines;
+/*
+	class BrokenLines
+
+	It holds a list of the indices with broken lines. It is only used for measurements
+	and this is why it is UpdatableObject.
+
+*/
+
+class BrokenLines : public UpdatableObject {
  
-	void initialize(const std::vector<Boson*> &_indices) {
-		for(std::vector<Boson*>::const_iterator it=_indices.begin();it!=_indices.end();++it) {
-			if((*it)->delta() != 0) 
-				_broken_lines.insert(*it);
-		}		
-	}
 public:
 
-	typedef std::vector< std::pair<Boson*,int> > BosonDeltaMapType;
-
-	BrokenLines(const std::vector<Boson*> &_indices) { initialize(_indices); }
-	BrokenLines(const Configuration &o) { initialize(o.configuration()); }
+	typedef std::map< Boson*,int > BosonDeltaMapType;
+	BosonDeltaMapType _broken_lines;
+	
+	BrokenLines(const std::set<Boson*> &o) : _broken_lines(map(o)) {}
  
 	inline void update(const HamiltonianTerm* term) {
 		for(HamiltonianTerm::size_type i=0;i<term->product().size();++i) {
 			Boson *pind=term->product()[i].particle_id();
-			if(pind->delta()!=0)
-				_broken_lines.insert(pind);
+			int delta=pind->delta();
+			if(delta!=0)
+				_broken_lines.insert(std::pair<Boson*,int>(pind,delta));
 			else
 				_broken_lines.erase(pind);
 		}		
 	}
-
-	inline const boson_set &broken_lines() const { return _broken_lines;}
+  
+	inline void update(const HamiltonianTerm* term,int,int) {update(term);}
 
 		// This one must be very fast
-	inline BosonDeltaMapType operator()() const {
+	inline const BosonDeltaMapType &operator()() const { return _broken_lines; }
+ 
+	static inline BosonDeltaMapType map(const std::set<Boson*> &o) {
 		BosonDeltaMapType vmap;
-		vmap.reserve(_broken_lines.size());
 		std::set<Boson*>::const_iterator it;
-		for(it=_broken_lines.begin();it!=_broken_lines.end();++it) {
+		for(it=o.begin();it!=o.end();++it) {
 			int delta=(*it)->delta();
-			if(delta!=0) vmap.push_back(std::pair<Boson*,int>(*it,delta));
+			if(delta!=0) vmap.insert(std::pair<Boson*,int>(*it,delta));
 		}
-		return vmap;
-	}	
+		return vmap;		
+	}
 
 		// This one is ok to be slow since it is called only in the initializer
 	static inline BosonDeltaMapType map(const HamiltonianTerm &term) {
@@ -200,18 +248,18 @@ public:
 			int delta=-term.product()[i].delta();
 			if(delta!=0) indices[term.product()[i].particle_id()]=delta;
 		}
-
-		BosonDeltaMapType vmap;
-		vmap.reserve(indices.size());
-		std::map<Boson*,int>::const_iterator it;
-		for(it=indices.begin();it!=indices.end();++it)
-			vmap.push_back(*it);
-
-		return vmap;
-	}
+		return indices;
+ 	}
 
 };
 
+/*
+
+	class PotentialEnergies
+	
+	it holds and updates then right and left potential energy.
+	
+*/
 
 class PotentialEnergies {
 	static uint RebuildPeriod;
@@ -267,9 +315,21 @@ public:
 			rebuild();
 
 	}	
+
+	inline void update(const HamiltonianTerm* term,int rl,int) {update(term,rl);}
+
 };
 
 uint PotentialEnergies::RebuildPeriod=1000000;
+
+
+/*
+  
+	class KineticProbabilities
+	
+	holds and updates the Trees for each direction.
+
+*/
 
 class KineticProbabilities {
   const Hamiltonian &Kinetic;         // Local copy of the kinetic operators
@@ -299,18 +359,6 @@ public:
 		}
 		offset_cache.resize(Kinetic.size());
 
-		rebuild();
-		
-	}
-
-	~KineticProbabilities() {
-		delete [] _tsum[0];
-		delete [] _tsum[1];
-	}
-
-	// Note: it changes offset_cache and _tsum[2][]. It needs the Kinetic[i].me() and Kinetic[i].offset()
-	inline void rebuild() {
-
 		for(int direction=0;direction<2;++direction)
 			for(int count=0;count<noffsets();++count) 
 				_tsum[direction][count].reset();
@@ -322,7 +370,15 @@ public:
 				_tsum[direction][ ioffset ].update(i,Kinetic[i].me(direction));
 			}
 		}		
+
+		
 	}
+
+	~KineticProbabilities() {
+		delete [] _tsum[0];
+		delete [] _tsum[1];
+	}
+
  
 	inline double norm(int rl,int i) const {return _tsum[rl][i].norm();}
 	inline const HamiltonianTerm * choose(int rl,int i) const {return Term(_tsum[rl][i].choose());}
@@ -346,32 +402,33 @@ public:
 			}
     }    
   }
+
+	inline void update(const HamiltonianTerm* term,int rl,int) { update(term,rl); }
  
 };
 
  
-class Probabilities {
+class Probabilities : public Configuration {
 	
 	KineticProbabilities Trees;
 	PotentialEnergies Energies;
-	Configuration Psi; 
-	BrokenLines BLines;
+
+ 	GreenOperator<long double> GF;                // Defines the Green operator function
+
 		
 public:
-	Probabilities(const Hamiltonian &T,const Hamiltonian &P) : Psi(T), Trees(T), Energies(T,P), BLines(Psi) {}
+	Probabilities(const Hamiltonian &T,const Hamiltonian &P) : Configuration(T), Trees(T), Energies(T,P) {}
  
-	inline int NBrokenLines() const {return Psi.NBrokenLines();}
+	inline void GreenInit(int nsites,int cutoff) {GF.initialize(nsites,cutoff);}
+  inline MatrixElement G(int offset=0) const {return GF(NBrokenLines()+offset);}  // The value of the Green Operator given the total broken lines and the offset.
 
-  inline MatrixElement G() const {return Psi.G();};                  // The value of the Green Operator for the given broken lines
-  const std::set<Boson*> &ListBrokenLines() const {return BLines.broken_lines();};  // A set of the boson indices that are broken.
-  inline void GreenInit(int nsites,int cutoff) {Psi.GreenInit(nsites,cutoff);}
 	inline _float_accumulator Energy(int rl) const {return Energies(rl);}
 
  
   inline double weight(int rl) const {
     _float_accumulator s=0.0;
     for(uint i=0;i<Trees.size();++i) 
-      s+=Psi.G(Trees.offset(i))*Trees.norm(rl,i);
+      s+=G(Trees.offset(i))*Trees.norm(rl,i);
     return s;
   }
 
@@ -380,7 +437,7 @@ public:
 
 		double R=RNG::Uniform()*weight(rl);
 		int i=0;
-		while((R-=Psi.G(Trees.offset(i))*Trees.norm(rl,i))>=0)
+		while((R-=G(Trees.offset(i))*Trees.norm(rl,i))>=0)
 			++i;
 
 		return Trees.choose(rl,i);
@@ -389,10 +446,9 @@ public:
 
   inline void update(const HamiltonianTerm* term,int rl,int arflag) {
       
-		Psi.update(term,rl,arflag);
+		Configuration::update(term,rl,arflag);
     Trees.update(term,rl);
 		Energies.update(term,rl);
-		BLines.update(term);
 
 	}
 

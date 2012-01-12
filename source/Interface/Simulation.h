@@ -101,18 +101,15 @@ class Simulation
 
 	double ActualWarmTime,ActualMeasTime;
 
-	SGF::OperatorStringType &OpString;
-	SGF::Measurable &MeasuredOp;
-
 public:
-	Simulation(SGF::OperatorStringType &OStr, SGF::Measurable &MOp) : OpString(OStr), MeasuredOp(MOp) {
+	Simulation() {
 		WarmTime=MathExpression::GetValue("#WarmTime").Re();
 		WarmIterations=(MathExpression::Find("WarmIterations")!=NULL) ? static_cast<unsigned long long>(MathExpression::GetValue("WarmIterations").Re()) : std::numeric_limits<unsigned long long>::max();
 		MeasTime=MathExpression::GetValue("#MeasTime").Re();
 		MeasIterations=(MathExpression::Find("MeasIterations")!=NULL) ? static_cast<unsigned long long>(MathExpression::GetValue("MeasIterations").Re()) : std::numeric_limits<unsigned long long>::max();			
 	} 
 
-	void Thermalize()
+	void Thermalize(SGF::OperatorStringType &OpString)
 	{
 		FileNameProgressBar pbar("Thermalizing");
 
@@ -149,7 +146,7 @@ public:
 #endif
 	}
 
-	void Measure()
+	void Measure(SGF::OperatorStringType &OpString,SGF::Measurable &MeasuredOp)
 	{
 		FileNameProgressBar pbar("Measuring   ");
 
@@ -168,7 +165,7 @@ public:
 			do {
 				counter+=OpString.directed_update();   // Perform an update.
 				++NumDirectedMeasUpdates;
-				MeasuredOp.measure(OpString);          // Perform measurements.
+				MeasuredOp.measure();          // Perform measurements.
 			} while ( counter*NumBins<MeasIterations && (clock()-BinStart)*NumBins<MeasTime*CLOCKS_PER_SEC );
 
 			NumMeasUpdates+=counter;
@@ -176,7 +173,7 @@ public:
 			while (OpString.NBrokenLines()!=0) {              // Perform extra updates until we end up
 				NumMeasUpdates+=OpString.directed_update();     // in a diagonal configuration.
 				++NumDirectedMeasUpdates;
-				MeasuredOp.measure(OpString);                   // Perform measurements.
+				MeasuredOp.measure();                   // Perform measurements.
 			}
 			MeasuredOp.flush();                               // Bin the data. 
 			double Progress=Max(static_cast<double>(i)/NumBins,static_cast<double>(clock()-StartTime)/(EndTime-StartTime));
@@ -192,7 +189,7 @@ public:
 #endif
 	}
 
-	void Results()
+	void Results(SGF::Measurable &MeasuredOp)
 	{
 		cout << "*******************************************************************************************\n";
 		cout << "* This is a quantum Monte Carlo simulation performed by the \"Corvette SGF engine\".        *\n";

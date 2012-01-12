@@ -35,37 +35,7 @@ typedef BinnedAccumulator<_float_accumulator> BinnedAccumulatorME;
 
 class MeasurableTerms  {
 
-	typedef std::vector< std::pair<Boson*,int> > BosonDeltaMapType;
-
-			// This one is ok to be slow since it is called only in the initializer
-	inline BosonDeltaMapType map(const HamiltonianTerm &term) {
-		std::map<Boson*,int> indices;
-		for(unsigned int i=0;i<term.product().size();++i) {
-			int delta=-term.product()[i].delta();
-			if(delta!=0) indices[term.product()[i].particle_id()]=delta;
-		}
-
-		BosonDeltaMapType vmap;
-		vmap.reserve(indices.size());
-		std::map<Boson*,int>::const_iterator it;
-		for(it=indices.begin();it!=indices.end();++it)
-			vmap.push_back(*it);
-
-		return vmap;
-	}
-
-
-			// This one must be very fast
-	inline BosonDeltaMapType map(const std::set<Boson*> &s) {
-		BosonDeltaMapType vmap;
-		vmap.reserve(s.size());
-		std::set<Boson*>::const_iterator it;
-		for(it=s.begin();it!=s.end();++it) {
-			int delta=(*it)->delta();
-			if(delta!=0) vmap.push_back(std::pair<Boson*,int>(*it,delta));
-		}
-		return vmap;
-	}	
+	typedef BrokenLines::BosonDeltaMapType BosonDeltaMapType;
 
 
 	class TermBuffer {
@@ -90,21 +60,21 @@ public:
 
 	_float_accumulator* insert(const HamiltonianTerm &term) {
     
-		equal_range_type equal_range=_multimap.equal_range(map(term.product()));
+		equal_range_type equal_range=_multimap.equal_range(BrokenLines::map(term.product()));
 		multimap_type::iterator it=equal_range.first;
 		while(it!=equal_range.second && it->second.term().product() != term.product() ) 
 			++it;
 
 		if(it==equal_range.second) {
-			it=_multimap.insert(pair<BosonDeltaMapType,TermBuffer>( map(term.product()), TermBuffer(term.product()) ) );
+			it=_multimap.insert(pair<BosonDeltaMapType,TermBuffer>( BrokenLines::map(term.product()), TermBuffer(term.product()) ) );
 		}
 
 		return &(it->second.buffer());
 
 	}
 
-	inline void measure(const std::set<Boson*> &ListBrokenLines,double Weight) {
-		equal_range_type equal_range=_multimap.equal_range(map(ListBrokenLines));
+	inline void measure(BosonDeltaMapType key,double Weight) {
+		equal_range_type equal_range=_multimap.equal_range(key);
 		for(multimap_type::iterator it=equal_range.first; it!=equal_range.second; ++it) 
 			it->second.buffer() += it->second.term().me(RIGHT)*Weight;
 	}
@@ -129,9 +99,10 @@ private:
 	BrokenHistogramType _BrokenHistogram;
 
 protected:
+	const OperatorStringType &OperatorString;
 	MatrixElement BoltzmannWeight;
 public:
-	MeasureDefaults() : _Kinetic(), _Potential(), _TotalEnergy(), BoltzmannWeight(0) {}
+	MeasureDefaults(const OperatorStringType &OS) : _Kinetic(), _Potential(), _TotalEnergy(), BoltzmannWeight(0), OperatorString(OS) {}
 
 	inline void flush() {
 		_Kinetic.flush(BoltzmannWeight);
@@ -140,7 +111,7 @@ public:
 		BoltzmannWeight=0;
 	}
 
-	void measure(const OperatorStringType &OperatorString) {
+	void measure() {
 
 
 		_BrokenHistogram[OperatorString.NBrokenLines()]+=1;
@@ -255,6 +226,9 @@ class Measurable : public MeasureDefaults {
 	std::vector<MeasurableFunction*> _Meas_Ptr;
 	
 	MeasurableTerms _TermBuffers;
+
+	BrokenLines BrokenLineTracer;
+
 public:
 	void insert(const std::vector<std::string> &taglist,const std::vector<Hamiltonian> &OperatorList) {
 		for(std::vector<Hamiltonian>::size_type i=0;i<OperatorList.size();++i) 
@@ -295,10 +269,10 @@ public:
 	}
 
 
-	inline void measure(const OperatorStringType &OperatorString) {
+	inline void measure() {
 
-		_TermBuffers.measure(OperatorString.ListBrokenLines(),OperatorString.BoltzmannWeight());
-		MeasureDefaults::measure(OperatorString);
+		_TermBuffers.measure(BrokenLineTracer(),OperatorString.BoltzmannWeight());
+		MeasureDefaults::measure();
 
 	}
 
@@ -311,7 +285,7 @@ public:
 
 
 
-	Measurable() : MeasureDefaults() {}
+	Measurable(const OperatorStringType &OS) : MeasureDefaults(OS), BrokenLineTracer(OS.GetListBrokenLines()) {}
 	~Measurable() {
 		for(std::vector<MeasurableFunction*>::iterator it=_Meas_Ptr.begin(); it!=_Meas_Ptr.end(); ++it)
 			delete *it;

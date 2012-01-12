@@ -134,18 +134,23 @@ OperatorString.alpha()=AlphaParameter;
 OperatorString.alpha(SGF::ADD)=AlphaParameter;
 OperatorString.alpha(SGF::REMOVE)=AlphaParameter;
 OperatorString.GreenInit(Container.NSites(),GreenOperatorLines);
-SGF::Measurable MeasuredOperators;
-MeasuredOperators.insert(MathExpression::GetMeasurableList(),Container.MeasurableOperators());
 
 // _____________________________________________________________________
 
 
 /* Initializing the simulation. Thermalize, Measure and pring the results */
-Simulation simul(OperatorString,MeasuredOperators);
+Simulation simul;
     
-simul.Thermalize();                 // We start warm up iterations.
-simul.Measure();  									// We start measurement iterations.
-simul.Results();                    // We display the results of simulation.
+simul.Thermalize(OperatorString);                 // We start warm up iterations.
+
+// This defines the measurable objects some of which delay updates even if not measured.
+// This is why I declare the measurable operators after the thermalization.
+SGF::Measurable MeasuredOperators(OperatorString);
+MeasuredOperators.insert(MathExpression::GetMeasurableList(),Container.MeasurableOperators());
+
+simul.Measure(OperatorString,MeasuredOperators);  									// We start measurement iterations.
+
+simul.Results(MeasuredOperators);                    // We display the results of simulation.
 
 
       }
