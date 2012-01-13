@@ -193,7 +193,14 @@ public:
 	}
 
 	inline int NBrokenLines() const {return _NBWL;}
-
+   
+	std::vector<Boson> configuration_copy() {
+		std::vector<Boson> result;
+		for(boson_vector::const_iterator it=_indices.begin();it!=_indices.end();++it)
+			result.push_back(**it);
+		return result;
+			
+	}
 
 };
 
@@ -298,6 +305,13 @@ public:
 		EnergyME[0].resize(Potential.size());
 		EnergyME[1].resize(Potential.size());	
 		rebuild();
+	}
+
+	PotentialEnergies(const PotentialEnergies &o) : Potential(o.Potential), pot_adjacency(o.pot_adjacency), NUpdates(o.NUpdates), Kinetic0(o.Kinetic0) {
+		EnergyME[0]=o.EnergyME[0];
+		EnergyME[1]=o.EnergyME[1];
+		Energies[0]=o.Energies[0];
+		Energies[1]=o.Energies[1];
 	}
 
 	inline _float_accumulator operator()(int rl) const {return Energies[rl];}
@@ -409,7 +423,7 @@ public:
 
  
 class Probabilities : public Configuration {
-	
+protected:	
 	KineticProbabilities Trees;
 	PotentialEnergies Energies;
 

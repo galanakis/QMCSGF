@@ -30,6 +30,7 @@ public:
   */  
   AdjacencyList(const Hamiltonian &Trow,const Hamiltonian &Tcol) { initialize(Trow,Tcol); }
   AdjacencyList(const Hamiltonian &T) { initialize(T,T); }
+	AdjacencyList(const AdjacencyList &o) : _adjacency(o._adjacency) {}
   
 	typedef adjacency_list_t::const_iterator const_iterator;
 	typedef std::pair<const_iterator,const_iterator> range_type;

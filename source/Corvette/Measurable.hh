@@ -120,7 +120,7 @@ public:
 			const _float_accumulator Weight=OperatorString.BoltzmannWeight();
 			BoltzmannWeight+=Weight;
 			_float_accumulator Kinetic=-static_cast<_float_accumulator>(OperatorString.length())/OperatorString.Beta();
-			_float_accumulator Potential=OperatorString.Energy(RIGHT);        
+			_float_accumulator Potential=OperatorString.DiagonalEnergy();        
 			_Kinetic.push( Kinetic*Weight );
 			_Potential.push( Potential*Weight );
 			_TotalEnergy.push( (Kinetic+Potential)*Weight );

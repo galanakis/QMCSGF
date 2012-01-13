@@ -23,12 +23,14 @@ class CircDList {
 protected:
   std::deque<T> que;
 public:
+	typedef typename std::deque<T>::size_type string_size_type;
   CircDList() : que() {};
   inline void pop(int direction) { direction==RIGHT ? que.pop_front() : que.pop_back(); }
   inline void push(int direction,const T& data) { direction==RIGHT ?  que.push_front(data) : que.push_back(data); }
   inline const T& top(int direction) const { return direction==RIGHT ? que.front() : que.back(); }
-  inline typename std::deque<T>::size_type length() const {return que.size();}
-  inline bool empty() const {return que.empty();} 
+  inline string_size_type length() const {return que.size();}
+  inline bool empty() const {return que.empty();}
+	inline T operator[](string_size_type i) const {return que[i];}
 }; 
 
 
@@ -80,6 +82,31 @@ struct Operator {
 
 enum {LATER,EARLIER};
 
+struct ET {
+	CircularTime Time;
+	_float_accumulator Energy;
+	ET(const ET &o) : Time(o.Time), Energy(o.Energy) {}
+	ET(const CircularTime &t,const _float_accumulator &e) : Time(t), Energy(e) {}
+};
+
+class DiagonalEnergyAccumulator {
+	CircDList<ET> _DiagonalData;
+public:
+	inline void push(int direction,CircularTime GreenTime,double Energy) { _DiagonalData.push(direction,ET(GreenTime,Energy)); }
+	inline void pop(int direction)	{_DiagonalData.pop(direction);}
+	inline int length() const {return _DiagonalData.length();}
+	inline bool empty() const {return _DiagonalData.empty();}
+	double operator()() const {
+		
+		double result=_DiagonalData[0].Energy*(_DiagonalData[length()-1].Time-_DiagonalData[0].Time).time();
+		for(int i=0;i<length()-1;++i) 
+			result+=_DiagonalData[i+1].Energy*(_DiagonalData[i].Time-_DiagonalData[i+1].Time).time(); 
+		return result;
+		
+	}
+
+};
+
 
 class OperatorStringType : public CircDList<Operator>, public Probabilities {
   CircularTime _GreenTime;  // The time of the Green operator
@@ -87,6 +114,9 @@ class OperatorStringType : public CircDList<Operator>, public Probabilities {
   double Alpha[2],AlphaParameter;
   Accumulator<2,long double> AccumulateAlpha[2];    
   double _Beta;             // Inverse temperature.
+
+	//CircDList<ET> _DiagonalData;
+	DiagonalEnergyAccumulator _DiagonalEnergy;
 
 public:
   OperatorStringType(const Hamiltonian &T,const Hamiltonian &V,double _beta) : CircDList<Operator>(), Probabilities(T,V), _Beta(_beta) {
@@ -114,6 +144,11 @@ public:
     std::cout<<"AlphaC:\t"<<Alpha[ADD]<<", Pkc: "<<AccumulateAlpha[ADD](1)<<std::endl;
   }
 
+  
+	inline double DiagonalEnergy() const {
+		return (_DiagonalEnergy.empty() ? _DiagonalEnergy() : Energy(RIGHT) );
+	}
+
   inline double DeltaV() const {return Energy(LEFT)-Energy(RIGHT);} // The difference between the energies
   inline double DeltaTau() const { return Beta()*(top(LEFT).Time-top(RIGHT).Time).time(); }
   inline double Beta() const {return _Beta;}
@@ -123,11 +158,13 @@ public:
   inline double &alpha(int action) {return Alpha[action];}
   inline CircularTime& GreenTime() {return _GreenTime;}
 
-  /* Chose an operator randomly and push it in the string. direction is the direction of motion of the green operator */
+  /* Chose an operator randomly and push it in the string. direction is the direction opposite to the direction of motion of the green operator */
   inline bool create(int direction) {
-    const HamiltonianTerm *term=choose(direction);
-    update(term,direction,ADD);
+    
+    const HamiltonianTerm *term=choose(direction); 
+		_DiagonalEnergy.push(direction,_GreenTime,Energy(direction));
     push(direction,Operator(_GreenTime,term));
+    update(term,direction,ADD); 
     double KeepDestroy=KeepDestroying(direction);
     AccumulateAlpha[REMOVE].push(KeepDestroy);
     return RNG::Uniform()<Alpha[REMOVE]*KeepDestroy;
@@ -135,9 +172,11 @@ public:
   
   // Destroy an operator along the direction of motion of the green operator
   inline bool destroy(int direction) {
+ 
     _GreenTime=top(direction).Time;
     update(top(direction).Term,direction,REMOVE);
     pop(direction);
+		_DiagonalEnergy.pop(direction);
     double KeepCreate=KeepCreating(!direction);
     AccumulateAlpha[ADD].push(KeepCreate);
     return RNG::Uniform()<Alpha[ADD]*KeepCreate;
@@ -260,7 +299,8 @@ we enter the main loop.
      if(action==ADD) keepgoing=keepgoing && ++UpdateLength && create(!direction);
      while((keepgoing=keepgoing && ++UpdateLength && destroy(direction) && ++UpdateLength && create(!direction)))
        ; // Nothing to do.
-     if(action==(UpdateLength&1)) _GreenTime+=TimeShift(direction); 
+     if(action==(UpdateLength&1))
+			_GreenTime+=TimeShift(direction);
      return UpdateLength;     
    }
   
