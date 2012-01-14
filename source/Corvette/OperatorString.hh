@@ -146,16 +146,7 @@ public:
 		return result;
 	}
 	
-	inline _float_accumulator operator()() const {
-		
-		 
-		std::cout<<sum()<<"\t"<<Sum<<std::endl;
-		 
-		
-		
-		return Sum;
-		
-	}
+	inline _float_accumulator operator()() const { return Sum; }
 
 };
 
@@ -198,8 +189,6 @@ public:
 
   
 	inline double DiagonalEnergy() const { return Energy(RIGHT)*(top(LEFT).Time-top(RIGHT).Time).time()+_DiagonalEnergy(); }
-	 // return (_DiagonalEnergy.empty() ? Energy(RIGHT) : _DiagonalEnergy() );
-	//}
 
   inline double DeltaV() const {return Energy(LEFT)-Energy(RIGHT);} // The difference between the energies
   inline double DeltaTau() const { return Beta()*(top(LEFT).Time-top(RIGHT).Time).time(); }
