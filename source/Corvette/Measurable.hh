@@ -35,9 +35,6 @@ typedef BinnedAccumulator<_float_accumulator> BinnedAccumulatorME;
 
 class MeasurableTerms  {
 
-	typedef BrokenLines::BosonDeltaMapType BosonDeltaMapType;
-
-
 	class TermBuffer {
 		_float_accumulator _buffer;
 		HamiltonianTerm _term;
@@ -50,9 +47,11 @@ class MeasurableTerms  {
 
 	};
 
-
-
-	typedef std::multimap<BosonDeltaMapType,TermBuffer> multimap_type;
+	typedef BrokenLines::BosonDeltaMapType KeyType;
+	
+	inline KeyType get_key(const HamiltonianTerm &term) const {return BrokenLines::map(term.product()); }
+	
+	typedef std::multimap<KeyType,TermBuffer> multimap_type;
 	typedef pair<multimap_type::iterator,multimap_type::iterator> equal_range_type;
 	multimap_type _multimap;
 public:
@@ -60,20 +59,22 @@ public:
 
 	_float_accumulator* insert(const HamiltonianTerm &term) {
     
-		equal_range_type equal_range=_multimap.equal_range(BrokenLines::map(term.product()));
+		const KeyType key=get_key(term);
+
+		equal_range_type equal_range=_multimap.equal_range(key);
 		multimap_type::iterator it=equal_range.first;
 		while(it!=equal_range.second && it->second.term().product() != term.product() ) 
 			++it;
 
 		if(it==equal_range.second) {
-			it=_multimap.insert(pair<BosonDeltaMapType,TermBuffer>( BrokenLines::map(term.product()), TermBuffer(term.product()) ) );
+			it=_multimap.insert(pair<KeyType,TermBuffer>( key, TermBuffer(term.product()) ) );
 		}
 
 		return &(it->second.buffer());
 
 	}
 
-	inline void measure(BosonDeltaMapType key,double Weight) {
+	inline void measure(const KeyType &key,double Weight) {
 		equal_range_type equal_range=_multimap.equal_range(key);
 		for(multimap_type::iterator it=equal_range.first; it!=equal_range.second; ++it) 
 			it->second.buffer() += it->second.term().me(RIGHT)*Weight;

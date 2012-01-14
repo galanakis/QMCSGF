@@ -154,7 +154,7 @@ public:
 	
 	Configuration(const Configuration &o) : _indices(o._indices), _NBWL(o._NBWL) {}
 
-
+	
 	int CountBrokenLines() const {
 		int result=0;
 		for(std::vector<Boson*>::size_type i=0;i<_indices.size();++i) 
@@ -213,40 +213,40 @@ public:
 
 */
 
+
 class BrokenLines : public UpdatableObject {
+	typedef std::set<Boson*> boson_set;
+	boson_set _broken_lines;
  
 public:
+  
+	typedef std::vector<std::pair<Boson*,int> > BosonDeltaMapType;
 
-	typedef std::map< Boson*,int > BosonDeltaMapType;
-	BosonDeltaMapType _broken_lines;
-	
-	BrokenLines(const std::set<Boson*> &o) : _broken_lines(map(o)) {}
+	BrokenLines(const std::set<Boson*> &o) :  _broken_lines(o) {}
  
-	inline void update(const HamiltonianTerm* term) {
+	inline void update(const HamiltonianTerm* term,int,int) {
 		for(HamiltonianTerm::size_type i=0;i<term->product().size();++i) {
 			Boson *pind=term->product()[i].particle_id();
-			int delta=pind->delta();
-			if(delta!=0)
-				_broken_lines.insert(std::pair<Boson*,int>(pind,delta));
+			if(pind->delta()!=0)
+				_broken_lines.insert(pind);
 			else
 				_broken_lines.erase(pind);
 		}		
 	}
-  
-	inline void update(const HamiltonianTerm* term,int,int) {update(term);}
 
 		// This one must be very fast
-	inline const BosonDeltaMapType &operator()() const { return _broken_lines; }
- 
-	static inline BosonDeltaMapType map(const std::set<Boson*> &o) {
+	inline BosonDeltaMapType map() const {
 		BosonDeltaMapType vmap;
+		vmap.reserve(_broken_lines.size());
 		std::set<Boson*>::const_iterator it;
-		for(it=o.begin();it!=o.end();++it) {
+		for(it=_broken_lines.begin();it!=_broken_lines.end();++it) {
 			int delta=(*it)->delta();
-			if(delta!=0) vmap.insert(std::pair<Boson*,int>(*it,delta));
+			if(delta!=0) vmap.push_back(std::pair<Boson*,int>(*it,delta));
 		}
-		return vmap;		
-	}
+		return vmap;
+	}	
+  
+	inline const BosonDeltaMapType operator()() const { return map(); } 
 
 		// This one is ok to be slow since it is called only in the initializer
 	static inline BosonDeltaMapType map(const HamiltonianTerm &term) {
@@ -255,8 +255,15 @@ public:
 			int delta=-term.product()[i].delta();
 			if(delta!=0) indices[term.product()[i].particle_id()]=delta;
 		}
-		return indices;
- 	}
+
+		BosonDeltaMapType vmap;
+		vmap.reserve(indices.size());
+		std::map<Boson*,int>::const_iterator it;
+		for(it=indices.begin();it!=indices.end();++it)
+			vmap.push_back(*it);
+
+		return vmap;
+	}
 
 };
 
