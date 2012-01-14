@@ -97,39 +97,62 @@ class DiagonalEnergyAccumulator {
 public:
 	DiagonalEnergyAccumulator() : Sum(0) {}
 	inline void push(int direction,CircularTime GreenTime,double Energy) {
+		
+		_float_accumulator E[2];
+		CircularTime T[2];
+		E[1]=data.top(direction).Energy;
+		T[1]=data.top(direction).Time;
+		E[0]=Energy;
+		T[0]=GreenTime;
 		 
  		data.push(direction,ET(GreenTime,Energy)); 
     if(length()>=2)
-		if(direction==RIGHT) {
-			Sum+=energy(1)*(Time(0)-Time(1)).time();
-		}
-		else {
-			Sum+=energy(length()-1)*(Time(length()-2)-Time(length()-1)).time();
-		}
+			Sum+=E[direction]*(T[!direction]-T[direction]).time();
 
+
+		
 
 	}
 	inline void pop(int direction)	{
-		if(length()>=2)
-		if(direction==RIGHT) {
-			Sum-=energy(1)*(Time(0)-Time(1)).time();
-		}
-		else {
-			Sum-=energy(length()-1)*(Time(length()-2)-Time(length()-1)).time();
-		}
+
+
+		_float_accumulator E[2];
+		CircularTime T[2];
+
 		
-		data.pop(direction);
+
+		E[ direction]=data.top(direction).Energy;
+		T[ direction]=data.top(direction).Time;
+		data.pop(direction); 
+
+
+		if(length()>=1) {
+			
+			E[!direction]=data.top(direction).Energy;
+			T[!direction]=data.top(direction).Time;
+
+			Sum-=E[0]*(T[1]-T[0]).time();
+
+		}
+
 	}
 	inline int length() const {return data.length();}
 	inline bool empty() const {return data.empty();}
-	inline _float_accumulator operator()() const {
-		/*
+	
+	inline _float_accumulator sum() const {
 		_float_accumulator result=0;
 		for(int i=0;i<length()-1;++i) 
 			result+=data[i+1].Energy*(data[i].Time-data[i+1].Time).time();
-			
-		std::cout<<result<<"\t"<<Sum<<std::endl;
-		*/
+		return result;
+	}
+	
+	inline _float_accumulator operator()() const {
+		
+		 
+		std::cout<<sum()<<"\t"<<Sum<<std::endl;
+		 
+		
+		
 		return Sum;
 		
 	}
