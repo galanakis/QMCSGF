@@ -432,18 +432,16 @@ public:
 class Probabilities : public Configuration {
 protected:	
 	KineticProbabilities Trees;
-	PotentialEnergies Energies;
 
  	GreenOperator<long double> GF;                // Defines the Green operator function
 
 		
 public:
-	Probabilities(const Hamiltonian &T,const Hamiltonian &P) : Configuration(T), Trees(T), Energies(T,P) {}
+	Probabilities(const Hamiltonian &T,const Hamiltonian &P) : Configuration(T), Trees(T) {}
  
 	inline void GreenInit(int nsites,int cutoff) {GF.initialize(nsites,cutoff);}
   inline MatrixElement G(int offset=0) const {return GF(NBrokenLines()+offset);}  // The value of the Green Operator given the total broken lines and the offset.
 
-	inline _float_accumulator Energy(int rl) const {return Energies(rl);}
 
  
   inline double weight(int rl) const {
@@ -469,7 +467,6 @@ public:
       
 		Configuration::update(term,rl,arflag);
     Trees.update(term,rl);
-		Energies.update(term,rl);
 
 	}
 

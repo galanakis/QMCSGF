@@ -77,7 +77,6 @@ struct Operator {
   Operator(const Operator &o) : Time(o.Time), Term(o.Term) {}
   Operator &operator=(const Operator &o) {Time=o.Time; Term=o.Term; return *this;}
   Operator(CircularTime _time,const HamiltonianTerm *_term) : Time(_time), Term(_term) {}
-  Operator(double _time,HamiltonianTerm *_term) : Time(_time), Term(_term) {}
 };                       
 
 enum {LATER,EARLIER};
@@ -139,6 +138,17 @@ public:
 	inline int length() const {return data.length();}
 	inline bool empty() const {return data.empty();}
 	
+	/* performs the integral of the diagonal energy excluding
+		one term:
+			Sum_{i=0}^{N-2} E[i+1] (T[i]-T[i+1])
+		The 0 index corresponds to the right energy
+		and the N-1=length()-1 corresponds to the left energy.
+		The term that is excluded is
+		E[0] ( T[N-1]-T[0] )
+		which is ER (TL-TR) and it is added later. The reason
+		for the separation is to deal with the case of an empty
+		string more elegantly.
+	*/
 	inline _float_accumulator sum() const {
 		_float_accumulator result=0;
 		for(int i=0;i<length()-1;++i) 
@@ -158,11 +168,11 @@ class OperatorStringType : public CircDList<Operator>, public Probabilities {
   Accumulator<2,long double> AccumulateAlpha[2];    
   double _Beta;             // Inverse temperature.
 
-	//CircDList<ET> _DiagonalData;
+	PotentialEnergies Energy;
 	DiagonalEnergyAccumulator _DiagonalEnergy;
 
 public:
-  OperatorStringType(const Hamiltonian &T,const Hamiltonian &V,double _beta) : CircDList<Operator>(), Probabilities(T,V), _Beta(_beta) {
+  OperatorStringType(const Hamiltonian &T,const Hamiltonian &V,double _beta) : CircDList<Operator>(), Probabilities(T,V), _Beta(_beta), Energy(T,V) {
     Alpha[ADD]=Alpha[REMOVE]=AlphaParameter=0;
   }
 
@@ -202,10 +212,11 @@ public:
   /* Chose an operator randomly and push it in the string. direction is the direction opposite to the direction of motion of the green operator */
   inline bool create(int direction) {
     
-    const HamiltonianTerm *term=choose(direction); 
 		_DiagonalEnergy.push(direction,_GreenTime,Energy(direction));
+    const HamiltonianTerm *term=choose(direction); 
     push(direction,Operator(_GreenTime,term));
     update(term,direction,ADD); 
+		Energy.update(term,direction);
     double KeepDestroy=KeepDestroying(direction);
     AccumulateAlpha[REMOVE].push(KeepDestroy);
     return RNG::Uniform()<Alpha[REMOVE]*KeepDestroy;
@@ -213,11 +224,13 @@ public:
   
   // Destroy an operator along the direction of motion of the green operator
   inline bool destroy(int direction) {
- 
+
+		_DiagonalEnergy.pop(direction); 
     _GreenTime=top(direction).Time;
-    update(top(direction).Term,direction,REMOVE);
+		const HamiltonianTerm *term=top(direction).Term;
+    update(term,direction,REMOVE);
+		Energy.update(term,direction);
     pop(direction);
-		_DiagonalEnergy.pop(direction);
     double KeepCreate=KeepCreating(!direction);
     AccumulateAlpha[ADD].push(KeepCreate);
     return RNG::Uniform()<Alpha[ADD]*KeepCreate;
