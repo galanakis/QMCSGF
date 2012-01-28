@@ -60,7 +60,7 @@ void AdjacencyList::initialize(const Hamiltonian &Trow,const Hamiltonian &Tcol) 
   std::map<Boson*,std::set<Hamiltonian::size_type> > map_to_set;
   for(Hamiltonian::size_type i=0;i<Tcol.size();++i) 
     for(Hamiltonian::size_type j=0;j<Tcol[i].product().size();++j)
-      map_to_set[Tcol[i].product()[j].particle_id()].insert(i);
+     	map_to_set[Tcol[i].product()[j].particle_id()].insert(i);
   
   _adjacency.clear();
   _adjacency.resize(Trow.size());
@@ -70,9 +70,11 @@ void AdjacencyList::initialize(const Hamiltonian &Trow,const Hamiltonian &Tcol) 
   for(Hamiltonian::size_type i=0;i<Trow.size();++i) {
     std::set<Hamiltonian::size_type> merged;
     for(Hamiltonian::size_type j=0;j<Trow[i].product().size();++j) {
-      Boson* pid=Trow[i].product()[j].particle_id();
-      std::set<Hamiltonian::size_type> &s=map_to_set[pid];
-      merged.insert(s.begin(),s.end());
+			if(Trow[i].product()[j].delta()!=0) {
+      	Boson* pid=Trow[i].product()[j].particle_id();
+      	std::set<Hamiltonian::size_type> &s=map_to_set[pid];
+      	merged.insert(s.begin(),s.end());
+			}
     }
     
     _adjacency[i].reserve(merged.size());

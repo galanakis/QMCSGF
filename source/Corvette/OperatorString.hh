@@ -168,11 +168,10 @@ class OperatorStringType : public CircDList<Operator>, public Probabilities {
   Accumulator<2,long double> AccumulateAlpha[2];    
   double _Beta;             // Inverse temperature.
 
-	PotentialEnergies Energy;
 	DiagonalEnergyAccumulator _DiagonalEnergy;
 
 public:
-  OperatorStringType(const Hamiltonian &T,const Hamiltonian &V,double _beta) : CircDList<Operator>(), Probabilities(T,V), _Beta(_beta), Energy(T,V) {
+  OperatorStringType(const Hamiltonian &T,const Hamiltonian &V,double _beta) : CircDList<Operator>(), Probabilities(T,V), _Beta(_beta) {
     Alpha[ADD]=Alpha[REMOVE]=AlphaParameter=0;
   }
 
@@ -216,7 +215,6 @@ public:
     const HamiltonianTerm *term=choose(direction); 
     push(direction,Operator(_GreenTime,term));
     update(term,direction,ADD); 
-		Energy.update(term,direction);
     double KeepDestroy=KeepDestroying(direction);
     AccumulateAlpha[REMOVE].push(KeepDestroy);
     return RNG::Uniform()<Alpha[REMOVE]*KeepDestroy;
@@ -229,7 +227,6 @@ public:
     _GreenTime=top(direction).Time;
 		const HamiltonianTerm *term=top(direction).Term;
     update(term,direction,REMOVE);
-		Energy.update(term,direction);
     pop(direction);
     double KeepCreate=KeepCreating(!direction);
     AccumulateAlpha[ADD].push(KeepCreate);

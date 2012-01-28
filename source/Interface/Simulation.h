@@ -117,22 +117,21 @@ public:
 
 		clock_t StartTime=clock();
 		clock_t EndTime=StartTime+WarmTime*CLOCKS_PER_SEC;
+		clock_t Now=StartTime;
 
-					// Run a few iterations first to determine the cpu speed.
 		NumWarmUpdates=0;
 		NumDirectedWarmUpdates=0;
 
 		do {
 
 			NumWarmUpdates+=OpString.directed_update(); // Perform an update. 
-
 			++NumDirectedWarmUpdates;
 			if (NumDirectedWarmUpdates%AlphaUpdatePeriod==(AlphaUpdatePeriod-1)) OpString.AlphaUpdate();     
-
-			double Progress=Max(static_cast<double>(NumWarmUpdates)/WarmIterations,static_cast<double>(clock()-StartTime)/(EndTime-StartTime));
+			Now=clock();
+			double Progress=Max(static_cast<double>(NumWarmUpdates)/WarmIterations,static_cast<double>(Now-StartTime)/(EndTime-StartTime));
 			pbar.Update(Progress,NumWarmUpdates);
 
-		} while ( NumWarmUpdates<WarmIterations && clock()<EndTime );
+		} while ( NumWarmUpdates<WarmIterations && Now<EndTime );
 
 		while (OpString.NBrokenLines()!=0)  {              // Perform extra updates until we end up
 			NumWarmUpdates+=OpString.directed_update();      // in a diagonal configuration.
@@ -152,6 +151,7 @@ public:
 
 		clock_t StartTime=clock();
 		clock_t EndTime=StartTime+MeasTime*CLOCKS_PER_SEC;
+		clock_t Now=StartTime;
 
 		unsigned long long NumBins=MathExpression::GetValue("#Bins").Re();
 
