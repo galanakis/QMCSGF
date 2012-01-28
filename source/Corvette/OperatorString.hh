@@ -30,7 +30,7 @@ public:
   inline const T& top(int direction) const { return direction==RIGHT ? que.front() : que.back(); }
   inline string_size_type length() const {return que.size();}
   inline bool empty() const {return que.empty();}
-	inline T operator[](string_size_type i) const {return que[i];}
+	inline const T &operator[](string_size_type i) const {return que[i];}
 }; 
 
 
@@ -156,7 +156,7 @@ public:
 		return result;
 	}
 	
-	inline _float_accumulator operator()() const { return Sum; }
+	inline const _float_accumulator & operator()() const { return Sum; }
 
 };
 
