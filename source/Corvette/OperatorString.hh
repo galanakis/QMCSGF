@@ -88,55 +88,43 @@ struct ET {
 	ET(const CircularTime &t,const _float_accumulator &e) : Time(t), Energy(e) {}
 };
 
-class DiagonalEnergyAccumulator {
-	CircDList<ET> data;
+class DiagonalEnergyAccumulator : CircDList<ET> {
 	_float_accumulator Sum; 
-	inline _float_accumulator energy(int i) {return data[i].Energy; }
-	inline CircularTime Time(int i) {return data[i].Time; }
+
+	_float_accumulator E[2];
+	CircularTime T[2];
+
 public:
-	DiagonalEnergyAccumulator() : Sum(0) {}
+	DiagonalEnergyAccumulator() : CircDList<ET>(), Sum(0) {}
 	inline void push(int direction,CircularTime GreenTime,double Energy) {
 		
-		_float_accumulator E[2];
-		CircularTime T[2];
-		E[1]=data.top(direction).Energy;
-		T[1]=data.top(direction).Time;
-		E[0]=Energy;
-		T[0]=GreenTime;
+		E[!direction]=top(direction).Energy;
+		T[!direction]=top(direction).Time;
 		 
- 		data.push(direction,ET(GreenTime,Energy)); 
-    if(length()>=2)
-			Sum+=E[direction]*(T[!direction]-T[direction]).time();
+ 		CircDList<ET>::push(direction,ET(GreenTime,Energy)); 
 
+    if(length()>=2) {
+			E[direction]=top(direction).Energy;
+			T[direction]=top(direction).Time;
+			Sum+=E[0]*(T[1]-T[0]).time();
+		}
 
-		
 
 	}
 	inline void pop(int direction)	{
 
+		E[ direction]=top(direction).Energy;
+		T[ direction]=top(direction).Time;
 
-		_float_accumulator E[2];
-		CircularTime T[2];
-
-		
-
-		E[ direction]=data.top(direction).Energy;
-		T[ direction]=data.top(direction).Time;
-		data.pop(direction); 
-
+		CircDList<ET>::pop(direction); 
 
 		if(length()>=1) {
-			
-			E[!direction]=data.top(direction).Energy;
-			T[!direction]=data.top(direction).Time;
-
+			E[!direction]=top(direction).Energy;
+			T[!direction]=top(direction).Time;
 			Sum-=E[0]*(T[1]-T[0]).time();
-
 		}
 
 	}
-	inline int length() const {return data.length();}
-	inline bool empty() const {return data.empty();}
 	
 	/* performs the integral of the diagonal energy excluding
 		one term:
@@ -152,11 +140,11 @@ public:
 	inline _float_accumulator sum() const {
 		_float_accumulator result=0;
 		for(int i=0;i<length()-1;++i) 
-			result+=data[i+1].Energy*(data[i].Time-data[i+1].Time).time();
+			result+=que[i+1].Energy*(que[i].Time-que[i+1].Time).time();
 		return result;
 	}
 	
-	inline const _float_accumulator & operator()() const { return Sum; }
+	inline const _float_accumulator & DiagonalEnergy() const { return Sum; }
 
 };
 
@@ -197,7 +185,7 @@ public:
   }
 
   
-	inline double DiagonalEnergy() const { return Energy(RIGHT)*(top(LEFT).Time-top(RIGHT).Time).time()+_DiagonalEnergy(); }
+	inline double DiagonalEnergy() const { return Energy(RIGHT)*(top(LEFT).Time-top(RIGHT).Time).time()+_DiagonalEnergy.DiagonalEnergy(); }
 
   inline double DeltaV() const {return Energy(LEFT)-Energy(RIGHT);} // The difference between the energies
   inline double DeltaTau() const { return Beta()*(top(LEFT).Time-top(RIGHT).Time).time(); }
