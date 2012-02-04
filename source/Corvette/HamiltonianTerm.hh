@@ -48,13 +48,14 @@ namespace SGF {
 */
 
 class IndexedProductElement : public ProductElement {
+ 	
+	
 protected:
   Boson* particle;
 public:
-  IndexedProductElement() : ProductElement(), particle(NULL) {}
 	IndexedProductElement(const IndexedProductElement &o) : ProductElement(o), particle(o.particle) {}
-  IndexedProductElement(const ProductElement peprod,Boson* _p) : ProductElement(peprod),particle(_p) {}
-  Boson* particle_id() const {return particle;}
+  IndexedProductElement(const ProductElement peprod,Boson* const _p) : ProductElement(peprod),particle(_p) {}
+  Boson* const &particle_id() const {return particle;}
   inline int n(int direction) const {return particle->n(direction)-delta()*!direction;}
   inline int offset(int action=ADD) const {return ProductElement::offset(Sign[action]*particle->delta());}
   inline uint amplitude(int direction) const {return ProductElement::amplitude(n(direction),particle->nmax());}
@@ -124,9 +125,8 @@ public:
   typedef std::vector<IndexedProductElement>::const_iterator iterator;
 	typedef std::vector<IndexedProductElement>::size_type size_type;
   
-	inline MatrixElement coefficient() {return _coefficient;};
-  inline MatrixElement coefficient() const {return _coefficient;}; 
-  inline void set_coefficient(MatrixElement c) {_coefficient=c;}
+	inline MatrixElement &coefficient() {return _coefficient;};
+  inline const MatrixElement &coefficient() const {return _coefficient;}; 
   inline const std::vector<IndexedProductElement>& product() const {return _product;}
   
   /* The total number of creation minus the number of annihilation operators */

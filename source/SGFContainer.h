@@ -75,7 +75,7 @@ public:
       else if(Term.diagonal())
         _Potential.push_back(it.Term());
       else {
-        Term.set_coefficient(-Term.coefficient());
+        Term.coefficient()*=-1.0;
         _Kinetic.push_back(Term);
       }
 

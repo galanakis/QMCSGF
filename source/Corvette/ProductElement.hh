@@ -63,7 +63,8 @@ public:
 public:
   ProductElement(int ca=1) : _caprod(ca) {}
   
-  inline uint id() const {return _caprod;};
+  inline uint &id() {return _caprod;};
+  inline const uint &id() const {return _caprod;};
 
   inline uint length() const {return ProductElement::Length(_caprod);}
   inline int delta() const {return ProductElement::Delta(_caprod);} 

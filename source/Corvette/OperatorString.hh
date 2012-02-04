@@ -28,6 +28,7 @@ public:
   inline void pop(int direction) { direction==RIGHT ? que.pop_front() : que.pop_back(); }
   inline void push(int direction,const T& data) { direction==RIGHT ?  que.push_front(data) : que.push_back(data); }
   inline const T& top(int direction) const { return direction==RIGHT ? que.front() : que.back(); }
+	inline const T& top(int direction,int depth) const {return direction==RIGHT ? que[depth] : que[que.size()-depth-1];}
   inline string_size_type length() const {return que.size();}
   inline bool empty() const {return que.empty();}
 	inline const T &operator[](string_size_type i) const {return que[i];}
@@ -72,81 +73,15 @@ inline long double logexponential(long double A,long double x) { return fabs(A)<
 struct Operator {
   CircularTime Time;
   const HamiltonianTerm* Term;
+	_float_accumulator Energy;
   
-  Operator() : Time(0),Term(NULL) {}
-  Operator(const Operator &o) : Time(o.Time), Term(o.Term) {}
-  Operator &operator=(const Operator &o) {Time=o.Time; Term=o.Term; return *this;}
-  Operator(CircularTime _time,const HamiltonianTerm *_term) : Time(_time), Term(_term) {}
+  Operator(const Operator &o) : Time(o.Time), Term(o.Term), Energy(o.Energy) {}
+	Operator &operator=(const Operator &o) {Time=o.Time; Term=o.Term; Energy=o.Energy; return *this;}
+  Operator(const CircularTime &_time,const HamiltonianTerm *_term,const _float_accumulator &_energy) : Time(_time), Term(_term), Energy(_energy) {}
 };                       
 
 enum {LATER,EARLIER};
 
-struct ET {
-	CircularTime Time;
-	_float_accumulator Energy;
-	ET(const ET &o) : Time(o.Time), Energy(o.Energy) {}
-	ET(const CircularTime &t,const _float_accumulator &e) : Time(t), Energy(e) {}
-};
-
-class DiagonalEnergyAccumulator : CircDList<ET> {
-	_float_accumulator Sum; 
-
-	_float_accumulator E[2];
-	CircularTime T[2];
-
-public:
-	DiagonalEnergyAccumulator() : CircDList<ET>(), Sum(0) {}
-	inline void push(int direction,CircularTime GreenTime,double Energy) {
-		
-		E[!direction]=top(direction).Energy;
-		T[!direction]=top(direction).Time;
-		 
- 		CircDList<ET>::push(direction,ET(GreenTime,Energy)); 
-
-    if(length()>=2) {
-			E[direction]=top(direction).Energy;
-			T[direction]=top(direction).Time;
-			Sum+=E[0]*(T[1]-T[0]).time();
-		}
-
-
-	}
-	inline void pop(int direction)	{
-
-		E[ direction]=top(direction).Energy;
-		T[ direction]=top(direction).Time;
-
-		CircDList<ET>::pop(direction); 
-
-		if(length()>=1) {
-			E[!direction]=top(direction).Energy;
-			T[!direction]=top(direction).Time;
-			Sum-=E[0]*(T[1]-T[0]).time();
-		}
-
-	}
-	
-	/* performs the integral of the diagonal energy excluding
-		one term:
-			Sum_{i=0}^{N-2} E[i+1] (T[i]-T[i+1])
-		The 0 index corresponds to the right energy
-		and the N-1=length()-1 corresponds to the left energy.
-		The term that is excluded is
-		E[0] ( T[N-1]-T[0] )
-		which is ER (TL-TR) and it is added later. The reason
-		for the separation is to deal with the case of an empty
-		string more elegantly.
-	*/
-	inline _float_accumulator sum() const {
-		_float_accumulator result=0;
-		for(int i=0;i<length()-1;++i) 
-			result+=que[i+1].Energy*(que[i].Time-que[i+1].Time).time();
-		return result;
-	}
-	
-	inline const _float_accumulator & DiagonalEnergy() const { return Sum; }
-
-};
 
 
 class OperatorStringType : public CircDList<Operator>, public Probabilities {
@@ -156,11 +91,14 @@ class OperatorStringType : public CircDList<Operator>, public Probabilities {
   Accumulator<2,long double> AccumulateAlpha[2];    
   double _Beta;             // Inverse temperature.
 
-	DiagonalEnergyAccumulator _DiagonalEnergy;
+	_float_accumulator _diagonal_energy;
 
+	inline _float_accumulator delta_diagonal(const int &direction) const { return (length()>=2) ? top(direction,direction).Energy*(top(direction,!direction).Time-top(direction,direction).Time).time() : 0;  }
+	
 public:
   OperatorStringType(const Hamiltonian &T,const Hamiltonian &V,double _beta) : CircDList<Operator>(), Probabilities(T,V), _Beta(_beta) {
     Alpha[ADD]=Alpha[REMOVE]=AlphaParameter=0;
+		_diagonal_energy=0;
   }
 
   void AlphaUpdate() {
@@ -185,23 +123,22 @@ public:
   }
 
   
-	inline double DiagonalEnergy() const { return Energy(RIGHT)*(top(LEFT).Time-top(RIGHT).Time).time()+_DiagonalEnergy.DiagonalEnergy(); }
+	inline double DiagonalEnergy() const { return Energy(RIGHT)*(top(LEFT).Time-top(RIGHT).Time).time()+_diagonal_energy; }
 
   inline double DeltaV() const {return Energy(LEFT)-Energy(RIGHT);} // The difference between the energies
   inline double DeltaTau() const { return Beta()*(top(LEFT).Time-top(RIGHT).Time).time(); }
-  inline double Beta() const {return _Beta;}
+  inline const double &Beta() const {return _Beta;}
   inline double& Beta() {return _Beta;} 
   
 	inline double &alpha() {return AlphaParameter;}
   inline double &alpha(int action) {return Alpha[action];}
-  inline CircularTime& GreenTime() {return _GreenTime;}
+  inline const CircularTime& GreenTime() const {return _GreenTime;}
 
   /* Chose an operator randomly and push it in the string. direction is the direction opposite to the direction of motion of the green operator */
   inline bool create(int direction) {
-    
-		_DiagonalEnergy.push(direction,_GreenTime,Energy(direction));
     const HamiltonianTerm *term=choose(direction); 
-    push(direction,Operator(_GreenTime,term));
+    push(direction,Operator(_GreenTime,term,Energy(direction)));
+		_diagonal_energy += delta_diagonal(direction);
     update(term,direction,ADD); 
     double KeepDestroy=KeepDestroying(direction);
     AccumulateAlpha[REMOVE].push(KeepDestroy);
@@ -210,11 +147,10 @@ public:
   
   // Destroy an operator along the direction of motion of the green operator
   inline bool destroy(int direction) {
-
-		_DiagonalEnergy.pop(direction); 
     _GreenTime=top(direction).Time;
 		const HamiltonianTerm *term=top(direction).Term;
     update(term,direction,REMOVE);
+		_diagonal_energy -= delta_diagonal(direction);
     pop(direction);
     double KeepCreate=KeepCreating(!direction);
     AccumulateAlpha[ADD].push(KeepCreate);

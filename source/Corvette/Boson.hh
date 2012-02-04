@@ -31,7 +31,9 @@ public:
     return *this;    
   }
   inline occupancy_t &n(int direction) {return _occupancy[direction];};
+  inline const occupancy_t &n(int direction) const {return _occupancy[direction];};
   inline occupancy_t &nmax() {return _maximum_occupancy;};
+  inline const occupancy_t &nmax() const {return _maximum_occupancy;};
   inline int delta() const {return _occupancy[RIGHT]-_occupancy[LEFT];};
   
 };
