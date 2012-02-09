@@ -76,16 +76,13 @@ template<class T>
 class BinnedAccumulator {
 public:
 	T Base;                       // A constant value
-	T Buffer;
 	Accumulator<3,T> Bins;
 public:
-	BinnedAccumulator() : Base(0), Buffer(0) {}
-	inline void flush(T Weight) {
-		Bins.push(Buffer/Weight);
-		Buffer=T(0);
+	BinnedAccumulator() : Base(0) {}
+	inline void push(const T &val) {
+		Bins.push(val);
 	}
   
-	inline void push(T data) { Buffer+=data; }
 	inline T &constant() {return Base;}
 	inline T average() const {return Base+Bins(1);}
 	inline T sigma() const {return sqrt(fabs(Bins(2)-Bins(1)*Bins(1))/(Bins.count()-1));}

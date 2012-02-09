@@ -35,22 +35,17 @@ typedef BinnedAccumulator<_float_accumulator> BinnedAccumulatorME;
 
 class MeasurableTerms  {
 
-	class TermBuffer {
-		_float_accumulator _buffer;
-		HamiltonianTerm _term;
-	public:
-
-		TermBuffer(const HamiltonianTerm &term) : _buffer(0), _term(term) {}
-		TermBuffer(const TermBuffer &o) : _buffer(o._buffer), _term(o._term) {}
-		inline _float_accumulator &buffer() {return _buffer; }
-		inline const HamiltonianTerm &term() {return _term; }
-
+	struct TermBuffer {
+		_float_accumulator buffer;
+		HamiltonianTerm term;
+		TermBuffer(const HamiltonianTerm &_term) : buffer(0), term(_term) {}
+		TermBuffer(const TermBuffer &o) : buffer(o.buffer), term(o.term) {}
 	};
 
 	typedef BrokenLines::BosonDeltaMapType KeyType;
-	
+
 	inline KeyType get_key(const HamiltonianTerm &term) const {return BrokenLines::map(term.product()); }
-	
+
 	typedef std::multimap<KeyType,TermBuffer> multimap_type;
 	typedef pair<multimap_type::iterator,multimap_type::iterator> equal_range_type;
 	multimap_type _multimap;
@@ -58,115 +53,36 @@ public:
 	MeasurableTerms() : _multimap() {}
 
 	_float_accumulator* insert(const HamiltonianTerm &term) {
-    
+
 		const KeyType key=get_key(term);
 
 		equal_range_type equal_range=_multimap.equal_range(key);
 		multimap_type::iterator it=equal_range.first;
-		while(it!=equal_range.second && it->second.term().product() != term.product() ) 
+		while(it!=equal_range.second && it->second.term.product() != term.product() ) 
 			++it;
 
 		if(it==equal_range.second) {
 			it=_multimap.insert(pair<KeyType,TermBuffer>( key, TermBuffer(term.product()) ) );
 		}
 
-		return &(it->second.buffer());
+		return &(it->second.buffer);
 
 	}
 
 	inline void measure(const KeyType &key,double Weight) {
 		equal_range_type equal_range=_multimap.equal_range(key);
 		for(multimap_type::iterator it=equal_range.first; it!=equal_range.second; ++it) 
-			it->second.buffer() += it->second.term().me(RIGHT)*Weight;
+			it->second.buffer += it->second.term.me(RIGHT)*Weight;
 	}
 
 	inline void reset() {
 		for(multimap_type::iterator it=_multimap.begin(); it!=_multimap.end(); ++it) 
-			it->second.buffer()=0;
+			it->second.buffer=0;
 	}
 
 };
 
 
-
-class MeasureDefaults {
-public:
-	typedef std::map<unsigned int,_integer_counter> BrokenHistogramType;
-private:
-	BinnedAccumulatorME _Kinetic;
-	BinnedAccumulatorME _Potential;
-	BinnedAccumulatorME _TotalEnergy;
-
-	BrokenHistogramType _BrokenHistogram;
-
-protected:
-	const OperatorStringType &OperatorString;
-	MatrixElement BoltzmannWeight;
-public:
-	MeasureDefaults(const OperatorStringType &OS) : _Kinetic(), _Potential(), _TotalEnergy(), BoltzmannWeight(0), OperatorString(OS) {}
-
-	inline void flush() {
-		_Kinetic.flush(BoltzmannWeight);
-		_Potential.flush(BoltzmannWeight);
-		_TotalEnergy.flush(BoltzmannWeight);
-		BoltzmannWeight=0;
-	}
-
-	void measure() {
-
-
-		_BrokenHistogram[OperatorString.NBrokenLines()]+=1;
-
-		if(OperatorString.NBrokenLines()==0) {
-			const _float_accumulator Weight=OperatorString.BoltzmannWeight();
-			BoltzmannWeight+=Weight;
-			_float_accumulator Kinetic=-static_cast<_float_accumulator>(OperatorString.length())/OperatorString.Beta();
-			_float_accumulator Potential=OperatorString.DiagonalEnergy();        
-			_Kinetic.push( Kinetic*Weight );
-			_Potential.push( Potential*Weight );
-			_TotalEnergy.push( (Kinetic+Potential)*Weight );
-		}
-
-	}		
-
-	inline const BrokenHistogramType &BrokenHistogram() const {return _BrokenHistogram;}
-
-	inline _float_accumulator BrokenNormalization() const {
-		_float_accumulator Normalization(0);
-		for(BrokenHistogramType::const_iterator it=_BrokenHistogram.begin();it!=_BrokenHistogram.end();++it)
-			Normalization+=it->second;
-		return Normalization;
-	}
-
-	inline _integer_counter count(unsigned int i=0) { return _BrokenHistogram[i]; }
-	inline const BinnedAccumulatorME &KineticEnergy() const {return _Kinetic;}
-	inline const BinnedAccumulatorME &PotentialEnergy() const {return _Potential;}
-	inline const BinnedAccumulatorME &TotalEnergy() const {return _TotalEnergy;}
-
-	void print_defaults() {
-
-		std::cout<<::std::endl;
-		std::cout<<"  *******************************\n";
-		std::cout<<"  * Broken worldlines histogram *\n";
-		std::cout<<"  *******************************\n\n";
-		std::cout<<"    N lines\tCount\tProbability\n\n";
-
-
-		double Normalization=BrokenNormalization();
-		for(BrokenHistogramType::const_iterator it=_BrokenHistogram.begin();it!=_BrokenHistogram.end();++it)
-			std::cout<<"    "<<it->first<<"\t\t"<<it->second<<"\t"<<it->second/Normalization<<std::endl;
-		std::cout << endl;
-
-		std::cout << "  ***********************************************************************************\n";
-		std::cout << "  * Energies (obtained from operator string length and Green operator state energy) *\n";
-		std::cout << "  ***********************************************************************************\n\n";
-		std::cout << "    Total energy: " << TotalEnergy() << "\n";
-		std::cout << "    Diagonal energy: " << PotentialEnergy() << "\n";           
-		std::cout << "    Non-diagonal energy: " << KineticEnergy() << "\n\n";
-
-	}
-
-};
 
 
 
@@ -180,34 +96,27 @@ struct FunctionFunctor {
 
 struct PlusFunctor : public FunctionFunctor {
 	_float_accumulator operator()(const data_type &_data,coeff_type &_coefficients) {
-		_float_accumulator _buffer=0;
+		_float_accumulator result=0;
 		for(int i=0;i<_data.size();++i)
-			_buffer+= *_data[i] * _coefficients[i];
-		return _buffer;
+			result+= *_data[i] * _coefficients[i];
+		return result;
 	}
 };
 
 PlusFunctor PlusData;
 
 class MeasurableFunction {
-	
-	BinnedAccumulatorME bin_acc;
+
 	std::vector<_float_accumulator*> _data;
 	std::vector<MatrixElement> _coefficients;
 	FunctionFunctor* _function;
 public:
-	MeasurableFunction() : bin_acc(), _function(&PlusData), _data() {}
-	MeasurableFunction(const MeasurableFunction &o) : bin_acc(o.bin_acc), _function(o._function), _data(o._data) {
+	MeasurableFunction() : _function(&PlusData), _data() {}
+	MeasurableFunction(const MeasurableFunction &o) : _function(o._function), _data(o._data) {
 		for(std::vector<_float_accumulator*>::size_type i=0;i<o._data.size();++i)
 			_data.push_back(o._data[i]);
 	}
- 
-	inline void flush(_float_accumulator BoltzmannWeight) {
-		bin_acc.push( evaluate() );
-		bin_acc.flush( BoltzmannWeight );
-	}
 
-	const BinnedAccumulatorME & bin() const { return bin_acc; } 
 
 	inline _float_accumulator evaluate() { return (*_function)(_data,_coefficients); }
 	inline void push_back(_float_accumulator* acc,MatrixElement me) { 
@@ -219,29 +128,63 @@ public:
 
 };
 
-
-
-class Measurable : public MeasureDefaults {
-
-	std::vector<std::string> _Tags;
-	std::vector<MeasurableFunction*> _Meas_Ptr;
+/*
+	Notes for MPI parallelization.
 	
-	MeasurableTerms _TermBuffers;
+	The BinnedAccumulatorME variables should only be defined in the Root node.
+ 	Also the print and flush methods should only be called by the root.
+	During the flush operation the mpi reduce should be called for every bin.
+	
+*/
 
+class Measurable  {
+	const OperatorStringType &OperatorString;
+
+	typedef std::map<unsigned int,_integer_counter> BrokenHistogramType;
+	BrokenHistogramType _BrokenHistogram;
 	BrokenLines BrokenLineTracer;
 
+	_float_accumulator buffer_BoltzmannWeight;
+	_float_accumulator buffer_kinetic;
+	_float_accumulator buffer_potential;
+	MeasurableTerms _TermBuffers;
+
+	std::vector<MeasurableFunction*> _Meas_Ptr;
+
+	std::vector<std::string> _Tags;
+	BinnedAccumulatorME _Kinetic;
+	BinnedAccumulatorME _Potential;
+	BinnedAccumulatorME _TotalEnergy;
+	std::vector<BinnedAccumulatorME*> _Bins;
+
 public:
+	Measurable(const OperatorStringType &OS) : OperatorString(OS), BrokenLineTracer(OS.GetListBrokenLines()) { reset(); }
+
+	~Measurable() {
+		for(std::vector<MeasurableFunction*>::iterator it=_Meas_Ptr.begin(); it!=_Meas_Ptr.end(); ++it)
+			delete *it;
+		for(std::vector<BinnedAccumulatorME*>::iterator it=_Bins.begin(); it!=_Bins.end(); ++it)
+			delete *it;
+	}
+
 	void insert(const std::vector<std::string> &taglist,const std::vector<Hamiltonian> &OperatorList) {
 		for(std::vector<Hamiltonian>::size_type i=0;i<OperatorList.size();++i) 
 			insert_operator(taglist[i],OperatorList[i]);
 	}
 
+	void insert_bin(const std::string &tag) {
+		BinnedAccumulatorME *_bin_ptr=new BinnedAccumulatorME;
+		_Bins.push_back(_bin_ptr);
+		_Tags.push_back(tag);		
+	}
+
 	void insert_operator(const std::string &tag,const Hamiltonian &Operator) {
+    
+		insert_bin(tag);
 
 		MeasurableFunction *_meas_ptr=new MeasurableFunction;
 		_Meas_Ptr.push_back(_meas_ptr);
-		_Tags.push_back(tag);
-
+   	
 		for(Hamiltonian::const_iterator term_ptr=Operator.begin(); term_ptr!=Operator.end(); ++term_ptr) {
 			_float_accumulator *buffer=_TermBuffers.insert(*term_ptr);
 			_meas_ptr->push_back( buffer, term_ptr->coefficient() );
@@ -250,10 +193,11 @@ public:
 	}
 
 	void insert_function(const std::string &tag,FunctionFunctor * functor,const Hamiltonian &Operator) {
-
+   
+		insert_bin(tag);
+		
 		MeasurableFunction *_meas_ptr=new MeasurableFunction;
-		_Meas_Ptr.push_back(_meas_ptr);
-		_Tags.push_back(tag);
+		_Meas_Ptr.push_back(_meas_ptr);		
 		_meas_ptr->function()=functor;
 
 		for(Hamiltonian::const_iterator term_ptr=Operator.begin(); term_ptr!=Operator.end(); ++term_ptr) {
@@ -263,45 +207,84 @@ public:
 	}
 
 
-	inline void flush(MatrixElement BoltzmannW) {
-		for(std::vector<MeasurableFunction*>::iterator it=_Meas_Ptr.begin(); it!=_Meas_Ptr.end(); ++it)
-			(*it)->flush(BoltzmannW);
-		_TermBuffers.reset();
-	}
-
 
 	inline void measure() {
 
 		_TermBuffers.measure(BrokenLineTracer(),OperatorString.BoltzmannWeight());
-		MeasureDefaults::measure();
+		_BrokenHistogram[OperatorString.NBrokenLines()]+=1;
+
+		if(OperatorString.NBrokenLines()==0) {
+			const _float_accumulator Weight=OperatorString.BoltzmannWeight();
+			buffer_BoltzmannWeight+=Weight;
+			_float_accumulator Kinetic=-static_cast<_float_accumulator>(OperatorString.length())/OperatorString.Beta();
+			_float_accumulator Potential=OperatorString.DiagonalEnergy();
+			buffer_kinetic+=Kinetic*Weight;
+			buffer_potential+=Potential*Weight;       
+		}
 
 	}
-
+  
 	inline void flush() {
 
-		flush(BoltzmannWeight);
-		MeasureDefaults::flush();
+		std::vector<_float_accumulator> Buffer_TempMeas;
+		for(std::vector<MeasurableFunction*>::size_type i=0; i<_Meas_Ptr.size(); ++i) {
+			Buffer_TempMeas.push_back(_Meas_Ptr[i]->evaluate());
+		}
 
+		/* 
+			MPI note: 
+			Now the root node must collect buffer_kinetic, buffer_potential, buffer_BoltzmannWeight and TempMeasBuffer[i]
+			from all the other nodes and sums them. The following lines should be run by the root node.
+		*/
+
+    
+		for(std::vector<MeasurableFunction*>::size_type i=0; i<_Meas_Ptr.size(); ++i) 
+			_Bins[i]->push(Buffer_TempMeas[i]/buffer_BoltzmannWeight);
+
+		_Kinetic.push( buffer_kinetic/buffer_BoltzmannWeight );
+		_Potential.push( buffer_potential/buffer_BoltzmannWeight );
+		_TotalEnergy.push( (buffer_kinetic+buffer_potential)/buffer_BoltzmannWeight );
+
+		reset();  // This must be run by all nodes.
 	}
-
-
-
-	Measurable(const OperatorStringType &OS) : MeasureDefaults(OS), BrokenLineTracer(OS.GetListBrokenLines()) {}
-	~Measurable() {
-		for(std::vector<MeasurableFunction*>::iterator it=_Meas_Ptr.begin(); it!=_Meas_Ptr.end(); ++it)
-			delete *it;
+  
+	inline void reset() {
+		_TermBuffers.reset();
+		buffer_BoltzmannWeight=0;
+		buffer_kinetic=0;
+		buffer_potential=0;		
 	}
 
 	void print() {
 
-		print_defaults();
+		cout << "    Number of measurements: " << _BrokenHistogram[0] << "\n\n";
+		std::cout<<::std::endl;
+		std::cout<<"  *******************************\n";
+		std::cout<<"  * Broken worldlines histogram *\n";
+		std::cout<<"  *******************************\n\n";
+		std::cout<<"    N lines\tCount\tProbability\n\n";
 
+
+		double Normalization=0;
+		for(BrokenHistogramType::const_iterator it=_BrokenHistogram.begin();it!=_BrokenHistogram.end();++it)
+			Normalization+=it->second;
+
+		for(BrokenHistogramType::const_iterator it=_BrokenHistogram.begin();it!=_BrokenHistogram.end();++it)
+			std::cout<<"    "<<it->first<<"\t\t"<<it->second<<"\t"<<it->second/Normalization<<std::endl;
+		std::cout << endl;
+
+		std::cout << "  ***********************************************************************************\n";
+		std::cout << "  * Energies (obtained from operator string length and Green operator state energy) *\n";
+		std::cout << "  ***********************************************************************************\n\n";
+		std::cout << "    Total energy: " << _TotalEnergy << "\n";
+		std::cout << "    Diagonal energy: " << _Potential << "\n";           
+		std::cout << "    Non-diagonal energy: " << _Kinetic << "\n\n";
 		std::cout << "  ******************************\n";
 		std::cout << "  * User's defined measurables *\n";
 		std::cout << "  ******************************\n\n";
 
 		for(std::vector<MeasurableFunction*>::size_type i=0;i<_Meas_Ptr.size();++i) 
-			std::cout<<"    "<<_Tags[i]<<": "<<(_Meas_Ptr[i]->bin())<<std::endl;
+			std::cout<<"    "<<_Tags[i]<<": "<<*_Bins[i]<<std::endl;
 
 	}
 

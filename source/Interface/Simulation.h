@@ -251,7 +251,6 @@ public:
 		cout << "    Number of creations/annihilations: \t" << NumMeasUpdates << "\t("<<ActualMeasTime*1000000000/NumMeasUpdates << " seconds per billion updates)\n";  
 		cout << "    Number of directed updates:       \t" << NumDirectedMeasUpdates << "\t("<<ActualMeasTime*1000000000/NumDirectedMeasUpdates << " seconds per billion updates)\n";  
 		cout << "    Directed update length:           \t"<< double(NumMeasUpdates)/NumDirectedMeasUpdates<<std::endl;
-		cout << "    Number of measurements: " << MeasuredOp.count() << "\n\n";
 
 		MeasuredOp.print();
 	}
