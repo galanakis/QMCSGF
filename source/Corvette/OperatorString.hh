@@ -43,6 +43,62 @@ inline long double expweight(long double x) { long double d=1.0L-exp(-x); return
 // This returns log(1-x*(1-exp(A)))/A which is a monotonic function between 0 and 1 if x is in the same interval
 inline long double logexponential(long double A,long double x) { return fabs(A)<0.000000001?x:log(1.0L-x*(1.0L-exp(A)))/A; }
 
+
+/*
+	class AlphaData
+	
+	This class contains and keeps track of the alpha parameters and it
+	knows how to update them.
+	
+	There is no need for high accuracy since the signs that appear
+	in the averaging are all the same and the accumulators are
+	reset relatively often.
+	
+*/	
+	
+class AlphaData {
+
+	double Alpha[2],AlphaParameter;
+	double _accumulator[2];
+	unsigned int _count[2];
+
+public:
+	AlphaData() {
+		Alpha[0]=Alpha[1]=AlphaParameter=0;
+		reset();
+	}
+
+	inline const double &operator()(int ar) const {return Alpha[ar];}
+	inline double &operator()(int ar) {return Alpha[ar];}
+	inline const double &operator()() const {return AlphaParameter;}
+	inline double &operator()() {return AlphaParameter;}
+ 
+	inline void push(int ar,const double &w) {
+		_accumulator[ar]+=w;
+		++_count[ar];
+	}
+
+	inline void reset() {
+		_accumulator[0]=_accumulator[1]=0;
+		_count[0]=_count[1]=0;		
+	}
+
+	inline void flush() {
+		double Acc[2];
+
+		Acc[0]=_accumulator[0]/_count[0];
+		Acc[1]=_accumulator[1]/_count[1];
+		
+ 		Alpha[0]=AlphaParameter*Acc[1]/Max(Acc[1],Acc[0]);
+		Alpha[1]=AlphaParameter*Acc[0]/Max(Acc[1],Acc[0]);
+
+		reset();
+		
+	}
+	
+};
+
+
 /*
   class OperatorStringType
   defines a list appropriate to use as an kinetic term string.
@@ -68,6 +124,8 @@ inline long double logexponential(long double A,long double x) { return fabs(A)<
                         The Green operator.
 */
   
+
+
   
   
 struct Operator {
@@ -87,51 +145,42 @@ enum {LATER,EARLIER};
 class OperatorStringType : public CircDList<Operator>, public Probabilities {
   CircularTime _GreenTime;  // The time of the Green operator
   
-  double Alpha[2],AlphaParameter;
-  Accumulator<2,long double> AccumulateAlpha[2];    
+	AlphaData Alpha;          // Container for the alpha parameters.
   double _Beta;             // Inverse temperature.
 
-	_float_accumulator _diagonal_energy;
+	_float_accumulator _diagonal_energy; // Keeps track of the diagonal energy
 
 	inline _float_accumulator delta_diagonal(const int &direction) const { return (length()>=2) ? top(direction,direction).Energy*(top(direction,!direction).Time-top(direction,direction).Time).time() : 0;  }
+	inline double ER_Dtau() const {return Energy(RIGHT)*(top(LEFT).Time-top(RIGHT).Time).time();}
 	
 public:
   OperatorStringType(const Hamiltonian &T,const Hamiltonian &V,double _beta) : CircDList<Operator>(), Probabilities(T,V), _Beta(_beta) {
-    Alpha[ADD]=Alpha[REMOVE]=AlphaParameter=0;
 		_diagonal_energy=0;
   }
 
-  void AlphaUpdate() {
-	  
-		double Acc[2];
+	inline void AlphaUpdate() { Alpha.flush(); }
 
-		Acc[0]=AccumulateAlpha[0](1);
-		Acc[1]=AccumulateAlpha[1](1);
-		
- 		Alpha[0]=AlphaParameter*Acc[1]/Max(Acc[1],Acc[0]);
-		Alpha[1]=AlphaParameter*Acc[0]/Max(Acc[1],Acc[0]);
-     
-		AccumulateAlpha[0].reset();
-		AccumulateAlpha[1].reset();
+  // Calculates the diagonal energy fast using the updated variable.
+	inline double DiagonalEnergy() const { return ER_Dtau()+_diagonal_energy; }
    
-  }
+	// Calculates the diagonal energy by doing the time integral explicitly.
+	inline double GetDiagonalEnergy() const {
+		_float_accumulator result=0;
+		for(int i=0;i<length()-1;++i) 
+			result+=que[i+1].Energy*(que[i].Time-que[i+1].Time).time();
+			
+		std::cout<<_diagonal_energy<<"\t"<<result<<std::endl;
+		return ER_Dtau()+result;
+	}
 
-  inline void print_alphas() {
-		std::cout<<"Alpha\t"<<AlphaParameter<<std::endl;
-    std::cout<<"AlphaD:\t"<<Alpha[REMOVE]<<", Pkd: "<<AccumulateAlpha[REMOVE](1)<<std::endl;
-    std::cout<<"AlphaC:\t"<<Alpha[ADD]<<", Pkc: "<<AccumulateAlpha[ADD](1)<<std::endl;
-  }
-
-  
-	inline double DiagonalEnergy() const { return Energy(RIGHT)*(top(LEFT).Time-top(RIGHT).Time).time()+_diagonal_energy; }
 
   inline double DeltaV() const {return Energy(LEFT)-Energy(RIGHT);} // The difference between the energies
   inline double DeltaTau() const { return Beta()*(top(LEFT).Time-top(RIGHT).Time).time(); }
   inline const double &Beta() const {return _Beta;}
   inline double& Beta() {return _Beta;} 
   
-	inline double &alpha() {return AlphaParameter;}
-  inline double &alpha(int action) {return Alpha[action];}
+	inline double &alpha() {return Alpha();}
+  inline double &alpha(int action) {return Alpha(action);}
   inline const CircularTime& GreenTime() const {return _GreenTime;}
 
   /* Chose an operator randomly and push it in the string. direction is the direction opposite to the direction of motion of the green operator */
@@ -141,8 +190,8 @@ public:
 		_diagonal_energy += delta_diagonal(direction);
     update(term,direction,ADD); 
     double KeepDestroy=KeepDestroying(direction);
-    AccumulateAlpha[REMOVE].push(KeepDestroy);
-    return RNG::Uniform()<Alpha[REMOVE]*KeepDestroy;
+    Alpha.push(REMOVE,KeepDestroy);
+    return RNG::Uniform()<Alpha(REMOVE)*KeepDestroy;
   }
   
   // Destroy an operator along the direction of motion of the green operator
@@ -153,8 +202,8 @@ public:
 		_diagonal_energy -= delta_diagonal(direction);
     pop(direction);
     double KeepCreate=KeepCreating(!direction);
-    AccumulateAlpha[ADD].push(KeepCreate);
-    return RNG::Uniform()<Alpha[ADD]*KeepCreate;
+    Alpha.push(ADD,KeepCreate);
+    return RNG::Uniform()<Alpha(ADD)*KeepCreate;
   }
 
 /* 
@@ -176,8 +225,8 @@ public:
 
   inline double KeepCreating(int direction) const { return Min(1.0,weight(direction)/weight(!direction)); }
   inline double KeepDestroying(int direction) const { return Min(1.0,exp(Sign[direction]*DeltaV()*DeltaTau())); }
-  inline double CreationWeight(int direction) const { return ((1-Alpha[ADD]*KeepCreating(direction))*weight(!direction))/G(); }
-  inline double DestructionWeight(int direction) const { return empty() ? 0 : (1-Alpha[REMOVE]*KeepDestroying(direction))*expweight(-Sign[direction]*DeltaV()*DeltaTau())/DeltaTau(); }
+  inline double CreationWeight(int direction) const { return ((1-Alpha(ADD)*KeepCreating(direction))*weight(!direction))/G(); }
+  inline double DestructionWeight(int direction) const { return empty() ? 0 : (1-Alpha(REMOVE)*KeepDestroying(direction))*expweight(-Sign[direction]*DeltaV()*DeltaTau())/DeltaTau(); }
   inline double BoltzmannWeight() const {return 1.0/G()/(CreationWeight(LEFT)+CreationWeight(RIGHT)+DestructionWeight(LEFT)+DestructionWeight(RIGHT));}
 
 /* 

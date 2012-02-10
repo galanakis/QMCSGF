@@ -151,7 +151,6 @@ public:
 
 		clock_t StartTime=clock();
 		clock_t EndTime=StartTime+MeasTime*CLOCKS_PER_SEC;
-		clock_t Now=StartTime;
 
 		unsigned long long NumBins=MathExpression::GetValue("#Bins").Re();
 

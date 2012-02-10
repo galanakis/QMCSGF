@@ -28,7 +28,7 @@ namespace SGF {
 */
 
 
-typedef _float_accumulator circulartime_t;
+typedef double circulartime_t;
 
 class CircularTime {
 public:
