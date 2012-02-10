@@ -124,19 +124,19 @@ public:
 
 		do {
 
-			NumWarmUpdates+=OpString.directed_update(); // Perform an update. 
-			++NumDirectedWarmUpdates;
-			if (NumDirectedWarmUpdates%AlphaUpdatePeriod==(AlphaUpdatePeriod-1)) OpString.AlphaUpdate();     
+			do {
+				NumWarmUpdates+=OpString.directed_update();
+				++NumDirectedWarmUpdates;
+				if (NumDirectedWarmUpdates%AlphaUpdatePeriod==(AlphaUpdatePeriod-1)) OpString.AlphaUpdate();     
+			} while(OpString.NBrokenLines()!=0);
+
+
 			Now=clock();
 			double Progress=Max(static_cast<double>(NumWarmUpdates)/WarmIterations,static_cast<double>(Now-StartTime)/(EndTime-StartTime));
 			pbar.Update(Progress,NumWarmUpdates);
 
 		} while ( NumWarmUpdates<WarmIterations && Now<EndTime );
 
-		while (OpString.NBrokenLines()!=0)  {              // Perform extra updates until we end up
-			NumWarmUpdates+=OpString.directed_update();      // in a diagonal configuration.
-			++NumDirectedWarmUpdates;
-		}
 
 		ActualWarmTime=double(clock()-StartTime)/CLOCKS_PER_SEC;
 #ifdef CMDLINEPROGRESS      
@@ -163,18 +163,17 @@ public:
 			unsigned long long counter=0;
 			clock_t BinStart=clock();
 			do {
-				counter+=OpString.directed_update();   // Perform an update.
-				++NumDirectedMeasUpdates;
-				MeasuredOp.measure();          // Perform measurements.
+
+				do {
+					counter+=OpString.directed_update();   // Perform an update.
+					++NumDirectedMeasUpdates;
+					MeasuredOp.measure();          // Perform measurements.					
+				} while(OpString.NBrokenLines()!=0);
+
 			} while ( counter*NumBins<MeasIterations && (clock()-BinStart)*NumBins<MeasTime*CLOCKS_PER_SEC );
 
 			NumMeasUpdates+=counter;
 
-			while (OpString.NBrokenLines()!=0) {              // Perform extra updates until we end up
-				NumMeasUpdates+=OpString.directed_update();     // in a diagonal configuration.
-				++NumDirectedMeasUpdates;
-				MeasuredOp.measure();                   // Perform measurements.
-			}
 			MeasuredOp.flush();                               // Bin the data. 
 			double Progress=Max(static_cast<double>(i)/NumBins,static_cast<double>(clock()-StartTime)/(EndTime-StartTime));
 			pbar.Update(Progress,NumMeasUpdates);

@@ -49,7 +49,7 @@ public:
 		_count=0; 
 		for(int i=0;i<MomentOrder;++i) _sum[i]=T(0); 
 	}
-	inline _integer_counter count() const {return _count;}
+	inline const _integer_counter &count() const {return _count;}
 	inline T operator()(int i) const {return _sum[i]/_sum[0];}
 	inline int nmoments() const {return MomentOrder;}
 };
