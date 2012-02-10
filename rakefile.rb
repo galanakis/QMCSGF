@@ -13,10 +13,14 @@ task :release do
 end 
 task :clang do
  git_version=%x{git rev-parse HEAD}
- %x{clang++ -O3 -Wall -DDEBUG #{Include} #{Source} -o #{Executable}}
+ cmd="clang++ -O3 -Wall -DDEBUG #{Flags} #{Include} #{Source} -o #{Executable}"
+ puts cmd
+ puts %x{#{cmd}}
 end
 task :gcc do
  git_version=%x{git rev-parse HEAD}
- %x{g++-mp-4.6 -O3 -Wall -DDEBUG #{Include} #{Source} -o #{Executable}}
+ cmd="g++-mp-4.6 -O3 -Wall -DDEBUG #{Flags} #{Include} #{Source} -o #{Executable}"
+ puts cmd
+ puts %x{#{cmd}}
 end
 

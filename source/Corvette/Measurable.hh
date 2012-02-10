@@ -97,7 +97,7 @@ struct FunctionFunctor {
 struct PlusFunctor : public FunctionFunctor {
 	_float_accumulator operator()(const data_type &_data,coeff_type &_coefficients) {
 		_float_accumulator result=0;
-		for(int i=0;i<_data.size();++i)
+		for(data_type::size_type i=0;i<_data.size();++i)
 			result+= *_data[i] * _coefficients[i];
 		return result;
 	}
@@ -111,8 +111,8 @@ class MeasurableFunction {
 	std::vector<MatrixElement> _coefficients;
 	FunctionFunctor* _function;
 public:
-	MeasurableFunction() : _function(&PlusData), _data() {}
-	MeasurableFunction(const MeasurableFunction &o) : _function(o._function), _data(o._data) {
+	MeasurableFunction() :  _data(), _function(&PlusData) {}
+	MeasurableFunction(const MeasurableFunction &o) : _data(o._data), _function(o._function) {
 		for(std::vector<_float_accumulator*>::size_type i=0;i<o._data.size();++i)
 			_data.push_back(o._data[i]);
 	}

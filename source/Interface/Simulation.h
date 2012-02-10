@@ -4,29 +4,6 @@
 template<class T> T Min(const T &a,const T &b) {return (a<b)?a:b;} 
 template<class T> T Max(const T &a,const T &b) {return (a>b)?a:b;} 
 
-
-template<class T>
-class SpeedoMeter {
-	clock_t Time;
-	T value;
-	T Speed;
-	unsigned long count;
-public:
-	SpeedoMeter() : Time(clock()), value(0), Speed(0), count(0) {}
-	inline void measure(const T &_val) {
-		clock_t OldTime=Time;
-		T oldvalue=value;
-		Time=clock();
-		value=_val;
-		T InstantSpeed=(value-oldvalue)*CLOCKS_PER_SEC/(Time-OldTime);
-		Speed+=InstantSpeed;
-		++count;
-		return InstantSpeed;
-	}
-	inline T speed() const {return Speed/count;}
-	inline T remaining_time(const T & val) const {return (val-value)/speed();}
-}; 
-
 class FileNameProgressBar {
 	static const int StringLength=300;
 	char Status[StringLength],*Ptr;

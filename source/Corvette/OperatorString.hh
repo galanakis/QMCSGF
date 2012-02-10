@@ -166,10 +166,9 @@ public:
 	// Calculates the diagonal energy by doing the time integral explicitly.
 	inline double GetDiagonalEnergy() const {
 		_float_accumulator result=0;
-		for(int i=0;i<length()-1;++i) 
+		for(unsigned int i=0;i<length()-1;++i) 
 			result+=que[i+1].Energy*(que[i].Time-que[i+1].Time).time();
 			
-		std::cout<<_diagonal_energy<<"\t"<<result<<std::endl;
 		return ER_Dtau()+result;
 	}
 

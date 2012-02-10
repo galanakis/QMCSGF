@@ -34,11 +34,10 @@ public:
   
 	typedef adjacency_list_t::const_iterator const_iterator;
 	typedef std::pair<const_iterator,const_iterator> range_type;
+
+	std::vector<range_type> _ranges;
   
-	inline const range_type range(Hamiltonian::size_type i) const {
-		const adjacency_list_t &adjlist=_adjacency[i];
-		return range_type(adjlist.begin(),adjlist.end());
-	}
+	inline const range_type &range(Hamiltonian::size_type i) const {return _ranges[i];}
 
    
 };
@@ -82,6 +81,11 @@ void AdjacencyList::initialize(const Hamiltonian &Trow,const Hamiltonian &Tcol) 
       _adjacency[i].push_back(&Tcol[*sit]);
     
   }
+
+	for(std::vector<adjacency_list_t>::const_iterator it=_adjacency.begin();it!=_adjacency.end();++it) {
+		_ranges.push_back(range_type(it->begin(),it->end()));
+	}
+
   
 }   
 

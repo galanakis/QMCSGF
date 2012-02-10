@@ -118,6 +118,7 @@ public:
 class UpdatableObject {
 	static std::vector<UpdatableObject*> Objects;   // This lists contains pointers to all UpdatableObjects.
 public:
+	typedef std::vector<UpdatableObject*>::size_type size_type;
 	UpdatableObject() {Objects.push_back(this);}
 	virtual inline void update(const HamiltonianTerm*,int,int) = 0;
 
@@ -185,7 +186,7 @@ public:
 			_NBWL-=term->offset(!arflag); 
 		*/
 
-		for(int i=0;i<UpdatableObject::Objects.size();++i)
+		for(UpdatableObject::size_type i=0;i<UpdatableObject::Objects.size();++i)
 			UpdatableObject::Objects[i]->update(term,rl,arflag);
 
 	}
@@ -266,13 +267,13 @@ public:
 
 class PotentialEnergies {
 	static unsigned int RebuildPeriod;
-  const AdjacencyList pot_adjacency;  		// For each term it holds a list of other kinetic terms with one common site
   const Hamiltonian &Potential;       		// Local reference of the potential operators    
+  const AdjacencyList pot_adjacency;  		// For each term it holds a list of other kinetic terms with one common site
 	const HamiltonianTerm* Kinetic0;
 
+  _integer_counter NUpdates;     					// Number of updates since last rebuild. This is only used to fix accumulating floating point errors for the energies
   _float_accumulator Energies[2];       	// energy of right and left state. It is an accumulator
 	std::vector<MatrixElement> EnergyME[2];
-  _integer_counter NUpdates;     					// Number of updates since last rebuild. This is only used to fix accumulating floating point errors for the energies
 
 	inline const HamiltonianTerm * Term(Hamiltonian::size_type iterm) const {return &Potential[iterm];}
 	inline Hamiltonian::size_type Hash(const HamiltonianTerm* term) const {return term-&Potential[0];} 
@@ -296,13 +297,13 @@ class PotentialEnergies {
 
 public:
  
- 	PotentialEnergies(const Hamiltonian &T,const Hamiltonian &P) : Potential(P), pot_adjacency(T,P), NUpdates(0), Kinetic0(&T[0]) {
+ 	PotentialEnergies(const Hamiltonian &T,const Hamiltonian &P) : Potential(P), pot_adjacency(T,P), Kinetic0(&T[0]), NUpdates(0) {
 		EnergyME[0].resize(Potential.size());
 		EnergyME[1].resize(Potential.size());	
 		rebuild();
 	}
 
-	PotentialEnergies(const PotentialEnergies &o) : Potential(o.Potential), pot_adjacency(o.pot_adjacency), NUpdates(o.NUpdates), Kinetic0(o.Kinetic0) {
+	PotentialEnergies(const PotentialEnergies &o) : Potential(o.Potential), pot_adjacency(o.pot_adjacency), Kinetic0(o.Kinetic0), NUpdates(o.NUpdates) {
 		EnergyME[0]=o.EnergyME[0];
 		EnergyME[1]=o.EnergyME[1];
 		Energies[0]=o.Energies[0];
@@ -356,9 +357,9 @@ public:
 
 	ForestType(const Hamiltonian &K) : offsets(K) {
 		trees=new TreeType[size()];
-		for(int i=0;i<size();++i)
+		for(OffsetMap::size_type i=0;i<size();++i)
 			trees[i].resize(K.size());
-		for(int i=0;i<size();++i) 
+		for(OffsetMap::size_type i=0;i<size();++i) 
 			trees[i].reset();
 		
 	}
@@ -396,7 +397,7 @@ public:
 	typedef AdjacencyList::const_iterator adjacency_iterator;
 	typedef std::pair<adjacency_iterator,adjacency_iterator> adjancency_range;
 	inline  const adjancency_range &kinetic_adjancency_range(const HamiltonianTerm *term) const { return kin_adjacency.range(Hash(term)); } 
-	KineticProbabilities(const Hamiltonian &T) : Kinetic(T), forest(Kinetic), kin_adjacency(Kinetic) {
+	KineticProbabilities(const Hamiltonian &T) : Kinetic(T), kin_adjacency(Kinetic), forest(Kinetic) {
     
 		tree_cache.resize(Kinetic.size());
 

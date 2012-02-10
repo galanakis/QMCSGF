@@ -119,12 +119,12 @@ public:
     
     _Psi.resize(NumIndices);
 
-		for(int i=0;i<_Psi.size();++i)
+		for(std::vector<SGF::Boson>::size_type i=0;i<_Psi.size();++i)
 			_Psi[i].nmax()=MathExpression::GetNmax(i);
 
-    for(int species=0;species<NumSpecies;++species) {
+    for(unsigned int species=0;species<NumSpecies;++species) {
       for(int particle=0;particle<MathExpression::GetPopulation(species);++particle) {
-        int i=NumSites*species+particle%NumSites;
+        unsigned int i=NumSites*species+particle%NumSites;
 				_Psi[i].n(0)++;
         _Psi[i].n(1)++;
       }
