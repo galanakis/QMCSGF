@@ -51,12 +51,12 @@ public:
 			strcpy(OldStatus,Status);
 			int percent=static_cast<int>(100*Progress);
 
-			reset_cout();
 
 			sprintf(Ptr," - %.3d %% - %.3dh %.2dm %.2ds - %6d updates per second",percent,HoursLeft,MinutesLeft,SecondsLeft,Speed);
 
 #ifdef CMDLINEPROGRESS      
-			std::cout<<Status<<std::flush;
+			reset_cout();
+			cout<<Status<<std::flush;
 #endif
       
 			rename(OldStatus,Status);
@@ -69,21 +69,28 @@ public:
 
 };
 
+#define MAXNUMBROKENLINES 100
+
 class Simulation
 {
-	unsigned long long NumWarmUpdates,NumMeasUpdates;
-	unsigned long long NumDirectedWarmUpdates,NumDirectedMeasUpdates;
-	unsigned long long WarmTime,MeasTime;
-	unsigned long long WarmIterations, MeasIterations;
+	unsigned long NumWarmUpdates,NumMeasUpdates;
+	unsigned long NumDirectedWarmUpdates,NumDirectedMeasUpdates;
+	unsigned long WarmTime,MeasTime;
+	unsigned long WarmIterations, MeasIterations;
 
 	double ActualWarmTime,ActualMeasTime;
+  
+	typedef  std::vector<unsigned long> BrokenHistogramType;
+	BrokenHistogramType BrokenHistorgram;
+
 
 public:
 	Simulation() {
 		WarmTime=MathExpression::GetValue("#WarmTime").Re();
-		WarmIterations=(MathExpression::Find("WarmIterations")!=NULL) ? static_cast<unsigned long long>(MathExpression::GetValue("WarmIterations").Re()) : std::numeric_limits<unsigned long long>::max();
+		WarmIterations=(MathExpression::Find("WarmIterations")!=NULL) ? static_cast<unsigned long>(MathExpression::GetValue("WarmIterations").Re()) : std::numeric_limits<unsigned long>::max();
 		MeasTime=MathExpression::GetValue("#MeasTime").Re();
-		MeasIterations=(MathExpression::Find("MeasIterations")!=NULL) ? static_cast<unsigned long long>(MathExpression::GetValue("MeasIterations").Re()) : std::numeric_limits<unsigned long long>::max();			
+		MeasIterations=(MathExpression::Find("MeasIterations")!=NULL) ? static_cast<unsigned long>(MathExpression::GetValue("MeasIterations").Re()) : std::numeric_limits<unsigned long>::max();			
+		BrokenHistorgram.resize(MAXNUMBROKENLINES);
 	} 
 
 	void Thermalize(SGF::OperatorStringType &OpString)
@@ -118,7 +125,7 @@ public:
 		ActualWarmTime=double(clock()-StartTime)/CLOCKS_PER_SEC;
 #ifdef CMDLINEPROGRESS      
 		pbar.reset_cout();
-		std::cout<<"Done Thermalizing after "<<NumWarmUpdates<<" updates ("<<NumDirectedWarmUpdates<<" directed) in "<<ActualWarmTime<<" seconds at "<<NumWarmUpdates/ActualWarmTime<<" updates per second."<<std::endl;
+		cout<<"Done Thermalizing after "<<NumWarmUpdates<<" updates ("<<NumDirectedWarmUpdates<<" directed) in "<<ActualWarmTime<<" seconds at "<<NumWarmUpdates/ActualWarmTime<<" updates per second."<<std::endl;
 #endif
 	}
 
@@ -129,20 +136,21 @@ public:
 		clock_t StartTime=clock();
 		clock_t EndTime=StartTime+MeasTime*CLOCKS_PER_SEC;
 
-		unsigned long long NumBins=MathExpression::GetValue("#Bins").Re();
+		unsigned long NumBins=MathExpression::GetValue("#Bins").Re();
 
 		NumMeasUpdates=0;
 		NumDirectedMeasUpdates=0;
 
 		for (unsigned int i=0;i<NumBins;++i) {
 
-			unsigned long long counter=0;
+			unsigned long counter=0;
 			clock_t BinStart=clock();
 			do {
 
 				do {
 					counter+=OpString.directed_update();   // Perform an update.
 					++NumDirectedMeasUpdates;
+					BrokenHistorgram[OpString.NBrokenLines()]+=1;
 					MeasuredOp.measure();          // Perform measurements.					
 				} while(OpString.NBrokenLines()!=0);
 
@@ -160,7 +168,7 @@ public:
 		
 #ifdef CMDLINEPROGRESS      
 		pbar.reset_cout();
-		std::cout<<"Done Measuring after "<<NumMeasUpdates<<" updates ("<<NumDirectedMeasUpdates<<" directed) in "<<ActualMeasTime<<" seconds at "<<NumMeasUpdates/ActualMeasTime<<" updates/second."<<std::endl;
+		cout<<"Done Measuring after "<<NumMeasUpdates<<" updates ("<<NumDirectedMeasUpdates<<" directed) in "<<ActualMeasTime<<" seconds at "<<NumMeasUpdates/ActualMeasTime<<" updates/second."<<std::endl;
 #endif
 	}
 
@@ -218,14 +226,55 @@ public:
 		cout << "  ******************************\n";
 		cout << "  * Operator string statistics *\n";
 		cout << "  ******************************\n\n";
+ 
+
+#ifdef USEMPI
+   
+		unsigned long send_NumWarmUpdates(NumWarmUpdates),send_NumMeasUpdates(NumMeasUpdates);
+		unsigned long send_NumDirectedWarmUpdates(NumDirectedWarmUpdates),send_NumDirectedMeasUpdates(NumDirectedMeasUpdates);
+		double send_ActualWarmTime(ActualWarmTime),send_ActualMeasTime(ActualMeasTime);
+		std::vector<unsigned long> send_BrokenHistogram=BrokenHistorgram;
+
+		MPI_Reduce(&send_NumWarmUpdates,&NumWarmUpdates,1,MPI_UNSIGNED_LONG,MPI_SUM,Master,MPI_COMM_WORLD);
+		MPI_Reduce(&send_NumDirectedWarmUpdates,&NumDirectedWarmUpdates,1,MPI_UNSIGNED_LONG,MPI_SUM,Master,MPI_COMM_WORLD);
+		MPI_Reduce(&send_NumMeasUpdates,&NumMeasUpdates,1,MPI_UNSIGNED_LONG,MPI_SUM,Master,MPI_COMM_WORLD);
+		MPI_Reduce(&send_NumDirectedMeasUpdates,&NumDirectedMeasUpdates,1,MPI_UNSIGNED_LONG,MPI_SUM,Master,MPI_COMM_WORLD);
+		MPI_Reduce(&send_ActualWarmTime,&ActualWarmTime,1,MPI_DOUBLE,MPI_SUM,Master,MPI_COMM_WORLD);
+		MPI_Reduce(&send_ActualMeasTime,&ActualMeasTime,1,MPI_DOUBLE,MPI_SUM,Master,MPI_COMM_WORLD);
+		MPI_Reduce(&send_BrokenHistogram[0],&BrokenHistorgram[0],MAXNUMBROKENLINES,MPI_UNSIGNED_LONG,MPI_SUM,Master,MPI_COMM_WORLD);
+
+		cout << "    Number of Processors used "<<NumProcessors<<"\n\n";
+
+#endif   	
+
+
 		cout << "    == Thermalization ==\n";
-		cout << "    Number of creations/annihilations: \t" << NumWarmUpdates << "\t("<<ActualWarmTime*1000000000/NumWarmUpdates << " seconds per billion updates)\n";
-		cout << "    Number of directed updates:       \t" << NumDirectedWarmUpdates << "\t("<<ActualWarmTime*1000000000/NumDirectedWarmUpdates << " seconds per billion updates)\n";
+		cout << "    Number of creations/annihilations: \t" << NumWarmUpdates << "\t("<<ActualWarmTime*1000000000/NumWarmUpdates << " seconds per billion updates per node)\n";
+		cout << "    Number of directed updates:       \t" << NumDirectedWarmUpdates << "\t("<<ActualWarmTime*1000000000/NumDirectedWarmUpdates << " seconds per billion updates per node)\n";
 		cout << "    Directed update length:           \t"<< double(NumWarmUpdates)/NumDirectedWarmUpdates<<std::endl;
 		cout << "    == Measurements   ==\n";
-		cout << "    Number of creations/annihilations: \t" << NumMeasUpdates << "\t("<<ActualMeasTime*1000000000/NumMeasUpdates << " seconds per billion updates)\n";  
-		cout << "    Number of directed updates:       \t" << NumDirectedMeasUpdates << "\t("<<ActualMeasTime*1000000000/NumDirectedMeasUpdates << " seconds per billion updates)\n";  
+		cout << "    Number of creations/annihilations: \t" << NumMeasUpdates << "\t("<<ActualMeasTime*1000000000/NumMeasUpdates << " seconds per billion updates per node)\n";  
+		cout << "    Number of directed updates:       \t" << NumDirectedMeasUpdates << "\t("<<ActualMeasTime*1000000000/NumDirectedMeasUpdates << " seconds per billion updates per node)\n";  
 		cout << "    Directed update length:           \t"<< double(NumMeasUpdates)/NumDirectedMeasUpdates<<std::endl;
+
+		cout << "    Number of measurements: " << BrokenHistorgram[0] << "\n\n";
+		cout <<::std::endl;
+		cout <<"  *******************************\n";
+		cout <<"  * Broken worldlines histogram *\n";
+		cout <<"  *******************************\n\n";
+		cout <<"    N lines\tCount\tProbability\n\n";
+
+
+		double Normalization=0;
+		for(BrokenHistogramType::size_type i=0;i<BrokenHistorgram.size();++i)
+			Normalization+=BrokenHistorgram[i];
+
+		for(BrokenHistogramType::size_type i=0;i<BrokenHistorgram.size();++i)
+			if(BrokenHistorgram[i]!=0)
+				cout<<"    "<<i<<"\t\t"<<BrokenHistorgram[i]<<"\t"<<BrokenHistorgram[i]/Normalization<<std::endl;
+
+		cout << endl;
+
 
 		MeasuredOp.print();
 	}

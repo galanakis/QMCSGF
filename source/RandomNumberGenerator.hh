@@ -32,7 +32,11 @@ class RNGMT {
   static MTRand rand; 
 public:
   inline static void Initialize(int s) {
-//    std::cout<<"Using the Mersenne Twister random number generator."<<std::endl;
+//    cout<<"Using the Mersenne Twister random number generator."<<std::endl;
+#ifdef USEMPI
+    s=s*(Rank+1);
+//		std::cout<<"Initialize processor "<<Rank<<" with seed "<<s<<std::endl;
+#endif
     rand.seed(s);
   }
   inline static double Uniform() {return rand.randExc();}
@@ -49,7 +53,7 @@ typedef RNGMT RNGBase;
 // Sprng: parallel random number generator
 class RNGSPRNG {
   inline static void Initialize(int Seed) {
-//    std::cout<<"Using the SPRNG random number generator."<<std::endl;
+//    cout<<"Using the SPRNG random number generator."<<std::endl;
     init_sprng(SPRNG_CMRG,Seed,SPRNG_DEFAULT);
   }
   inline static double Uniform() {return sprng();}
@@ -71,10 +75,13 @@ class RNGLC {
 public:
 // Initialize the random number generator with a non zero seed. 
   inline static void Initialize(int S) {
-//    std::cout<<"Using the Linear Congruence random number generator."<<std::endl;
+//    cout<<"Using the Linear Congruence random number generator."<<std::endl;
+#ifdef USEMPI
+    S=S*(Rank+1);
+#endif
     Seed=S;
     if(S==0) {
-      std::cout<<"Error in RNG::Initialize: The initialization seed cannot be zero."<<std::endl;
+      cout<<"Error in RNG::Initialize: The initialization seed cannot be zero."<<std::endl;
       exit(1);
     }
     for (int i=0;i<1000;++i)

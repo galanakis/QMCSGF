@@ -68,7 +68,7 @@ public:
 	bacc.flush(Weight);             // push in to the bin the sum of the buffer divided by the Weight.
 	double average=bacc.average();  // get the average of the bins plus the constant value.
 	double sigma=bacc.sigma();      // get the standard deviation.
-	std::cout<<bacc<<std::endl;     // the "<<" has bee properly overloaded.
+	cout<<bacc<<std::endl;     // the "<<" has bee properly overloaded.
 	
 */
 

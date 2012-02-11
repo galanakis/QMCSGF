@@ -18,7 +18,7 @@ public:
 
   class Iterator {
   public:
-    stack<MathExpression::Node*> pointers;
+    std::stack<MathExpression::Node*> pointers;
     Iterator(std::string token) { push(MathExpression::Find(token.c_str())->Expression->Root); }     
     MathExpression::Node* value() const {return pointers.top(); } 
     inline bool end() { return pointers.empty(); }
@@ -86,7 +86,7 @@ public:
     SGF::Hamiltonian Kinetic,Potential;
     
     for(std::vector<SGF::Boson>::size_type i=0;i<Psi.size();++i) {
-      std::cout<<"Psi("<<i<<")="<<"("<<Psi[i].n(SGF::LEFT)<<","<<Psi[i].n(SGF::RIGHT)<<","<<Psi[i].nmax()<<")"<<std::endl;
+      cout<<"Psi("<<i<<")="<<"("<<Psi[i].n(SGF::LEFT)<<","<<Psi[i].n(SGF::RIGHT)<<","<<Psi[i].nmax()<<")"<<std::endl;
     }
 
 
@@ -99,12 +99,12 @@ public:
       else
         Kinetic.push_back(Term);
 
-      std::cout<<Term.delta()<<", "<<Term.diagonal()<<", "<<Term.length()<<std::endl;
+      cout<<Term.delta()<<", "<<Term.diagonal()<<", "<<Term.length()<<std::endl;
 
     }
  
-    std::cout<<"__ Number of Kinetic Terms "<<Kinetic.size()<<std::endl;
-    std::cout<<"__ Number of Potential Terms "<<Potential.size()<<std::endl;
+    cout<<"__ Number of Kinetic Terms "<<Kinetic.size()<<std::endl;
+    cout<<"__ Number of Potential Terms "<<Potential.size()<<std::endl;
 
 
   }

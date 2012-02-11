@@ -24,7 +24,26 @@
 #include <cstring>
 #include <limits>
 
-using namespace std;
+
+#ifdef USEMPI
+// *******************************************
+// * Declaration of global variables for MPI *
+// *******************************************
+#include <mpi.h>
+#define Master 0
+int NumProcessors,Rank,NameLength;
+char ProcessorName[MPI_MAX_PROCESSOR_NAME];
+
+#endif
+
+std::ostream cout(std::cout.rdbuf());
+using std::endl;
+using std::string;
+using std::fstream;
+using std::ios;
+using std::streamoff;
+using std::ostream;
+using std::numeric_limits;
 
 // **********************
 // * Personal libraries *
@@ -40,12 +59,72 @@ using namespace std;
 #include <Measurable.hh>
 #include <Simulation.h>
 
+
+void Simulator() {
+
+	SGFContainer Container;
+	int GreenOperatorLines=Container.GreenOperatorLines();
+
+	const SGF::Hamiltonian &T=Container.Kinetic();
+	const SGF::Hamiltonian &V=Container.Potential();
+	double Beta=Container.Beta();
+	double AlphaParameter=Container.AlphaParameter();
+
+	SGF::OperatorStringType OperatorString(T,V,Beta);
+	OperatorString.alpha()=AlphaParameter;
+	OperatorString.alpha(SGF::ADD)=AlphaParameter;
+	OperatorString.alpha(SGF::REMOVE)=AlphaParameter;
+	OperatorString.GreenInit(Container.NSites(),GreenOperatorLines);
+
+
+	/* Initializing the simulation. Thermalize, Measure and pring the results */
+	Simulation simul;
+
+	// We start warm up iterations
+	simul.Thermalize(OperatorString);
+
+	// This defines the measurable objects some of which delay updates even if not measured.
+	// This is why I declare the measurable operators after the thermalization.
+	SGF::Measurable MeasuredOperators(OperatorString);
+	MeasuredOperators.insert(MathExpression::GetMeasurableList(),Container.MeasurableOperators());
+  
+	//We start measurement iterations
+	simul.Measure(OperatorString,MeasuredOperators);
+  
+	// We diplay the results of the simulation
+	simul.Results(MeasuredOperators);
+
+}
+
+int finish() {
+#ifdef USEMPI
+	MPI_Finalize();
+#endif
+	return 0;
+}
+
 // ***************************
 // * Here starts the program *
 // ***************************
 
 int main(int NumArg,char **Arg)
   {
+
+#ifdef USEMPI
+    // ***********************************
+    // * Initialization of MPI functions *
+    // ***********************************
+    
+    MPI_Init(&NumArg,&Arg);
+    MPI_Comm_size(MPI_COMM_WORLD,&NumProcessors);
+    MPI_Comm_rank(MPI_COMM_WORLD,&Rank);
+    MPI_Get_processor_name(ProcessorName,&NameLength);
+
+		// Silence the other nodes. Only the root node can print
+		cout.rdbuf( Rank==Master ? std::cout.rdbuf() : 0 );
+ 
+#endif
+
     // *********************************************************************************
     // * We check the command line. If it is not correct, a help message is displayed. *
     // *********************************************************************************
@@ -54,7 +133,7 @@ int main(int NumArg,char **Arg)
     
     switch (CheckCommandLine(NumArg,Arg))
       {
-        case 0: return 0;               // Simulation is aborded.
+        case 0: return finish();        // Simulation is aborded.
         case 1: File=Arg[1]; break;     // Command line is correct and requests to start the simulation.
         case 2: File=Arg[2]; break;     // Command line is correct and requests to display Hamiltonian terms.
         case 3: File=Arg[3]; break;     // Command line is correct and requests to display a specified quantity.
@@ -69,7 +148,7 @@ int main(int NumArg,char **Arg)
     if ((Error=Parser::ReadFile(File)))
       {
         cout << Error << endl;
-        return 0;
+        return finish();
       }
       
     // ********************************************************
@@ -81,7 +160,7 @@ int main(int NumArg,char **Arg)
     if ((Error=ScriptSGF.ReadTokens()))
       {
         cout << Error << endl;
-        return 0;
+        return finish();
       }
 
     MathExpression::Initialize();	// We initialize the table of symbols with keywords and constants.
@@ -93,7 +172,7 @@ int main(int NumArg,char **Arg)
     if ((Error=ScriptSGF.ExecuteCommands()))
       {
         cout << Error << endl;
-        return 0;
+        return finish();
       }
     
     // ************************************************
@@ -103,7 +182,7 @@ int main(int NumArg,char **Arg)
     if ((Error=MathExpression::BuildHamiltonian()))
       {
         cout << Error << endl;
-        return 0;
+        return finish();
       }
       
     if (File==Arg[1])
@@ -115,43 +194,10 @@ int main(int NumArg,char **Arg)
         if ((Error=MathExpression::SignOrPhaseProblem()))
           {
             cout << Error << endl;      // A sign or a phase problem has been detected. A warning message
-            return 0;                   // is displayed and the simulation is aborded.
+            return finish();                   // is displayed and the simulation is aborded.
           }
 
-// *****************************
-// * Dimitris's temporary code *
-// *****************************
-// _____________________________________________________________________
-SGFContainer Container;
-int GreenOperatorLines=Container.GreenOperatorLines();
-
-const SGF::Hamiltonian &T=Container.Kinetic();
-const SGF::Hamiltonian &V=Container.Potential();
-double Beta=Container.Beta();
-SGF::OperatorStringType OperatorString(T,V,Beta);
-double AlphaParameter=Container.AlphaParameter();
-OperatorString.alpha()=AlphaParameter;
-OperatorString.alpha(SGF::ADD)=AlphaParameter;
-OperatorString.alpha(SGF::REMOVE)=AlphaParameter;
-OperatorString.GreenInit(Container.NSites(),GreenOperatorLines);
-
-// _____________________________________________________________________
-
-
-/* Initializing the simulation. Thermalize, Measure and pring the results */
-Simulation simul;
-    
-simul.Thermalize(OperatorString);                 // We start warm up iterations.
-
-// This defines the measurable objects some of which delay updates even if not measured.
-// This is why I declare the measurable operators after the thermalization.
-SGF::Measurable MeasuredOperators(OperatorString);
-MeasuredOperators.insert(MathExpression::GetMeasurableList(),Container.MeasurableOperators());
-
-simul.Measure(OperatorString,MeasuredOperators);  									// We start measurement iterations.
-
-simul.Results(MeasuredOperators);                    // We display the results of simulation.
-
+					Simulator();
 
       }
       
@@ -170,5 +216,5 @@ simul.Results(MeasuredOperators);                    // We display the results o
           cout << StrError << endl;
       }
 
-    return 0;
+    return finish();
   }

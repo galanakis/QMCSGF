@@ -63,7 +63,7 @@ public:
 
 #ifdef DEBUG    
     if(particle->n(direction)==0 && delta()*Sign[action==direction]<0) {
-      std::cout<<"Error: Negative occupancy encountered."<<std::endl;
+      cout<<"Error: Negative occupancy encountered."<<std::endl;
       exit(2);
     }
 #endif

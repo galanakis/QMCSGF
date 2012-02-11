@@ -11,6 +11,11 @@ task :release do
   puts cmd="/opt/intel/composerxe/bin/icc -fast -fp-model precise -Wall #{Flags} #{Include} #{Source} -o #{Executable}"
   puts %x{#{cmd}}
 end 
+task :mpi do
+ puts cmd="mpicxx -cxx=icc -fast -Wall -DDEBUG -DUSEMPI #{Flags} #{Include} #{Source} -o #{Executable}"
+ puts %x{#{cmd}}
+end
+
 task :clang do
  git_version=%x{git rev-parse HEAD}
  cmd="clang++ -O3 -Wall -DDEBUG #{Flags} #{Include} #{Source} -o #{Executable}"

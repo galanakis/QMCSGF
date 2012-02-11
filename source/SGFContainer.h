@@ -32,26 +32,26 @@ public:
   
   inline void print_term(const SGF::HamiltonianTerm &term) const {
     char name[100][10]={"","","A","C","AA","AC","CA","CC","AAA","AAC","ACA","ACC","CAA","CAC","CCA","CCC","AAAA","AAAC","AACA","AACC","ACAA","ACAC","ACCA","ACCC","CAAA","CAAC","CACA","CACC","CCAA","CCAC","CCCA","CCCC",};
-    std::cout<<(term.coefficient())<<"*";
+    cout<<(term.coefficient())<<"*";
     for(SGF::HamiltonianTerm::size_type i=0;i<term.product().size();++i) {
       long index=term.product()[i].particle_id()-&_Psi[0];
       int prodelem=term.product()[i].id();
-      std::cout<<name[prodelem]<<"["<<index<<"]";
+      cout<<name[prodelem]<<"["<<index<<"]";
     }
     char dname[2][30]={"Non diagonal","Diagonal"};
-    std::cout<<"\t"<<dname[term.diagonal()]<<std::endl;
+    cout<<"\t"<<dname[term.diagonal()]<<std::endl;
   }
  
   inline void explicit_print_term(const SGF::HamiltonianTerm &term)  {
     char name[100][10]={"","","A","C","AA","AC","CA","CC","AAA","AAC","ACA","ACC","CAA","CAC","CCA","CCC","AAAA","AAAC","AACA","AACC","ACAA","ACAC","ACCA","ACCC","CAAA","CAAC","CACA","CACC","CCAA","CCAC","CCCA","CCCC",};
-    std::cout<<(term.coefficient())<<"*";
+    cout<<(term.coefficient())<<"*";
     for(SGF::HamiltonianTerm::size_type i=0;i<term.product().size();++i) {
       long index=term.product()[i].particle_id()-&_Psi[0];
       int prodelem=term.product()[i].id();
-      std::cout<<name[prodelem]<<"["<<index<<"->("<<_Psi[index].n(SGF::LEFT)<<","<<_Psi[index].n(SGF::RIGHT)<<","<<_Psi[index].nmax()<<")] ";
+      cout<<name[prodelem]<<"["<<index<<"->("<<_Psi[index].n(SGF::LEFT)<<","<<_Psi[index].n(SGF::RIGHT)<<","<<_Psi[index].nmax()<<")] ";
     }
     char dname[2][30]={"Non diagonal","Diagonal"};
-    std::cout<<"\t(meL,meR): "<<term.me(SGF::LEFT)<<","<<term.me(SGF::RIGHT)<<")\t"<<dname[term.diagonal()]<<std::endl;
+    cout<<"\t(meL,meR): "<<term.me(SGF::LEFT)<<","<<term.me(SGF::RIGHT)<<")\t"<<dname[term.diagonal()]<<std::endl;
   }
 
 
@@ -168,7 +168,7 @@ public:
   inline int NSites() const {return EasyMathExpression::NSites();}
   void print_matrix_elements() {
     for(SGF::Hamiltonian::size_type i=0;i<Kinetic().size();++i) {
-      std::cout<<"i="<<i<<" LEFT "<<Kinetic()[i].me(SGF::LEFT)<<" RIGHT "<<Kinetic()[i].me(SGF::RIGHT)<<std::endl;
+      cout<<"i="<<i<<" LEFT "<<Kinetic()[i].me(SGF::LEFT)<<" RIGHT "<<Kinetic()[i].me(SGF::RIGHT)<<std::endl;
     }
   }
 
