@@ -258,6 +258,34 @@ public:
 };
 
 /*
+	class TermCount
+	
+	measures how many times each operator gets inserted minus the times 
+	it is removed from the right of the GreenOperator.
+	
+*/
+ 
+class TermCount : public UpdatableObject {
+
+	const HamiltonianTerm * Kinetic0;
+	typedef std::vector<long> count_type;
+	typedef count_type::iterator iterator;
+	count_type _count;
+
+public:
+	TermCount(const Hamiltonian &T) : _count(T.size()), Kinetic0(&T[0]) { reset(); }
+	
+	inline void update(const HamiltonianTerm* term,int rl,int ar) { if(rl==RIGHT) _count[term-Kinetic0]+=Sign[ar]; }
+
+	inline void reset() {
+		for(iterator ptr=_count.begin(); ptr!=_count.end(); ++ptr)
+			*ptr=0;
+	}
+	
+};
+
+
+/*
 
 	class PotentialEnergies
 	

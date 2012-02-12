@@ -63,7 +63,7 @@ public:
 
 #ifdef DEBUG    
     if(particle->n(direction)==0 && delta()*Sign[action==direction]<0) {
-      cout<<"Error: Negative occupancy encountered."<<std::endl;
+      std::cerr<<"Error: Negative occupancy encountered."<<std::endl;
       exit(2);
     }
 #endif
@@ -71,6 +71,8 @@ public:
     particle->n(direction) += delta()*Sign[action==direction];
      
   }
+
+	inline bool match() const { return particle->n(RIGHT)+delta()==particle->n(LEFT);}
   
   inline int maxoffset() const { return Abs(delta()); }
   inline int minoffset() const {
@@ -146,6 +148,13 @@ public:
       result+=abs(_product[i].delta());
     return result==0;         
   }
+
+	inline bool match() const {
+    bool result=true;
+    for(size_type i=0;i<_product.size();++i)
+      result=result && _product[i].match();
+    return result;         		
+	}
 
   /* The total number of creation and annihilation operators */
   inline int length() const {

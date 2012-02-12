@@ -38,7 +38,7 @@ public:
 
   void initialize(unsigned long _nsites,unsigned int _cutoff) {
     if(_nsites==0) {
-      cout<<"Number of sites cannot be zero"<<std::endl;
+      std::cerr<<"Number of sites cannot be zero"<<std::endl;
       exit(123);
     }
     cache.clear();

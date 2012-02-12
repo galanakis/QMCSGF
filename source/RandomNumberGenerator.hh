@@ -81,7 +81,7 @@ public:
 #endif
     Seed=S;
     if(S==0) {
-      cout<<"Error in RNG::Initialize: The initialization seed cannot be zero."<<std::endl;
+      std::cerr<<"Error in RNG::Initialize: The initialization seed cannot be zero."<<std::endl;
       exit(1);
     }
     for (int i=0;i<1000;++i)

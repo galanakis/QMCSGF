@@ -71,8 +71,16 @@ public:
 
 	inline void measure(const KeyType &key,double Weight) {
 		equal_range_type equal_range=_multimap.equal_range(key);
-		for(multimap_type::iterator it=equal_range.first; it!=equal_range.second; ++it) 
-			it->second.buffer += it->second.term.me(RIGHT)*Weight;
+		for(multimap_type::iterator it=equal_range.first; it!=equal_range.second; ++it) {
+#ifdef DEBUG
+      if(! it->second.term.match()) {
+				std::cerr<<"Operator does not match with the broken lines"<<std::endl;
+				exit(333);
+			}
+#endif			
+			
+			it->second.buffer += it->second.term.me(RIGHT)*Weight; 
+		}
 	}
 
 	inline void reset() {
