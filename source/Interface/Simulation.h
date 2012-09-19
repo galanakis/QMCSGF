@@ -97,8 +97,6 @@ public:
 	{
 		FileNameProgressBar pbar("Thermalizing");
 
-		const unsigned int AlphaUpdatePeriod=100000;
-
 		clock_t StartTime=clock();
 		clock_t EndTime=StartTime+WarmTime*CLOCKS_PER_SEC;
 		clock_t Now=StartTime;
@@ -111,7 +109,6 @@ public:
 			do {
 				NumWarmUpdates+=OpString.directed_update();
 				++NumDirectedWarmUpdates;
-				if (NumDirectedWarmUpdates%AlphaUpdatePeriod==(AlphaUpdatePeriod-1)) OpString.AlphaUpdate();     
 			} while(OpString.NBrokenLines()!=0);
 
 

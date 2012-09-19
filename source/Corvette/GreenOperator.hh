@@ -30,7 +30,8 @@ public:
     return result; 
   }
 public:
-  GreenOperator() {}
+  GreenOperator() {} 
+	GreenOperator(const GreenOperator &o) : cache(o.cache) {}
 	GreenOperator(unsigned long _nsites,unsigned int _cutoff) { initialize(_nsites,_cutoff); }
   inline T operator()(unsigned int n) const { 
     return (n<cache.size())?cache[n]:0.0; 

@@ -57,7 +57,7 @@ using std::numeric_limits;
 #include <SGFContainer.h>
 #include <OperatorString.hh>
 #include <Measurable.hh>
-#include <Simulation.h>
+#include <Simulation.h> 
 
 
 void Simulator() {
@@ -69,13 +69,10 @@ void Simulator() {
 	const SGF::Hamiltonian &V=Container.Potential();
 	double Beta=Container.Beta();
 	double AlphaParameter=Container.AlphaParameter();
+	SGF::GreenOperator<long double> g(Container.NSites(),GreenOperatorLines);
 
-	SGF::OperatorStringType OperatorString(T,V,Beta);
-	OperatorString.alpha()=AlphaParameter;
-	OperatorString.alpha(SGF::ADD)=AlphaParameter;
-	OperatorString.alpha(SGF::REMOVE)=AlphaParameter;
-	OperatorString.GreenInit(Container.NSites(),GreenOperatorLines);
 
+	SGF::OperatorStringType OperatorString(T,V,Beta,g,AlphaParameter);
 
 	/* Initializing the simulation. Thermalize, Measure and pring the results */
 	Simulation simul;

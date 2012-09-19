@@ -480,11 +480,10 @@ protected:
 
 		
 public:
-	Probabilities(const Hamiltonian &T,const Hamiltonian &P) : Configuration(T), Trees(T), Energy(T,P) {
+	Probabilities(const Hamiltonian &T,const Hamiltonian &P,const GreenOperator<long double> &g) : Configuration(T), Trees(T), Energy(T,P), GF(g) {
 		_NBWL=CountBrokenLines();
 	}
  
-	inline void GreenInit(int nsites,int cutoff) {GF.initialize(nsites,cutoff);}
   inline MatrixElement G(int offset=0) const {return GF(NBrokenLines()+offset);}  // The value of the Green Operator given the total broken lines and the offset.
 
 

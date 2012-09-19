@@ -105,6 +105,10 @@ typedef RNGLC RNGBase;
 
 
 class RNG : public RNGBase {
+	
+// This variables are used by Exponential(double)
+	static double Lg1,Lg2,Lg3,Lg4,Lg5,Lg6,Lg7;
+	
 public:
 // Initialize the random number generator with a non zero seed. 
   static void Initialize(int S) {RNGBase::Initialize(S);};
@@ -114,20 +118,108 @@ public:
   inline static double NZUniform() {return RNGBase::NZUniform();};
 // Returns 0 or 1 with relative probabilities a and b respectively 
   static inline int CoinFlip(double a,double b) { return (a+b)*Uniform()<b;}
-// Returns a number with relative distribution exp(-A x)
-  static inline double Exponential(double A) { return -log(1.0-Uniform())/A; }
-  static inline double Exponential(double A,double T) {
+// Returns a number with relative distribution exp(-x)
+  static inline double Exponential() { return -log(1.0-Uniform()); } 
+// Returns a number in the interval [0,1[ with distribution exp(-A x) and A>0 
+	static inline double Exponential(double A);
+// Returns a number in the interval ]0,1[ with distribution exp(-A x) and A>0 
+	static inline double NZExponential(double A) {
+		double result=0;
+    do { result=Exponential(A); } while(result==0);
+    return result;
+	}
 
-    if (fabs(A*T)<0.000001)
-      return T*Uniform();
-
-    if (A*T<-20.0)
-      return T*Uniform();
-
-    double Temp=exp(-A*T);
-    return -log((1.0-Uniform())*(1.0-Temp)+Temp)/A;
-  }
 };
+
+
+/*
+	It returns a number x in the interval [0,1) which includes zero and excludes 1.
+	The probability distribution on this interval is exp(-Lx).
+	Formally it returns
+	-log(1-r*(1-exp(-L)))
+	where is a random number chosen uniformly from the interval [0,1).
+	The algorithm is based on bisecting the interval [0,1)
+	repeatedly until it's width is smaller than a cutoff
+	and the use a fast polynomial approximation.
+   
+  
+ 	At first the interval is bisected repeatedly. In the first iteration
+	the relative weigth of the leftmost interval (the one that contains zero)
+	is 1 and the weight of the rightmost is exp(-L/2). If (1+exp(-L/2))*r<1
+	then the left interval is selected. The index i is the index of the
+	interval and takes values between 0 and 2^k-1 where k is the number
+	of bisections. The index n=2^k. The bisections continue until the 
+	width L<T.
+  
+	At that point the interval which starts at i/n has been selected
+	and we need to proceed by selecting one number in this interval. 
+	Next we need to pick a number in the interval [0,L]
+	We can use the formula X=-log(1-r(1-exp(-L)))/L, but we can Taylor expand it in a smart way. 
+	Let u=r(1-exp(-L)) and s=u/(2-u) such that 1-u=(1-s)/(1+s)
+	Then 
+	-log(1-u)=log(1+s)-log(1-s)=2*s(1+s^2/3+s^4/5...)=2*s+s*R 
+	where R has only even powers. Then I follow http://www.netlib.org/fdlibm/e_log.c
+	where R is approximated by a 14 order polynomial such that in the s interval 
+	[0,0.1716] the accuracy is better than 2**-58.45. This corresponds to
+	L<0.346629.
+
+	Finally if we let a=(1-exp(-L))/L;
+	X=r*a/L(2+R)/(2-u) 
+	where all the quantities are finite for small values of L.
+
+	To calculate "a" without floating point errors we use the identity
+	a=2*exp(-L/2)sinh(L/2)/L
+	We then only need to check if L==0.
+	
+
+*/
+
+
+double RNG::Lg1 = 6.666666666666735130e-01;
+double RNG::Lg2 = 3.999999999940941908e-01;
+double RNG::Lg3 = 2.857142874366239149e-01;
+double RNG::Lg4 = 2.222219843214978396e-01;
+double RNG::Lg5 = 1.818357216161805012e-01;
+double RNG::Lg6 = 1.531383769920937332e-01;
+double RNG::Lg7 = 1.479819860511658591e-01;
+
+
+inline double RNG::Exponential(double L) {	
+ 	
+	
+	// Do not dare to touch this before you read the documentation above.
+	const double T=0.346629;
+
+	unsigned long n=1;  
+	unsigned long i=0;
+	
+	while(L>=T) {
+		
+		L/=2;
+    
+		i<<=1;
+		double r=Uniform();
+		// This can also be written as exp(L)<=r/(1-r)  2*exp(-L/2)*cosh(L/2)*Uniform()>=1 			
+		if(exp(L)<=r/(1-r))
+			i+=1;		 
+		
+		n<<=1;
+		
+	}
+  
+		
+	double r=Uniform();
+	double u=r*(1-exp(-L));
+	double s=u/(2-u);
+	double ss=s*s;
+	double a= (L==0) ? exp(-L/2) : 2*exp(-L/2)*sinh(L/2)/L;
+	
+	double R=((((((ss*Lg7+Lg6)*ss+Lg5)*ss+Lg4)*ss+Lg3)*ss+Lg2)*ss+Lg1)*ss;
+	
+	return (i+r*a*(2+R)/(2-u))/n;
+	
+	
+}
 
 
 
