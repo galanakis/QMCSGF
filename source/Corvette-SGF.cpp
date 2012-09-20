@@ -89,8 +89,8 @@ void Simulator() {
 	simul.Measure(OperatorString,MeasuredOperators);
   
 	// We diplay the results of the simulation
-	simul.Results(MeasuredOperators);
-
+	simul.Results(MeasuredOperators);  
+	
 }
 
 int finish() {

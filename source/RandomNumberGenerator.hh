@@ -108,7 +108,7 @@ class RNG : public RNGBase {
 	
 // This variables are used by Exponential(double)
 	static double Lg1,Lg2,Lg3,Lg4,Lg5,Lg6,Lg7;
-	
+	inline static double ExponentialHelper(double r,double L);	
 public:
 // Initialize the random number generator with a non zero seed. 
   static void Initialize(int S) {RNGBase::Initialize(S);};
@@ -120,9 +120,9 @@ public:
   static inline int CoinFlip(double a,double b) { return (a+b)*Uniform()<b;}
 // Returns a number with relative distribution exp(-x)
   static inline double Exponential() { return -log(1.0-Uniform()); } 
-// Returns a number in the interval [0,1[ with distribution exp(-A x) and A>0 
+// Returns a number in the interval [0,1[ with distribution exp(A x)
 	static inline double Exponential(double A);
-// Returns a number in the interval ]0,1[ with distribution exp(-A x) and A>0 
+// Returns a number in the interval ]0,1[ with distribution exp(A x)
 	static inline double NZExponential(double A) {
 		double result=0;
     do { result=Exponential(A); } while(result==0);
@@ -133,10 +133,15 @@ public:
 
 
 /*
+
+* Note this documentation is not updated
+*	The ExponentialHelper returns -log(1-r*(1-exp(-L)))/L
+* but the exponential returns log(1-r*(1-exp(L)))/L (so it differs in the sign).
+
 	It returns a number x in the interval [0,1) which includes zero and excludes 1.
 	The probability distribution on this interval is exp(-Lx).
 	Formally it returns
-	-log(1-r*(1-exp(-L)))
+	-log(1-r*(1-exp(-L)))/L
 	where is a random number chosen uniformly from the interval [0,1).
 	The algorithm is based on bisecting the interval [0,1)
 	repeatedly until it's width is smaller than a cutoff
@@ -171,6 +176,14 @@ public:
 	a=2*exp(-L/2)sinh(L/2)/L
 	We then only need to check if L==0.
 	
+ 
+	Note. In the above derivation we assume that L>0.
+	In the case of L<0 we have the distribution
+	-log(1-r*(1-exp(-L)))/L = 1+log(1-(1-r)(1-exp(L)))/L
+	= 1-log(1-(1-r)(1-exp(-|L|)))/|L|
+  So all we need to do is flip the result and the 
+	uniform random number generator.
+
 
 */
 
@@ -184,39 +197,46 @@ double RNG::Lg6 = 1.531383769920937332e-01;
 double RNG::Lg7 = 1.479819860511658591e-01;
 
 
+/* 
+	In this function r is the uniform random generator
+	and 0<L<0.346629.
+	It calculates accurately the expression
+	-log(1-r*(1-exp(-L)))/L
+*/
+inline double RNG::ExponentialHelper(double r,double L) {
+	double u=r*(1-exp(L));
+	double s=u/(2-u);
+	double ss=s*s;
+	double R=((((((ss*Lg7+Lg6)*ss+Lg5)*ss+Lg4)*ss+Lg3)*ss+Lg2)*ss+Lg1)*ss;
+	double a= (L==0) ? exp(L/2) : 2*exp(L/2)*sinh(L/2)/L;
+	return r*a*(2+R)/(2-u);
+}
+
 inline double RNG::Exponential(double L) {	
  	
-	
 	// Do not dare to touch this before you read the documentation above.
 	const double T=0.346629;
 
 	unsigned long n=1;  
 	unsigned long i=0;
 	
-	while(L>=T) {
+	while(fabs(L)>=T) {
 		
 		L/=2;
     
 		i<<=1;
 		double r=Uniform();
-		// This can also be written as exp(L)<=r/(1-r)  2*exp(-L/2)*cosh(L/2)*Uniform()>=1 			
-		if(exp(L)<=r/(1-r))
+		if(exp(-L)<=r/(1-r))
 			i+=1;		 
 		
 		n<<=1;
 		
 	}
-  
-		
-	double r=Uniform();
-	double u=r*(1-exp(-L));
-	double s=u/(2-u);
-	double ss=s*s;
-	double a= (L==0) ? exp(-L/2) : 2*exp(-L/2)*sinh(L/2)/L;
-	
-	double R=((((((ss*Lg7+Lg6)*ss+Lg5)*ss+Lg4)*ss+Lg3)*ss+Lg2)*ss+Lg1)*ss;
-	
-	return (i+r*a*(2+R)/(2-u))/n;
+  double r=Uniform();
+	if(L>0)
+		return (i+ExponentialHelper(r,L))/n;
+	else
+		return (i+1-ExponentialHelper(1-r,-L))/n; 
 	
 	
 }
