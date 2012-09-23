@@ -89,18 +89,17 @@ class OperatorStringType : public CircDList<Operator>, public Probabilities {
 	_float_accumulator _diagonal_energy; // Keeps track of the diagonal energy
 
 	inline _float_accumulator delta_diagonal(const int &direction) const { return (length()>=2) ? top(direction,direction).Energy*(top(direction,!direction).Time-top(direction,direction).Time).time() : 0;  }
-	inline double ER_Dtau() const {return empty() ? 0 : Energy(RIGHT)*(top(LEFT).Time-top(RIGHT).Time).time();}
+	inline double ER_Dtau() const {return empty() ? Energy(RIGHT) : Energy(RIGHT)*(top(LEFT).Time-top(RIGHT).Time).time();}
 	
 
 	// Calculates the diagonal energy by doing the time integral explicitly.
 	inline double GetDiagonalEnergy() const {
-		if(empty()) 
-			return 0;
 		
 		_float_accumulator result=0;
-		for(unsigned int i=0;i<length()-1;++i) 
+		for(unsigned int i=0;i+1<length();++i) {
 			result+=que[i+1].Energy*(que[i].Time-que[i+1].Time).time();
-			
+		}
+
 		return ER_Dtau()+result;
 	}  
 	
@@ -245,14 +244,6 @@ class OperatorStringType : public CircDList<Operator>, public Probabilities {
 	
 public:
 
-
-	void print_times() const {
-
-		//for(unsigned int i=0;i<length();++i) 
-		//	std::cout<<que[i].Time<<std::endl;
-		
-		
-	}
 
   OperatorStringType(const Hamiltonian &T,const Hamiltonian &V,double beta,GreenOperator<long double> &g,double alpha) : CircDList<Operator>(), Probabilities(T,V,g), _Beta(beta), _Alpha(alpha) {
 		_diagonal_energy=0;
