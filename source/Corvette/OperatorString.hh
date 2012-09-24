@@ -106,9 +106,6 @@ class OperatorStringType : public CircDList<Operator>, public Probabilities {
   inline double DeltaV() const {return Energy(LEFT)-Energy(RIGHT);} // The difference between the energies
   inline double DeltaTau() const { return Beta()*(top(LEFT).Time-top(RIGHT).Time).time(); }
 
-	// This returns log(1-x*(1-exp(A)))/A which is a monotonic function between 0 and 1 if x is in the same interval
-	inline static long double logexponential(long double A,long double x) { return fabs(A)<0.000000001?x:log(1.0L-x*(1.0L-exp(A)))/A; }
-  
  	inline CircularTime newtime() const {
 		if(empty())
 			return 1;
@@ -118,7 +115,6 @@ class OperatorStringType : public CircDList<Operator>, public Probabilities {
 
 			double dt=(TL-TR).time();
 			double L=dt*Beta()*DeltaV();
-			double r=RNG::NZUniform();
      
 			return TR+dt*RNG::NZExponential(L);
 							
@@ -296,9 +292,19 @@ public:
   		if( TotalWeight*RNG::Uniform()<WC[direction]) {
 				// Create an operator behind the Green operator
 		    const HamiltonianTerm *term=choose(opposite_direction);
-		    push(opposite_direction,Operator(newtime(),term,Energy(opposite_direction)));
-				_diagonal_energy += delta_diagonal(opposite_direction);
-		    update(term,opposite_direction,ADD);		
+				CircularTime tau=newtime();         
+				
+				if(direction==LEFT) {
+			    update(term,opposite_direction,ADD);		
+			    push(opposite_direction,Operator(tau,term,Energy(opposite_direction)));
+					_diagonal_energy += delta_diagonal(opposite_direction);
+				}
+				else {
+			    push(opposite_direction,Operator(tau,term,Energy(opposite_direction)));
+					_diagonal_energy += delta_diagonal(opposite_direction);					
+			    update(term,opposite_direction,ADD);		
+				}
+				
 			}
 			else {
         // Destroy the operator in the front of the Green operator
