@@ -1389,7 +1389,7 @@ class MathExpression
     static Symbol *First,*Last;
     static Pair *FirstPair,*LastPair;
     static Species *FirstSpecies,*LastSpecies;
-    static std::vector <string> MeasurableList;
+    static std::vector <std::string> MeasurableList;
     Node *Root;
     
     static void LocalizedError(const char *Message,Parser::TokenHandle Op)
@@ -2218,7 +2218,7 @@ class MathExpression
           Symbol::AddConstant("Open",1);
 	  Symbol::AddConstant("Pi",3.1415926535897932384626433832795);
 	  Symbol::AddConstant("SquareRootOfMinusOne",I);
-	  Symbol::AddConstant("Infinity",numeric_limits<double>::infinity());
+	  Symbol::AddConstant("Infinity",std::numeric_limits<double>::infinity());
 
 //Symbol::AddConstant("RebuildFrequency",100000000);
 //cout << "MERDE" << endl;
@@ -2395,7 +2395,7 @@ class MathExpression
 		
           double Temp=GetValue("######").Re();
           
-          if (Temp==numeric_limits<double>::infinity())
+          if (Temp==std::numeric_limits<double>::infinity())
 	    LastSpecies->Max=0;
           else
             LastSpecies->Max=(unsigned int) Temp;
@@ -2450,12 +2450,12 @@ class MathExpression
 	  return NULL;
 	}
 
-      static string DisplayQuantity(const char *Name)
+      static std::string DisplayQuantity(const char *Name)
 	{
 	  Symbol *Sym=Find(Name);
 
           if (!Sym)
-            return string("The quantity ")+string(Name)+string(" has not been defined!");
+            return std::string("The quantity ")+std::string(Name)+std::string(" has not been defined!");
 	  
           BuildMeasurable(Name);                                // Name of function is not consistent
           cout << "Displaying quantity " << Name << "\n";
@@ -2644,7 +2644,7 @@ class MathExpression
         }
 
 
-      static std::vector<string> &GetMeasurableList()
+      static std::vector<std::string> &GetMeasurableList()
 	{
 	  return MeasurableList;
 	}
@@ -2707,6 +2707,6 @@ MathExpression::Pair *MathExpression::FirstPair=NULL;
 MathExpression::Pair *MathExpression::LastPair=NULL;
 MathExpression::Species *MathExpression::FirstSpecies=NULL;
 MathExpression::Species *MathExpression::LastSpecies=NULL;
-std::vector<string> MathExpression::MeasurableList;
+std::vector<std::string> MathExpression::MeasurableList;
 
 #endif

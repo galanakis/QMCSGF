@@ -62,6 +62,8 @@
 
 #ifndef ParserSGFDef
 #define ParserSGFDef
+#include <Parser.h>
+#include <MathExpression.h>
 
 class ParserSGF
   {

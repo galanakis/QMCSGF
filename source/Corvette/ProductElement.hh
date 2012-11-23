@@ -66,9 +66,9 @@ public:
   inline uint &id() {return _caprod;};
   inline const uint &id() const {return _caprod;};
 
-  inline uint length() const {return ProductElement::Length(_caprod);}
-  inline int delta() const {return ProductElement::Delta(_caprod);} 
-  inline int maxdelta() const {return ProductElement::MaxDelta(_caprod);}
+  inline uint length() const {return Length(_caprod);}
+  inline int delta() const {return Delta(_caprod);} 
+  inline int maxdelta() const {return MaxDelta(_caprod);}
   inline uint count(int optype) {return (length()+delta()*Sign[optype])/2;}
   inline uint amplitude(int n,int nmax) const {return (nmax!=0 && maxdelta()+n>nmax)?0:ProductElement::Amplitude(_caprod,n);}
   inline int offset(int dn) const {return Abs(dn+delta())-Abs(dn);} // The offset of the operator for occupancy difference dn=NR-NL

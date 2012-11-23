@@ -14,7 +14,7 @@
 // *   Come on! Bugs do not exist in an SGF engine!!!                                                  *
 // *****************************************************************************************************
 
-#define Version "1.0 (May 10th, 2011)"
+
 
 // **********************
 // * Standard libraries *
@@ -89,7 +89,7 @@ void Simulator() {
 	simul.Measure(OperatorString,MeasuredOperators);
   
 	// We diplay the results of the simulation
-	simul.Results(MeasuredOperators);  
+	simul.Results(cout,MeasuredOperators);  
 	
 }
 

@@ -1,6 +1,7 @@
 #ifndef __GREENOPERATOR__
 #define __GREENOPERATOR__
 
+#include <iostream>
 #include <cmath>
 #include <vector>
 #include "Conventions.hh"

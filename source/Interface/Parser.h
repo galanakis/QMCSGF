@@ -120,9 +120,16 @@
 #ifndef ParserDef
 #define ParserDef
 
+#include <Parser.h>
 #include <fstream>
 #include <vector>
 #include <string>
+
+extern std::ostream cout;
+using std::endl;
+using std::fstream;
+using std::streamoff;
+using std::ios;
 
 class Parser
 {

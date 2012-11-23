@@ -2,6 +2,9 @@ Include="-Isource/Interface -Isource/Corvette -Isource"
 Executable="corvette"+"."+%x{uname}
 Source="source/Corvette-SGF.cpp"
 Flags="-DRNG_MT -DCMDLINEPROGRESS"
+BinPrefix=File.expand_path('~/')+"/.bin"
+
+require 'fileutils'
 
 task :default do
  puts cmd="/opt/intel/composerxe/bin/icc -fast -fp-model precise -Wall -DDEBUG #{Flags} #{Include} #{Source} -o #{Executable}"
@@ -28,4 +31,5 @@ task :gcc do
  puts cmd
  puts %x{#{cmd}}
 end
+
 

@@ -1,5 +1,8 @@
 #include <fstream>
 #include <ctime>
+#include <MathExpression.h>
+#include <OperatorString.hh>
+#include <Measurable.hh>
 
 template<class T> T Min(const T &a,const T &b) {return (a<b)?a:b;} 
 template<class T> T Max(const T &a,const T &b) {return (a>b)?a:b;} 
@@ -18,8 +21,8 @@ public:
 		strcpy(Status+strlen(Status),append.c_str());
 		Ptr=Status+strlen(Status);   
 		sprintf(Ptr," - 000 - 000h 00m 00s");     
-		fstream File;
-		File.open(Status,ios::out);
+		std::fstream File;
+		File.open(Status,std::ios::out);
 		File.close();    
 	}
 	~FileNameProgressBar() {
@@ -36,15 +39,15 @@ public:
 		if(static_cast<int>(100*(prog-Progress))!=0) {
 			clock_t Now=clock();
 			double DeltaSeconds=double(Now-Time)/CLOCKS_PER_SEC;
-			unsigned int Speed=static_cast<unsigned int>((NewNumUpdates-NumUpdates)/DeltaSeconds);
-			unsigned int SecondsLeft=(1-prog)*DeltaSeconds/(prog-Progress);
+			int Speed=static_cast<unsigned int>((NewNumUpdates-NumUpdates)/DeltaSeconds);
+			int SecondsLeft=(1-prog)*DeltaSeconds/(prog-Progress);
 			Time=Now;
 			Progress=prog;
 			NumUpdates=NewNumUpdates;
 
-			unsigned int HoursLeft=SecondsLeft/3600;
+			int HoursLeft=SecondsLeft/3600;
 			SecondsLeft%=3600;
-			unsigned int MinutesLeft=SecondsLeft/60;
+			int MinutesLeft=SecondsLeft/60;
 			SecondsLeft%=60;
 
 			char OldStatus[StringLength];
@@ -86,6 +89,14 @@ class Simulation
 
 public:
 	Simulation() {
+
+		NumWarmUpdates=0;
+		NumDirectedWarmUpdates=0;
+		NumMeasUpdates=0;
+		NumDirectedMeasUpdates=0;
+		ActualWarmTime=0;
+		ActualMeasTime=0;
+
 		WarmTime=MathExpression::GetValue("#WarmTime").Re();
 		WarmIterations=(MathExpression::Find("WarmIterations")!=NULL) ? static_cast<unsigned long>(MathExpression::GetValue("WarmIterations").Re()) : std::numeric_limits<unsigned long>::max();
 		MeasTime=MathExpression::GetValue("#MeasTime").Re();
@@ -103,6 +114,8 @@ public:
 
 		NumWarmUpdates=0;
 		NumDirectedWarmUpdates=0;
+		NumMeasUpdates=0;
+		NumDirectedMeasUpdates=0;
 
 		do {
 
@@ -169,60 +182,60 @@ public:
 #endif
 	}
 
-	void Results(SGF::Measurable &MeasuredOp)
+	void Results(std::ostream &o,SGF::Measurable &MeasuredOp)
 	{
-		cout << "*******************************************************************************************\n";
-		cout << "* This is a quantum Monte Carlo simulation performed by the \"Corvette SGF engine\".        *\n";
-		cout << "*                                                                                         *\n";
-		cout << "* For informations on the SGF algorithm:                                                  *\n";
-		cout << "*   Physical Review E 77, 056705 (2008)                                                   *\n";
-		cout << "*   Physical Review E 78, 056707 (2008)                                                   *\n";
-		cout << "*                                                                                         *\n";
-		cout << "* Dr Valy G. Rousseau and Dr Dimitris Galanakis - Version " << Version;
-		for (unsigned int i=0;i<32-strlen(Version);i++) cout << " ";
-		cout << "*\n";
-		cout << "*******************************************************************************************\n\n";
-		cout << "***************************\n";
-		cout << "* User's input parameters *\n";
-		cout << "***************************\n\n  ";
+		o << "*******************************************************************************************\n";
+		o << "* This is a quantum Monte Carlo simulation performed by the \"Corvette SGF engine\".        *\n";
+		o << "*                                                                                         *\n";
+		o << "* For informations on the SGF algorithm:                                                  *\n";
+		o << "*   Physical Review E 77, 056705 (2008)                                                   *\n";
+		o << "*   Physical Review E 78, 056707 (2008)                                                   *\n";
+		o << "*                                                                                         *\n";
+		o << "* Dr Valy G. Rousseau and Dr Dimitris Galanakis";
+		for (unsigned int i=0;i<32-strlen("");i++) o << " ";
+		o << "*\n";
+		o << "*******************************************************************************************\n\n";
+		o << "***************************\n";
+		o << "* User's input parameters *\n";
+		o << "***************************\n\n  ";
 		Parser::TokenHandle Input=Parser::First();
 
 		while (Input)
 		{
 			if (Input->Type()==Parser::Number)
-				cout << *(double *) Input->Value();
+				o << *(double *) Input->Value();
 
 			else
 			{
 				char *C=(char *) Input->Value();
 
 				if (Input->Type()==Parser::String)
-					cout << "\"" << C << "\"";
+					o << "\"" << C << "\"";
 				else
-					cout << C;
+					o << C;
 
 				if (MathExpression::IsKeyword(C))
-					cout << " ";
+					o << " ";
 
 				else if (*C==';')
 				{
-					cout << "\n";
+					o << "\n";
 
 					if (Input->NextToken())
-						cout << "  ";
+						o << "  ";
 				}
 			}
 
 			Input=Input->NextToken();
 		}
 
-		cout << endl;
-		cout << "*************************\n";
-		cout << "* Results of simulation *\n";
-		cout << "*************************\n\n";
-		cout << "  ******************************\n";
-		cout << "  * Operator string statistics *\n";
-		cout << "  ******************************\n\n";
+		o << std::endl;
+		o << "*************************\n";
+		o << "* Results of simulation *\n";
+		o << "*************************\n\n";
+		o << "  ******************************\n";
+		o << "  * Operator string statistics *\n";
+		o << "  ******************************\n\n";
  
 
 #ifdef USEMPI
@@ -240,26 +253,26 @@ public:
 		MPI_Reduce(&send_ActualMeasTime,&ActualMeasTime,1,MPI_DOUBLE,MPI_SUM,Master,MPI_COMM_WORLD);
 		MPI_Reduce(&send_BrokenHistogram[0],&BrokenHistorgram[0],MAXNUMBROKENLINES,MPI_UNSIGNED_LONG,MPI_SUM,Master,MPI_COMM_WORLD);
 
-		cout << "    Number of Processors used "<<NumProcessors<<"\n\n";
+		o << "    Number of Processors used "<<NumProcessors<<"\n\n";
 
 #endif   	
 
 
-		cout << "    == Thermalization ==\n";
-		cout << "    Number of creations/annihilations: \t" << NumWarmUpdates << "\t("<<ActualWarmTime*1000000000/NumWarmUpdates << " seconds per billion updates per node)\n";
-		cout << "    Number of directed updates:       \t" << NumDirectedWarmUpdates << "\t("<<ActualWarmTime*1000000000/NumDirectedWarmUpdates << " seconds per billion updates per node)\n";
-		cout << "    Directed update length:           \t"<< double(NumWarmUpdates)/NumDirectedWarmUpdates<<std::endl;
-		cout << "    == Measurements   ==\n";
-		cout << "    Number of creations/annihilations: \t" << NumMeasUpdates << "\t("<<ActualMeasTime*1000000000/NumMeasUpdates << " seconds per billion updates per node)\n";  
-		cout << "    Number of directed updates:       \t" << NumDirectedMeasUpdates << "\t("<<ActualMeasTime*1000000000/NumDirectedMeasUpdates << " seconds per billion updates per node)\n";  
-		cout << "    Directed update length:           \t"<< double(NumMeasUpdates)/NumDirectedMeasUpdates<<std::endl;
+		o << "    == Thermalization ==\n";
+		o << "    Number of creations/annihilations: \t" << NumWarmUpdates << "\t("<<ActualWarmTime*1000000000/NumWarmUpdates << " seconds per billion updates per node)\n";
+		o << "    Number of directed updates:       \t" << NumDirectedWarmUpdates << "\t("<<ActualWarmTime*1000000000/NumDirectedWarmUpdates << " seconds per billion updates per node)\n";
+		o << "    Directed update length:           \t"<< double(NumWarmUpdates)/NumDirectedWarmUpdates<<std::endl;
+		o << "    == Measurements   ==\n";
+		o << "    Number of creations/annihilations: \t" << NumMeasUpdates << "\t("<<ActualMeasTime*1000000000/NumMeasUpdates << " seconds per billion updates per node)\n";  
+		o << "    Number of directed updates:       \t" << NumDirectedMeasUpdates << "\t("<<ActualMeasTime*1000000000/NumDirectedMeasUpdates << " seconds per billion updates per node)\n";  
+		o << "    Directed update length:           \t"<< double(NumMeasUpdates)/NumDirectedMeasUpdates<<std::endl;
 
-		cout << "    Number of measurements: " << BrokenHistorgram[0] << "\n\n";
-		cout <<::std::endl;
-		cout <<"  *******************************\n";
-		cout <<"  * Broken worldlines histogram *\n";
-		cout <<"  *******************************\n\n";
-		cout <<"    N lines\tCount\tProbability\n\n";
+		o << "    Number of measurements: " << BrokenHistorgram[0] << "\n\n";
+		o <<::std::endl;
+		o <<"  *******************************\n";
+		o <<"  * Broken worldlines histogram *\n";
+		o <<"  *******************************\n\n";
+		o <<"    N lines\tCount\tProbability\n\n";
 
 
 		double Normalization=0;
@@ -268,12 +281,12 @@ public:
 
 		for(BrokenHistogramType::size_type i=0;i<BrokenHistorgram.size();++i)
 			if(BrokenHistorgram[i]!=0)
-				cout<<"    "<<i<<"\t\t"<<BrokenHistorgram[i]<<"\t"<<BrokenHistorgram[i]/Normalization<<std::endl;
+				o<<"    "<<i<<"\t\t"<<BrokenHistorgram[i]<<"\t"<<BrokenHistorgram[i]/Normalization<<std::endl;
 
-		cout << endl;
+		o << endl;
 
 
-		MeasuredOp.print();
+		o << MeasuredOp;
 	}
 };
 

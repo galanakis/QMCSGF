@@ -1,3 +1,6 @@
+#ifndef __MEASURABLE__
+#define __MEASURABLE__
+
 #include <map>
 #include <vector>
 #include <set>
@@ -290,24 +293,32 @@ public:
 	}
   
 
-	void print() {
+	std::ostream& print(std::ostream &o) const {
 
 
-		cout << "  ***********************************************************************************\n";
-		cout << "  * Energies (obtained from operator string length and Green operator state energy) *\n";
-		cout << "  ***********************************************************************************\n\n";
-		cout << "    Total energy: " << _TotalEnergy << "\n";
-		cout << "    Diagonal energy: " << _Potential << "\n";           
-		cout << "    Non-diagonal energy: " << _Kinetic << "\n\n";
-		cout << "  ******************************\n";
-		cout << "  * User's defined measurables *\n";
-		cout << "  ******************************\n\n";
+		o << "  ***********************************************************************************\n";
+		o << "  * Energies (obtained from operator string length and Green operator state energy) *\n";
+		o << "  ***********************************************************************************\n\n";
+		o << "    Total energy: " << _TotalEnergy << "\n";
+		o << "    Diagonal energy: " << _Potential << "\n";           
+		o << "    Non-diagonal energy: " << _Kinetic << "\n\n";
+		o << "  ******************************\n";
+		o << "  * User's defined measurables *\n";
+		o << "  ******************************\n\n";
 
 		for(std::vector<MeasurableFunction*>::size_type i=0;i<_Meas_Ptr.size();++i) 
-			cout<<"    "<<_Tags[i]<<": "<<*_Bins[i]<<std::endl;
+			o<<"    "<<_Tags[i]<<": "<<*_Bins[i]<<std::endl;
 
+		return o;
 	}
 
 };  
 
+inline std::ostream& operator<<(std::ostream& o,const Measurable &measurables) {
+	return measurables.print(o);
 }
+
+}
+
+
+#endif

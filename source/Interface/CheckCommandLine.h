@@ -1,6 +1,16 @@
 #ifndef _CHECK_COMMAND_LINE
 #define _CHECK_COMMAND_LINE
 
+#define Version "1.0 (May 10th, 2011)"
+
+#include <ScrEx.h>
+
+#include <fstream>
+using std::fstream;
+using std::ios;
+
+extern std::ostream cout;
+
 int CheckCommandLine(int NumArg,char **Arg)
   {
     fstream File;

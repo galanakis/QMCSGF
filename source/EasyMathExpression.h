@@ -5,13 +5,14 @@
 #include <string>
 
 #include "HamiltonianTerm.hh"
+#include <MathExpression.h>
 
 class EasyMathExpression {
 public:
   static inline double Beta() {return MathExpression::Find("#InverseTemperature")->Expression->Root->Evaluate().Re(); }
   static inline int Ensemble() {return MathExpression::Find("#Ensemble")->Expression->Root->Evaluate().Re(); }
   static inline int Seed() {return MathExpression::Find("#Seed")->Expression->Root->Evaluate().Re(); }
-  static inline std::vector<string> &MeasurableNameList() {return MathExpression::GetMeasurableList(); }
+  static inline std::vector<std::string> &MeasurableNameList() {return MathExpression::GetMeasurableList(); }
   static inline int NSites() {return MathExpression::GetNumIndices()/MathExpression::GetNumSpecies();}
 	static inline int GreenOperatorLines() {return MathExpression::GetValue("GreenOperatorLines").Re();}
 	static inline double AlphaParameter() {return MathExpression::GetValue("AlphaParameter").Re();}

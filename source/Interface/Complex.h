@@ -2,6 +2,8 @@
 #define ComplexDef
 
 #include <cmath>
+#include <iostream>
+using std::ostream;
 
 class Complex
   {

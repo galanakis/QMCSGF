@@ -1,3 +1,6 @@
+#ifndef __ScriptExample__
+#define __ScriptExample__
+
 char ScriptExample[]="\
 # **************************************************************************************************************\n\
 # * This file provides an example of SGF script that can be used as an input file for the Corvette SGF engine. *\n\
@@ -113,3 +116,5 @@ char ScriptExample[]="\
 #   sin, cos, tan, exp, ln, sqrt. These functions accept and return complex numbers.\n\
 #   Fact(n). This function currently accepts positive integers only. It will be generalized later to complex numbers.\
 ";
+
+#endif
