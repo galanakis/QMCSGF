@@ -139,9 +139,6 @@ public:
     return result;         
   }
   
-  inline bool constant() const { return product().size()==0; }
-	inline bool atom() const {return length()==1;}
-  
   inline bool diagonal() const { 
     int result=0;
     for(size_type i=0;i<_product.size();++i)
