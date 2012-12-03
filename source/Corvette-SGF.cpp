@@ -1,28 +1,24 @@
-// *****************************************************************************************************
-// * This is the "Corvette SGF engine" for the quantum Monte Carlo simulation of lattice Hamiltonians. *
-// *                                                                                                   *
-// * For informations on the SGF algorithm:                                                            *
-// *   Physical Review E 77, 056705 (2008)                                                             *
-// *   Physical Review E 78, 056707 (2008)                                                             *
-// *                                                                                                   *
-// * Dr Valy G. Rousseau and Dr Dimitris Galanakis                                                     *
-// * _________________________________________________________________________________________________ *
-// * Changes made to previous version:                                                                 *
-// *   None, this is the first version!                                                                *
-// *                                                                                                   *
-// * Known bugs:                                                                                       *
-// *   Come on! Bugs do not exist in an SGF engine!!!                                                  *
-// *****************************************************************************************************
-
-
-
-// **********************
-// * Standard libraries *
-// **********************
-
+#include <sstream>
+#include <set>
 #include <iostream>
 #include <cstring>
 #include <limits>
+#include <map>
+#include <vector> 
+#include <stack>
+#include <iostream>
+#include <string>
+
+#include <Parser.h>
+#include <MathExpression.h>
+#include <ParserSGF.h>
+#include <ScrEx.h>
+#include <CheckCommandLine.h>
+#include <OperatorString.hh>
+#include <MathExpression.h>
+
+#include <Simulation.h> 
+#include "HamiltonianTerm.hh"
 
 
 #ifdef USEMPI
@@ -45,32 +41,134 @@ using std::streamoff;
 using std::ostream;
 using std::numeric_limits;
 
-// **********************
-// * Personal libraries *
-// **********************
+class Iterator {
+public:
+  std::stack<MathExpression::Node*> pointers;
+  Iterator(const std::string &token) { push(MathExpression::Find(token.c_str())->Expression->Root); }     
+  MathExpression::Node* value() const {return pointers.top(); } 
+  inline bool end() { return pointers.empty(); }
+  inline void push(MathExpression::Node *Node) {
+    while(Node!=NULL) {
+      pointers.push(Node);
+      Node=Node->Son1;
+    }   
+  }
+  inline void increment() {
+    if(!end()) {
+      MathExpression::Node *Node=value()->Son2;
+      pointers.pop();
+      push(Node);
+    }
+  }
+};
 
-#include <Parser.h>
-#include <MathExpression.h>
-#include <ParserSGF.h>
-#include <ScrEx.h>
-#include <CheckCommandLine.h>
-#include <SGFContainer.h>
-#include <OperatorString.hh>
-#include <Measurable.hh>
-#include <Simulation.h> 
+
+class OperatorIterator {
+
+  std::map<SGF::Boson*,SGF::ProductElement> map;
+  SGF::MatrixElement Coefficient;
+  Iterator it;
+  std::vector<SGF::Boson> &Psi;
+public:
+  OperatorIterator(std::vector<SGF::Boson> &_Psi,std::string token) : map(), Coefficient(0), it(token), Psi(_Psi) {}
+
+  inline bool end() {return it.end();}
+  bool increment() {
+
+    bool flag=!it.end();
+
+    map.clear();
+    Coefficient=0;
+
+
+    if(!it.end()) { 
+
+      Coefficient=it.value()->Value.Re();
+      it.increment();
+
+      while(!it.end() && it.value()->Type!=MathExpression::ArithmeticOperator1) {
+        it.increment();
+        SGF::Boson* boson=&Psi[it.value()->Value.Re()];
+        it.increment();
+        SGF::ProductElement F=(it.value()->Type==MathExpression::CreationOperator) ? SGF::C : SGF::A;
+        map[boson]=(map.find(boson)==map.end())?F:map[boson]*F;
+        it.increment();
+      }
+      it.increment();
+    }
+
+    return flag;
+
+  }
+
+  SGF::HamiltonianTerm Term() const {return SGF::HamiltonianTerm(Coefficient,map);}
+
+};
+
 
 
 void Simulator() {
 
-	SGFContainer Container;
-	int GreenOperatorLines=Container.GreenOperatorLines();
 
-	const SGF::Hamiltonian &T=Container.Kinetic();
-	const SGF::Hamiltonian &V=Container.Potential();
-	double Beta=Container.Beta();
-	double AlphaParameter=Container.AlphaParameter();
-	SGF::GreenOperator<long double> g(Container.NSites(),GreenOperatorLines);
+  std::vector<SGF::Boson> _Psi;
 
+    unsigned int NumIndices=MathExpression::GetNumIndices();
+    unsigned int NumSpecies=MathExpression::GetNumSpecies();
+    unsigned int NumSites=NumIndices/NumSpecies;
+    
+    _Psi.resize(NumIndices);
+
+    for(std::vector<SGF::Boson>::size_type i=0;i<_Psi.size();++i)
+      _Psi[i].nmax()=MathExpression::GetNmax(i);
+
+    for(unsigned int species=0;species<NumSpecies;++species) {
+      for(int particle=0;particle<MathExpression::GetPopulation(species);++particle) {
+        unsigned int i=NumSites*species+particle%NumSites;
+        _Psi[i].n(0)++;
+        _Psi[i].n(1)++;
+      }
+    }  
+
+
+  
+  
+  double _ConstantEnergy=0; // This holds an overall constant term of the Hamiltonian
+  SGF::Hamiltonian T,V;
+  OperatorIterator it(_Psi,"#Hamiltonian");
+    
+    while(it.increment()) {
+      SGF::HamiltonianTerm Term=it.Term();
+      if(Term.product().size()==0)
+        _ConstantEnergy+=Term.coefficient();
+      else if(Term.diagonal())
+        V.push_back(it.Term());
+      else {
+        Term.coefficient()*=-1.0;
+        T.push_back(Term);
+      }
+
+    }
+
+
+  // Building the list of measurable operators
+  std::vector<SGF::Hamiltonian> _MeasurableOperators;
+
+  std::vector<std::string> &opnames=MathExpression::GetMeasurableList();
+  _MeasurableOperators.resize(opnames.size());
+
+  for(std::vector<std::string>::size_type i=0;i<opnames.size();++i) {
+    OperatorIterator oit(_Psi,opnames[i]);
+
+    while(oit.increment())
+      _MeasurableOperators[i].push_back(oit.Term());
+
+  }
+
+	double Beta=MathExpression::GetValue("#InverseTemperature").Re();
+	double AlphaParameter=MathExpression::GetValue("AlphaParameter").Re();
+  unsigned int NSites=MathExpression::GetNumIndices()/MathExpression::GetNumSpecies();
+  unsigned int GreenOperatorLines=MathExpression::GetValue("GreenOperatorLines").Re();
+  SGF::GreenOperator<long double> g(NSites,GreenOperatorLines);
 
 	SGF::OperatorStringType OperatorString(T,V,Beta,g,AlphaParameter);
 
@@ -83,7 +181,7 @@ void Simulator() {
 	// This defines the measurable objects some of which delay updates even if not measured.
 	// This is why I declare the measurable operators after the thermalization.
 	SGF::Measurable MeasuredOperators(OperatorString);
-	MeasuredOperators.insert(MathExpression::GetMeasurableList(),Container.MeasurableOperators());
+	MeasuredOperators.insert(MathExpression::GetMeasurableList(),_MeasurableOperators);
   
 	//We start measurement iterations
 	simul.Measure(OperatorString,MeasuredOperators);

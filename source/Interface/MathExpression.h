@@ -1171,7 +1171,8 @@ class MathExpression
 	    }
 	  
           friend class MathExpression;
-          friend class EasyMathExpression;
+          friend class OperatorIterator;
+          friend class Iterator;
           friend class ParserSGF;
       };
   
@@ -1338,7 +1339,8 @@ class MathExpression
 	    }
             
 	  friend class MathExpression;
-	  friend class EasyMathExpression;
+	  friend class OperatorIterator;
+	  friend class Iterator;
       };
       
     class Pair
@@ -2689,7 +2691,8 @@ class MathExpression
           return Head->Name;
         }
         
-      friend class EasyMathExpression;
+      friend class OperatorIterator;
+      friend class Iterator;
       friend class ParserSGF;
   };
 
