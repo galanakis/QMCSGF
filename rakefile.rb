@@ -33,3 +33,8 @@ task :gcc do
 end
 
 
+task :example do
+ puts cmd="/opt/intel/composerxe/bin/icc -fast -fp-model precise -Wall -DDEBUG #{Flags} #{Include} source/Boson-SGF.cpp -o Example"
+ puts %x{#{cmd}}
+end
+

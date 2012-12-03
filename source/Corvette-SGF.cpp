@@ -1,4 +1,3 @@
-#include <sstream>
 #include <set>
 #include <iostream>
 #include <cstring>
@@ -102,7 +101,15 @@ public:
 
   }
 
-  SGF::HamiltonianTerm Term() const {return SGF::HamiltonianTerm(Coefficient,map);}
+
+  SGF::HamiltonianTerm Term() const {
+    std::vector<SGF::IndexedProductElement> temp;
+    std::map<SGF::Boson*,SGF::ProductElement>::const_iterator it;
+    for(it=map.begin();it!=map.end();++it)
+      temp.push_back(SGF::IndexedProductElement(it->second,it->first));
+
+    return SGF::HamiltonianTerm(Coefficient,temp);
+  }
 
 };
 

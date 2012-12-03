@@ -229,7 +229,7 @@ public:
 			if(BrokenHistorgram[i]!=0)
 				o<<"    "<<i<<"\t\t"<<BrokenHistorgram[i]<<"\t"<<BrokenHistorgram[i]/Normalization<<std::endl;
 
-		o << endl;
+		o << std::endl;
 
 
 		o << MeasuredOp;

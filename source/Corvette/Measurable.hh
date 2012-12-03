@@ -9,7 +9,6 @@
 #include <algorithm>
 
 #include "HamiltonianTerm.hh" 
-#include "Boson.hh"
 #include "Accumulator.hh"
 #include "OperatorString.hh"
 
