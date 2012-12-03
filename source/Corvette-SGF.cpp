@@ -15,9 +15,8 @@
 #include <ScrEx.h>
 #include <CheckCommandLine.h>
 #include <OperatorString.hh>
-#include <MathExpression.h>
 
-#include <Simulation.h> 
+#include <Simulation.hh> 
 #include "HamiltonianTerm.hh"
 
 
@@ -31,6 +30,8 @@ int NumProcessors,Rank,NameLength;
 char ProcessorName[MPI_MAX_PROCESSOR_NAME];
 
 #endif
+
+
 
 std::ostream cout(std::cout.rdbuf());
 using std::endl;
@@ -106,6 +107,57 @@ public:
 };
 
 
+void PrintTokens(std::ostream &o) {
+
+    o << "*******************************************************************************************\n";
+    o << "* This is a quantum Monte Carlo simulation performed by the \"Corvette SGF engine\".        *\n";
+    o << "*                                                                                         *\n";
+    o << "* For informations on the SGF algorithm:                                                  *\n";
+    o << "*   Physical Review E 77, 056705 (2008)                                                   *\n";
+    o << "*   Physical Review E 78, 056707 (2008)                                                   *\n";
+    o << "*                                                                                         *\n";
+    o << "* Dr Valy G. Rousseau and Dr Dimitris Galanakis";
+    for (unsigned int i=0;i<32-strlen("");i++) o << " ";
+    o << "*\n";
+    o << "*******************************************************************************************\n\n";
+    o << "***************************\n";
+    o << "* User's input parameters *\n";
+    o << "***************************\n\n  ";
+    Parser::TokenHandle Input=Parser::First();
+
+    while (Input)
+    {
+      if (Input->Type()==Parser::Number)
+        o << *(double *) Input->Value();
+
+      else
+      {
+        char *C=(char *) Input->Value();
+
+        if (Input->Type()==Parser::String)
+          o << "\"" << C << "\"";
+        else
+          o << C;
+
+        if (MathExpression::IsKeyword(C))
+          o << " ";
+
+        else if (*C==';')
+        {
+          o << "\n";
+
+          if (Input->NextToken())
+            o << "  ";
+        }
+      }
+
+      Input=Input->NextToken();
+    }
+
+    o << std::endl;
+
+
+}
 
 void Simulator() {
 
@@ -173,10 +225,18 @@ void Simulator() {
 	SGF::OperatorStringType OperatorString(T,V,Beta,g,AlphaParameter);
 
 	/* Initializing the simulation. Thermalize, Measure and pring the results */
-	Simulation simul;
+	Simulation simul(MathExpression::GetSimulName());
+
+
+  unsigned long WarmTime=MathExpression::GetValue("#WarmTime").Re();
+  unsigned long WarmIterations=(MathExpression::Find("WarmIterations")!=NULL) ? static_cast<unsigned long>(MathExpression::GetValue("WarmIterations").Re()) : std::numeric_limits<unsigned long>::max();
+  unsigned long MeasTime=MathExpression::GetValue("#MeasTime").Re();
+  unsigned long MeasIterations=(MathExpression::Find("MeasIterations")!=NULL) ? static_cast<unsigned long>(MathExpression::GetValue("MeasIterations").Re()) : std::numeric_limits<unsigned long>::max();      
+
+  unsigned long NBins=MathExpression::GetValue("#Bins").Re();
 
 	// We start warm up iterations
-	simul.Thermalize(OperatorString);
+	simul.Thermalize(OperatorString,WarmIterations,WarmTime);
 
 	// This defines the measurable objects some of which delay updates even if not measured.
 	// This is why I declare the measurable operators after the thermalization.
@@ -184,9 +244,12 @@ void Simulator() {
 	MeasuredOperators.insert(MathExpression::GetMeasurableList(),_MeasurableOperators);
   
 	//We start measurement iterations
-	simul.Measure(OperatorString,MeasuredOperators);
+	simul.Measure(OperatorString,MeasuredOperators,NBins,MeasIterations,MeasTime);
   
-	// We diplay the results of the simulation
+  // We display the tokens and parameters used in the simulation
+  PrintTokens(cout);
+	
+  // We diplay the results of the simulation
 	simul.Results(cout,MeasuredOperators);  
 	
 }

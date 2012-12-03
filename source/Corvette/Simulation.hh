@@ -1,6 +1,5 @@
 #include <fstream>
 #include <ctime>
-#include <MathExpression.h>
 #include <OperatorString.hh>
 #include <Measurable.hh>
 
@@ -14,11 +13,9 @@ class FileNameProgressBar {
 	unsigned long NumUpdates;
 	clock_t Time;
 public:
-	FileNameProgressBar(const char *Name) : Progress(0), NumUpdates(0) {
+	FileNameProgressBar(const std::string &Name) : Progress(0), NumUpdates(0) {
 		Time=clock();
-		strcpy(Status,MathExpression::GetSimulName());
-		std::string append=std::string(": ")+std::string(Name)+std::string(" ");
-		strcpy(Status+strlen(Status),append.c_str());
+		strcpy(Status,Name.c_str());
 		Ptr=Status+strlen(Status);   
 		sprintf(Ptr," - 000 - 000h 00m 00s");     
 		std::fstream File;
@@ -78,17 +75,16 @@ class Simulation
 {
 	unsigned long NumWarmUpdates,NumMeasUpdates;
 	unsigned long NumDirectedWarmUpdates,NumDirectedMeasUpdates;
-	unsigned long WarmTime,MeasTime;
-	unsigned long WarmIterations, MeasIterations;
 
 	double ActualWarmTime,ActualMeasTime;
   
 	typedef  std::vector<unsigned long> BrokenHistogramType;
 	BrokenHistogramType BrokenHistorgram;
 
+	std::string SimulName;
 
 public:
-	Simulation() {
+	Simulation(const std::string &Name) : SimulName(Name) {
 
 		NumWarmUpdates=0;
 		NumDirectedWarmUpdates=0;
@@ -97,16 +93,14 @@ public:
 		ActualWarmTime=0;
 		ActualMeasTime=0;
 
-		WarmTime=MathExpression::GetValue("#WarmTime").Re();
-		WarmIterations=(MathExpression::Find("WarmIterations")!=NULL) ? static_cast<unsigned long>(MathExpression::GetValue("WarmIterations").Re()) : std::numeric_limits<unsigned long>::max();
-		MeasTime=MathExpression::GetValue("#MeasTime").Re();
-		MeasIterations=(MathExpression::Find("MeasIterations")!=NULL) ? static_cast<unsigned long>(MathExpression::GetValue("MeasIterations").Re()) : std::numeric_limits<unsigned long>::max();			
 		BrokenHistorgram.resize(MAXNUMBROKENLINES);
 	} 
 
-	void Thermalize(SGF::OperatorStringType &OpString)
+	void Thermalize(SGF::OperatorStringType &OpString,unsigned long WarmIterations,unsigned long WarmTime)
 	{
-		FileNameProgressBar pbar("Thermalizing");
+
+
+		FileNameProgressBar pbar(SimulName+std::string(": Thermalizing "));
 
 		clock_t StartTime=clock();
 		clock_t EndTime=StartTime+WarmTime*CLOCKS_PER_SEC;
@@ -139,14 +133,12 @@ public:
 #endif
 	}
 
-	void Measure(SGF::OperatorStringType &OpString,SGF::Measurable &MeasuredOp)
+	void Measure(SGF::OperatorStringType &OpString,SGF::Measurable &MeasuredOp,unsigned long NumBins,unsigned long MeasIterations,unsigned long MeasTime)
 	{
-		FileNameProgressBar pbar("Measuring   ");
+		FileNameProgressBar pbar(SimulName+std::string(": Measuring   "));
 
 		clock_t StartTime=clock();
 		clock_t EndTime=StartTime+MeasTime*CLOCKS_PER_SEC;
-
-		unsigned long NumBins=MathExpression::GetValue("#Bins").Re();
 
 		NumMeasUpdates=0;
 		NumDirectedMeasUpdates=0;
@@ -184,52 +176,6 @@ public:
 
 	void Results(std::ostream &o,SGF::Measurable &MeasuredOp)
 	{
-		o << "*******************************************************************************************\n";
-		o << "* This is a quantum Monte Carlo simulation performed by the \"Corvette SGF engine\".        *\n";
-		o << "*                                                                                         *\n";
-		o << "* For informations on the SGF algorithm:                                                  *\n";
-		o << "*   Physical Review E 77, 056705 (2008)                                                   *\n";
-		o << "*   Physical Review E 78, 056707 (2008)                                                   *\n";
-		o << "*                                                                                         *\n";
-		o << "* Dr Valy G. Rousseau and Dr Dimitris Galanakis";
-		for (unsigned int i=0;i<32-strlen("");i++) o << " ";
-		o << "*\n";
-		o << "*******************************************************************************************\n\n";
-		o << "***************************\n";
-		o << "* User's input parameters *\n";
-		o << "***************************\n\n  ";
-		Parser::TokenHandle Input=Parser::First();
-
-		while (Input)
-		{
-			if (Input->Type()==Parser::Number)
-				o << *(double *) Input->Value();
-
-			else
-			{
-				char *C=(char *) Input->Value();
-
-				if (Input->Type()==Parser::String)
-					o << "\"" << C << "\"";
-				else
-					o << C;
-
-				if (MathExpression::IsKeyword(C))
-					o << " ";
-
-				else if (*C==';')
-				{
-					o << "\n";
-
-					if (Input->NextToken())
-						o << "  ";
-				}
-			}
-
-			Input=Input->NextToken();
-		}
-
-		o << std::endl;
 		o << "*************************\n";
 		o << "* Results of simulation *\n";
 		o << "*************************\n\n";
