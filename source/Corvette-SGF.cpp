@@ -171,22 +171,33 @@ void Simulator() {
 
   std::vector<SGF::Boson> _Psi;
 
-    unsigned int NumIndices=MathExpression::GetNumIndices();
-    unsigned int NumSpecies=MathExpression::GetNumSpecies();
-    unsigned int NumSites=NumIndices/NumSpecies;
-    
-    _Psi.resize(NumIndices);
+  unsigned int NumIndices=MathExpression::GetNumIndices();
+  unsigned int NumSpecies=MathExpression::GetNumSpecies();
+  unsigned int NumSites=NumIndices/NumSpecies;
+  double Beta=MathExpression::GetValue("#InverseTemperature").Re();
+  double AlphaParameter=MathExpression::GetValue("AlphaParameter").Re();
+  unsigned int NSites=MathExpression::GetNumIndices()/MathExpression::GetNumSpecies();
+  unsigned int GreenOperatorLines=MathExpression::GetValue("GreenOperatorLines").Re();
+  unsigned long WarmTime=MathExpression::GetValue("#WarmTime").Re();
+  unsigned long WarmIterations=(MathExpression::Find("WarmIterations")!=NULL) ? static_cast<unsigned long>(MathExpression::GetValue("WarmIterations").Re()) : std::numeric_limits<unsigned long>::max();
+  unsigned long MeasTime=MathExpression::GetValue("#MeasTime").Re();
+  unsigned long MeasIterations=(MathExpression::Find("MeasIterations")!=NULL) ? static_cast<unsigned long>(MathExpression::GetValue("MeasIterations").Re()) : std::numeric_limits<unsigned long>::max();      
+  unsigned long NBins=MathExpression::GetValue("#Bins").Re();
 
-    for(std::vector<SGF::Boson>::size_type i=0;i<_Psi.size();++i)
-      _Psi[i].nmax()=MathExpression::GetNmax(i);
 
-    for(unsigned int species=0;species<NumSpecies;++species) {
-      for(int particle=0;particle<MathExpression::GetPopulation(species);++particle) {
-        unsigned int i=NumSites*species+particle%NumSites;
-        _Psi[i].n(0)++;
-        _Psi[i].n(1)++;
-      }
-    }  
+
+  _Psi.resize(NumIndices);
+
+  for(std::vector<SGF::Boson>::size_type i=0;i<_Psi.size();++i)
+    _Psi[i].nmax()=MathExpression::GetNmax(i);
+
+  for(unsigned int species=0;species<NumSpecies;++species) {
+    for(int particle=0;particle<MathExpression::GetPopulation(species);++particle) {
+      unsigned int i=NumSites*species+particle%NumSites;
+      _Psi[i].n(0)++;
+      _Psi[i].n(1)++;
+    }
+  }  
 
 
   
@@ -194,19 +205,19 @@ void Simulator() {
   double _ConstantEnergy=0; // This holds an overall constant term of the Hamiltonian
   SGF::Hamiltonian T,V;
   OperatorIterator it(_Psi,"#Hamiltonian");
-    
-    while(it.increment()) {
-      SGF::HamiltonianTerm Term=it.Term();
-      if(Term.product().size()==0)
-        _ConstantEnergy+=Term.coefficient();
-      else if(Term.diagonal())
-        V.push_back(it.Term());
-      else {
-        Term.coefficient()*=-1.0;
-        T.push_back(Term);
-      }
 
+  while(it.increment()) {
+    SGF::HamiltonianTerm Term=it.Term();
+    if(Term.product().size()==0)
+      _ConstantEnergy+=Term.coefficient();
+    else if(Term.diagonal())
+      V.push_back(it.Term());
+    else {
+      Term.coefficient()*=-1.0;
+      T.push_back(Term);
     }
+
+  }
 
 
   // Building the list of measurable operators
@@ -223,42 +234,31 @@ void Simulator() {
 
   }
 
-	double Beta=MathExpression::GetValue("#InverseTemperature").Re();
-	double AlphaParameter=MathExpression::GetValue("AlphaParameter").Re();
-  unsigned int NSites=MathExpression::GetNumIndices()/MathExpression::GetNumSpecies();
-  unsigned int GreenOperatorLines=MathExpression::GetValue("GreenOperatorLines").Re();
   SGF::GreenOperator<long double> g(NSites,GreenOperatorLines);
 
-	SGF::OperatorStringType OperatorString(T,V,Beta,g,AlphaParameter);
+  SGF::OperatorStringType OperatorString(T,V,Beta,g,AlphaParameter);
 
 	/* Initializing the simulation. Thermalize, Measure and pring the results */
-	Simulation simul(MathExpression::GetSimulName());
+  Simulation simul(MathExpression::GetSimulName(),cout);
 
-
-  unsigned long WarmTime=MathExpression::GetValue("#WarmTime").Re();
-  unsigned long WarmIterations=(MathExpression::Find("WarmIterations")!=NULL) ? static_cast<unsigned long>(MathExpression::GetValue("WarmIterations").Re()) : std::numeric_limits<unsigned long>::max();
-  unsigned long MeasTime=MathExpression::GetValue("#MeasTime").Re();
-  unsigned long MeasIterations=(MathExpression::Find("MeasIterations")!=NULL) ? static_cast<unsigned long>(MathExpression::GetValue("MeasIterations").Re()) : std::numeric_limits<unsigned long>::max();      
-
-  unsigned long NBins=MathExpression::GetValue("#Bins").Re();
 
 	// We start warm up iterations
-	simul.Thermalize(OperatorString,WarmIterations,WarmTime);
+  simul.Thermalize(OperatorString,WarmIterations,WarmTime);
 
 	// This defines the measurable objects some of which delay updates even if not measured.
 	// This is why I declare the measurable operators after the thermalization.
-	SGF::Measurable MeasuredOperators(OperatorString);
-	MeasuredOperators.insert(MathExpression::GetMeasurableList(),_MeasurableOperators);
+  SGF::Measurable MeasuredOperators(OperatorString);
+  MeasuredOperators.insert(MathExpression::GetMeasurableList(),_MeasurableOperators);
   
 	//We start measurement iterations
-	simul.Measure(OperatorString,MeasuredOperators,NBins,MeasIterations,MeasTime);
+  simul.Measure(OperatorString,MeasuredOperators,NBins,MeasIterations,MeasTime);
   
   // We display the tokens and parameters used in the simulation
   PrintTokens(cout);
-	
+
   // We diplay the results of the simulation
-	simul.Results(cout,MeasuredOperators);  
-	
+  simul.Results(MeasuredOperators);  
+
 }
 
 int finish() {

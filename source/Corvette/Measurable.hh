@@ -14,23 +14,6 @@
 
 namespace SGF {
 
-/*
-* class MeasureDefaults
-
-* Measures some basic quantities, such as the Kinetic, Potential and TotalEnergy and the
-* count of occurences for each broken line number. This is a very light measurement
-* class which can be used during thermalization.
-
-* ======= Usage ======
-* MeasureDefaults md;
-* md.measure(OperatorString); // Do a measurement.
-* md.flush();                 // push into the bins.
-* cout<<md.KineticEnergy()<<std::endl;
-* cout<<md.PotentialEnergy()<<std::endl;
-* cout<<md.TotalEnergy()<<std::endl;
-* int count=md.count(i);      // how many times i lines were broken. 
-
-*/
 
 typedef BinnedAccumulator<_float_accumulator> BinnedAccumulatorME;
 
@@ -46,8 +29,6 @@ class MeasurableTerms  {
 
 	typedef BrokenLines::BosonDeltaMapType KeyType;
 
-	inline KeyType get_key(const HamiltonianTerm &term) const {return BrokenLines::map(term.product()); }
-
 	typedef std::multimap<KeyType,TermBuffer> multimap_type;
 	typedef std::pair<multimap_type::iterator,multimap_type::iterator> equal_range_type;
 	multimap_type _multimap;
@@ -56,7 +37,7 @@ public:
 
 	_float_accumulator* insert(const HamiltonianTerm &term) {
 
-		const KeyType key=get_key(term);
+		const KeyType key=BrokenLines::map(term.product());
 
 		equal_range_type equal_range=_multimap.equal_range(key);
 		multimap_type::iterator it=equal_range.first;
@@ -75,7 +56,7 @@ public:
 		equal_range_type equal_range=_multimap.equal_range(key);
 		for(multimap_type::iterator it=equal_range.first; it!=equal_range.second; ++it) {
 #ifdef DEBUG
-      if(! it->second.term.match()) {
+			if(! it->second.term.match()) {
 				std::cerr<<"Operator does not match with the broken lines"<<std::endl;
 				exit(333);
 			}

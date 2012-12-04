@@ -12,23 +12,28 @@ class FileNameProgressBar {
 	double Progress;
 	unsigned long NumUpdates;
 	clock_t Time;
+	std::ostream &fout;
 public:
-	FileNameProgressBar(const std::string &Name) : Progress(0), NumUpdates(0) {
+	FileNameProgressBar(const std::string &Name,std::ostream &o) : Progress(0), NumUpdates(0), fout(o) {
 		Time=clock();
 		strcpy(Status,Name.c_str());
 		Ptr=Status+strlen(Status);   
-		sprintf(Ptr," - 000 - 000h 00m 00s");     
+		sprintf(Ptr," - 000 - 000h 00m 00s");
+#ifndef CMDLINEPROGRESS     
 		std::fstream File;
 		File.open(Status,std::ios::out);
-		File.close();    
+		File.close(); 
+#endif  
 	}
 	~FileNameProgressBar() {
+#ifndef CMDLINEPROGRESS
 		remove(Status);
+#endif
 	}
 
-	inline void reset_cout() const {
+	inline void reset_cout() {
 		for(unsigned int i=0;i<strlen(Status);++i)
-			cout<<'\b';  
+			fout<<'\b';  
 	}
 	inline void Update(double prog,unsigned long NewNumUpdates) {
 		if(prog<0) prog=0.0;
@@ -56,10 +61,10 @@ public:
 
 #ifdef CMDLINEPROGRESS      
 			reset_cout();
-			cout<<Status<<std::flush;
-#endif
-      
+			fout<<Status<<std::flush;
+#else
 			rename(OldStatus,Status);
+#endif
 
 
 		}
@@ -83,8 +88,10 @@ class Simulation
 
 	std::string SimulName;
 
+	std::ostream &o;
+
 public:
-	Simulation(const std::string &Name) : SimulName(Name) {
+	Simulation(const std::string &Name,std::ostream &_o) : SimulName(Name), o(_o) {
 
 		NumWarmUpdates=0;
 		NumDirectedWarmUpdates=0;
@@ -100,7 +107,7 @@ public:
 	{
 
 
-		FileNameProgressBar pbar(SimulName+std::string(": Thermalizing "));
+		FileNameProgressBar pbar(SimulName+std::string(": Thermalizing "),o);
 
 		clock_t StartTime=clock();
 		clock_t EndTime=StartTime+WarmTime*CLOCKS_PER_SEC;
@@ -129,13 +136,13 @@ public:
 		ActualWarmTime=double(clock()-StartTime)/CLOCKS_PER_SEC;
 #ifdef CMDLINEPROGRESS      
 		pbar.reset_cout();
-		cout<<"Done Thermalizing after "<<NumWarmUpdates<<" updates ("<<NumDirectedWarmUpdates<<" directed) in "<<ActualWarmTime<<" seconds at "<<NumWarmUpdates/ActualWarmTime<<" updates per second."<<std::endl;
+		o<<"Done Thermalizing after "<<NumWarmUpdates<<" updates ("<<NumDirectedWarmUpdates<<" directed) in "<<ActualWarmTime<<" seconds at "<<NumWarmUpdates/ActualWarmTime<<" updates per second."<<std::endl;
 #endif
 	}
 
 	void Measure(SGF::OperatorStringType &OpString,SGF::Measurable &MeasuredOp,unsigned long NumBins,unsigned long MeasIterations,unsigned long MeasTime)
 	{
-		FileNameProgressBar pbar(SimulName+std::string(": Measuring   "));
+		FileNameProgressBar pbar(SimulName+std::string(": Measuring   "),o);
 
 		clock_t StartTime=clock();
 		clock_t EndTime=StartTime+MeasTime*CLOCKS_PER_SEC;
@@ -170,11 +177,11 @@ public:
 		
 #ifdef CMDLINEPROGRESS      
 		pbar.reset_cout();
-		cout<<"Done Measuring after "<<NumMeasUpdates<<" updates ("<<NumDirectedMeasUpdates<<" directed) in "<<ActualMeasTime<<" seconds at "<<NumMeasUpdates/ActualMeasTime<<" updates/second."<<std::endl;
+		o<<"Done Measuring after "<<NumMeasUpdates<<" updates ("<<NumDirectedMeasUpdates<<" directed) in "<<ActualMeasTime<<" seconds at "<<NumMeasUpdates/ActualMeasTime<<" updates/second."<<std::endl;
 #endif
 	}
 
-	void Results(std::ostream &o,SGF::Measurable &MeasuredOp)
+	void Results(SGF::Measurable &MeasuredOp)
 	{
 		o << "*************************\n";
 		o << "* Results of simulation *\n";

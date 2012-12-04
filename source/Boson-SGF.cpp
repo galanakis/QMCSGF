@@ -9,6 +9,7 @@
 
 #include "HamiltonianTerm.hh"
 #include <OperatorString.hh>
+#include <Simulation.hh> 
 
 
 #ifdef USEMPI
@@ -25,8 +26,6 @@ char ProcessorName[MPI_MAX_PROCESSOR_NAME];
 
 
 std::ostream cout(std::cout.rdbuf());
-
-#include <Simulation.hh> 
 
 
 void BoseHubbardPeriodic1D() {
@@ -88,11 +87,12 @@ void BoseHubbardPeriodic1D() {
   std::vector<SGF::Hamiltonian> _MeasurableOperators;
   std::vector<std::string> _MeasurableNameList;
 
-  _MeasurableOperators.push_back(T);
-  _MeasurableNameList.push_back("Kinetic Energy");
-
   _MeasurableOperators.push_back(V);
   _MeasurableNameList.push_back("Potential Energy");
+
+  _MeasurableOperators.push_back(T);
+  _MeasurableNameList.push_back("Atom Kinetic energy");
+
 
 
 
@@ -102,7 +102,7 @@ void BoseHubbardPeriodic1D() {
 	SGF::OperatorStringType OperatorString(T,V,Beta,g,AlphaParameter);
 
 	/* Initializing the simulation. Thermalize, Measure and pring the results */
-	Simulation simul("BoseHubbard");
+	Simulation simul("BoseHubbard",cout);
 
 
   
@@ -119,7 +119,7 @@ void BoseHubbardPeriodic1D() {
 	simul.Measure(OperatorString,MeasuredOperators,NBins,MeasIterations,MeasTime);
   
   // We diplay the results of the simulation
-	simul.Results(cout,MeasuredOperators);  
+	simul.Results(MeasuredOperators);  
 	
 }
 
