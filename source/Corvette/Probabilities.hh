@@ -14,9 +14,6 @@
 namespace SGF {
 
 
-/* Crop small doubles. Use them when you expect a finite double
-   in which case you can disregard the small ones as numerical
-   errors */
 
 
 /* 
@@ -113,19 +110,8 @@ public:
 	
 */
 
+class Configuration;
 
-
-class UpdatableObject {
-	static std::vector<UpdatableObject*> Objects;   // This lists contains pointers to all UpdatableObjects.
-public:
-	typedef std::vector<UpdatableObject*>::size_type size_type;
-	UpdatableObject() {Objects.push_back(this);}
-	virtual inline void update(const HamiltonianTerm*,int,int) = 0;
-
-	friend class Configuration;
-};
-
-std::vector<UpdatableObject*> UpdatableObject::Objects;
  
 
 
@@ -136,63 +122,70 @@ std::vector<UpdatableObject*> UpdatableObject::Objects;
 	When updated it also updates all UpdatableObjects.
 */
 
-class Configuration {
-protected:	
-	typedef std::vector<Boson*> boson_vector;
-	boson_vector _indices;
+	class Configuration {
+	public:
+		class UpdatableObject {
+		public:
+			typedef std::vector<UpdatableObject*>::size_type size_type;
+			UpdatableObject(Configuration &o) { o.insert_update(this); }
+			virtual inline void update(const HamiltonianTerm*,int,int) = 0;
 
-public:
-	Configuration(const Hamiltonian &T) {
-		std::set<Boson*> indexset;
-		for(Hamiltonian::size_type i=0;i<T.size();++i)
-			for(HamiltonianTerm::size_type j=0;j<T[i].product().size();++j)
-			indexset.insert(T[i].product()[j].particle_id());
+			friend class Configuration;
+		};
 
-		_indices.insert(_indices.begin(),indexset.begin(),indexset.end());		
- 		
-	}
-	
-	Configuration(const Configuration &o) : _indices(o._indices) {}
+	protected:	
+		typedef std::vector<Boson*> boson_vector;
+		boson_vector _indices;
+		std::vector<UpdatableObject*> UpdatableObjects;
+	public:
+		Configuration(const Hamiltonian &T) {
+			std::set<Boson*> indexset;
+			for(Hamiltonian::size_type i=0;i<T.size();++i)
+				for(HamiltonianTerm::size_type j=0;j<T[i].product().size();++j)
+					indexset.insert(T[i].product()[j].particle_id());
 
-	
-	int CountBrokenLines() const {
-		int result=0;
-		for(std::vector<Boson*>::size_type i=0;i<_indices.size();++i) 
-     result+=Abs(_indices[i]->delta()); 
-	  return result;
-	}
+				_indices.insert(_indices.begin(),indexset.begin(),indexset.end());		
 
-	std::set<Boson*> GetListBrokenLines() const {
-		std::set<Boson*> _broken_lines;
-		for(std::vector<Boson*>::const_iterator it=_indices.begin();it!=_indices.end();++it) {
-			if((*it)->delta() != 0) 
-				_broken_lines.insert(*it);
-		}
-		return _broken_lines;		
-	}
+			}
 
-  
+			Configuration(const Configuration &o) : _indices(o._indices) {}
+
+
+			int CountBrokenLines() const {
+				int result=0;
+				for(std::vector<Boson*>::size_type i=0;i<_indices.size();++i) 
+					result+=Abs(_indices[i]->delta()); 
+				return result;
+			}
+
+			std::set<Boson*> GetListBrokenLines() const {
+				std::set<Boson*> _broken_lines;
+				for(std::vector<Boson*>::const_iterator it=_indices.begin();it!=_indices.end();++it) {
+					if((*it)->delta() != 0) 
+						_broken_lines.insert(*it);
+				}
+				return _broken_lines;		
+			}
+
+			void insert_update(UpdatableObject *p) {UpdatableObjects.push_back(p); }
+
 	// call this update you update the occupancies
-	inline void update(const HamiltonianTerm* term,int rl,int arflag) {
+			inline void update(const HamiltonianTerm* term,int rl,int arflag) {
 		/*********************************\  
 			The configuration changes here
 		\*********************************/  
-    term->update_psi(rl,arflag); 
+			term->update_psi(rl,arflag); 
 
-		/* Updating the number of broken lines. 
-			if the update is before the configuration change then
-			_NBWL+=term->offset(arflag);
-			otherwise it is
-			_NBWL-=term->offset(!arflag); 
-		*/
 
-		for(UpdatableObject::size_type i=0;i<UpdatableObject::Objects.size();++i)
-			UpdatableObject::Objects[i]->update(term,rl,arflag);
+			for(std::vector<UpdatableObject*>::size_type i=0;i<UpdatableObjects.size();++i)
+				UpdatableObjects[i]->update(term,rl,arflag);
 
-	}
+		}
 
-   
-};
+
+	};
+
+
 
 
 /*
@@ -204,7 +197,7 @@ public:
 */
 
 
-class BrokenLines : public UpdatableObject {
+class BrokenLines : public Configuration::UpdatableObject {
 	typedef std::set<Boson*> boson_set;
 	boson_set _broken_lines;
  
@@ -212,7 +205,7 @@ public:
   
 	typedef std::vector<std::pair<Boson*,int> > BosonDeltaMapType;
 
-	BrokenLines(const std::set<Boson*> &o) :  _broken_lines(o) {}
+	BrokenLines(const std::set<Boson*> &o,Configuration &c) :  Configuration::UpdatableObject(c), _broken_lines(o) {}
  
 	inline void update(const HamiltonianTerm* term,int,int) {
 		for(HamiltonianTerm::size_type i=0;i<term->product().size();++i) {
@@ -265,7 +258,7 @@ public:
 	
 */
  
-class TermCount : public UpdatableObject {
+class TermCount : public Configuration::UpdatableObject {
 
 	const HamiltonianTerm * Kinetic0;
 	typedef std::vector<long> count_type;
@@ -273,7 +266,7 @@ class TermCount : public UpdatableObject {
 	count_type _count;
 
 public:
-	TermCount(const Hamiltonian &T) : _count(T.size()), Kinetic0(&T[0]) { reset(); }
+	TermCount(const Hamiltonian &T,Configuration &o) : Configuration::UpdatableObject(o), _count(T.size()), Kinetic0(&T[0]) { reset(); }
 	
 	inline void update(const HamiltonianTerm* term,int rl,int ar) { if(rl==RIGHT) _count[term-Kinetic0]+=Sign[ar]; }
 
@@ -512,6 +505,13 @@ public:
   inline void update(const HamiltonianTerm* term,int rl,int arflag) {
       
 		Configuration::update(term,rl,arflag);
+
+		/* Updating the number of broken lines. 
+			if the update is before the configuration change then
+			_NBWL+=term->offset(arflag);
+			otherwise it is
+			_NBWL-=term->offset(!arflag); */
+
 		_NBWL-=term->offset(!arflag);
     Trees.update(term,rl);
     Energy.update(term,rl);

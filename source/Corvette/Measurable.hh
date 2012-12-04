@@ -166,7 +166,7 @@ class Measurable  {
 	std::vector<BinnedAccumulatorME*> _Bins;
 
 public:
-	Measurable(const OperatorStringType &OS) : OperatorString(OS), BrokenLineTracer(OS.GetListBrokenLines()) { reset(); }
+	Measurable(OperatorStringType &OS) : OperatorString(OS), BrokenLineTracer(OS.GetListBrokenLines(),OS) { reset(); }
 
 	~Measurable() {
 		for(std::vector<MeasurableFunction*>::iterator it=_Meas_Ptr.begin(); it!=_Meas_Ptr.end(); ++it)
