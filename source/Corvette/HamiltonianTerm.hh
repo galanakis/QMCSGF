@@ -52,45 +52,63 @@ namespace SGF {
 
 
 class ProductElement {
-  static int Delta(uint caprod);
-  static int MaxDelta(uint caprod);
-  static uint Amplitude(uint caprod,occupancy_t n);
-public:
+  inline static int Delta(uint caprod);
+  inline static uint Amplitude(uint caprod,occupancy_t n,occupancy_t nmax);
   static uint Multiply(uint caprod1,uint caprod2);
 
   uint _caprod;  // This is the binary representation of a product of c/a operators and the only data in the class
-  
+
 public:
-  ProductElement(int ca=1) : _caprod(ca) {}
   
-  inline uint &id() {return _caprod;};
+  ProductElement(int ca=1) : _caprod(ca) {}
+  ProductElement(const ProductElement &o) : _caprod(o._caprod) {}
+  
   inline const uint &id() const {return _caprod;};
 
   inline int delta() const {return Delta(_caprod);} 
-  inline int maxdelta() const {return MaxDelta(_caprod);}
-  inline uint amplitude(int n,int nmax) const {return (nmax!=0 && maxdelta()+n>nmax)?0:ProductElement::Amplitude(_caprod,n);}
+  inline uint amplitude(int n,int nmax) const {return Amplitude(_caprod,n,nmax); }
   inline int offset(int dn) const {return Abs(dn+delta())-Abs(dn);} // The offset of the operator for occupancy difference dn=NR-NL
   
-  friend inline ProductElement operator*(const ProductElement &a,const ProductElement &b);
-    
+  inline ProductElement &operator*=(const ProductElement &o) {
+
+     _caprod=Multiply(_caprod,o._caprod);
+     return *this;
+
+  }
+
+  inline int maxoffset() const { return Abs(delta()); }
+  inline int minoffset(uint nmax) const {
+    uint dn=Abs(delta()); 
+    return (nmax!=0)?(dn-2*Min(dn,nmax)):(-dn);
+  }
+
+
 };
 
-inline ProductElement operator*(const ProductElement &a,const ProductElement &b) { return ProductElement::Multiply(a._caprod,b._caprod);}
+inline ProductElement operator*(const ProductElement &a,const ProductElement &b) { return ProductElement(a)*=b;}
 
 
-uint ProductElement::Amplitude(uint caprod,occupancy_t n) {
+uint ProductElement::Amplitude(uint caprod,occupancy_t n,const occupancy_t nmax) {
+
+  if(nmax!=0 && n>nmax)
+    return 0;
   uint amplitude=1;
   while(caprod>1) {
-    amplitude*=(n+(caprod&1)); 
+
+    amplitude*=n+(caprod&1);
+
     n += Sign[caprod&1];
+    if(nmax!=0 && n>nmax)
+      return 0;
     caprod>>=1;
   }
   return amplitude;
+
 }
 
  
 
- /* The population of 1's minus the population of 0's after the leading digit. */
+/* The population of 1's minus the population of 0's after the leading digit. */
 int ProductElement::Delta(uint caprod) {
   int result=0;
   while(caprod>1) {
@@ -100,21 +118,6 @@ int ProductElement::Delta(uint caprod) {
   return result;
 }
  
-
-
-/* The maximum intermediate occupancy occurs at the same operator
-   regardless of direction. */
-int ProductElement::MaxDelta(uint caprod) {
-  int max=0;
-  int n=0;
-  while(caprod>1) {
-    n += Sign[caprod&1];
-    if(n>max) max=n;
-    caprod>>=1;
-  } 
-  return max;
-} 
-
  
 
 /* The product of two products. For example 10*11=101. */
@@ -214,9 +217,8 @@ public:
 	IndexedProductElement(const IndexedProductElement &o) : ProductElement(o), particle(o.particle) {}
   IndexedProductElement(const ProductElement &peprod,Boson* const _p) : ProductElement(peprod),particle(_p) {}
   Boson* const &particle_id() const {return particle;}
-  inline int n(int direction) const {return particle->n(direction)-delta()*!direction;}
   inline int offset(int action=ADD) const {return ProductElement::offset(Sign[action]*particle->delta());}
-  inline uint amplitude(int direction) const {return ProductElement::amplitude(n(direction),particle->nmax());}
+  inline uint amplitude(int direction) const {return ProductElement::amplitude(particle->n(direction)-delta()*!direction,particle->nmax());}
   inline void update(int direction,int action) const {
 
 #ifdef DEBUG    
@@ -224,6 +226,12 @@ public:
       std::cerr<<"Error: Negative occupancy encountered."<<std::endl;
       exit(2);
     }
+
+    if(particle->nmax()!=0 && particle->n(direction)==particle->nmax() && delta()*Sign[action==direction]>0) {
+      std::cerr<<"Error: Overpopulation encountered."<<std::endl;
+      exit(2);
+    }
+
 #endif
 
     particle->n(direction) += delta()*Sign[action==direction];
@@ -232,12 +240,8 @@ public:
 
 	inline bool match() const { return particle->n(RIGHT)+delta()==particle->n(LEFT);}
   
-  inline int maxoffset() const { return Abs(delta()); }
-  inline int minoffset() const {
-    uint Nmax=particle->nmax();
-    uint dn=Abs(delta()); 
-    return (Nmax!=0)?(dn-2*Min(dn,Nmax)):(-dn);
-  }
+  inline int minoffset() const { return ProductElement::minoffset(particle->nmax()); }
+
 };
 
 inline bool operator==(const IndexedProductElement &a,const IndexedProductElement &b) { return a.id() == b.id() && a.particle_id() == b.particle_id(); }
