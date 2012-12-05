@@ -75,7 +75,7 @@ public:
    //
    static Hamiltonian GetExtraTerms(const boson_vector_t &psi) {
       Hamiltonian result;
-      for(boson_vector_t::size_type i=0;i<psi.size();++i) {
+      for(boson_vector_t::size_type i=0; i<psi.size(); ++i) {
          result.push_back(HamiltonianTerm(1.0,IndexedProductElement(A,psi[i])));
          result.push_back(HamiltonianTerm(1.0,IndexedProductElement(C,psi[i])));
       }
@@ -158,253 +158,6 @@ public:
       }
 
       return adjacency;
-
-   }
-
-};
-
-
-
-/*
-  class Configuration {
-   boson_vector_t _indices;
-   std::vector<UpdatableObject*> UpdatableObjects;
-  }
-
-  holds the indices of the Bosons, together the number of broken world lines.
-  When updated it also updates all UpdatableObjects.
-
-  sub-class UpdatableObject
-
-  This is class to be used as the pure base class of objects that update themselves
-  after each addition/insertion of an operator.
-  The constructor of the class will push the new object in a static
-  list of pointers. Then the Configuration object which is a
-  friend, will read this list and call the update function of
-  the objects after each update. This way, all objects that
-  are declared UpdatableObject will be automatically updated.
-  This relies on the virtual function mechanism which is slightly
-  slow, so I only use it for measurable quantities.
-
-
-*/
-
-class Configuration {
-public:
-   class UpdatableObject {
-   public:
-      UpdatableObject(Configuration &o) { o.insert_update(this); }
-      virtual inline void update(const HamiltonianTerm*,int,int) = 0;
-   };
-
-protected:
-   boson_vector_t _indices;
-   std::vector<UpdatableObject*> UpdatableObjects;
-public:
-   Configuration(const Hamiltonian &T) : _indices(Orphans::GetConfiguration(T)), UpdatableObjects() {}
-   Configuration(const Configuration &o) : _indices(o._indices), UpdatableObjects() {}
-   int CountBrokenLines() const {
-      return Orphans::CountBrokenLines(_indices);
-   }
-   std::set<Boson*> GetListBrokenLines() const {
-      return Orphans::GetListBrokenLines(_indices);
-   }
-   void insert_update(UpdatableObject *p) {
-      UpdatableObjects.push_back(p);
-   }
-
-   //
-   // This function updates the configuration and calls whatever needs
-   // updating.
-   //
-   inline void update(const HamiltonianTerm* term,int rl,int arflag) {
-
-      term->update_psi(rl,arflag);
-
-      for(std::vector<UpdatableObject*>::size_type i=0; i<UpdatableObjects.size(); ++i)
-         UpdatableObjects[i]->update(term,rl,arflag);
-
-   }
-
-
-};
-
-
-
-
-/*
-  class BrokenLines
-
-  It holds a list of the indices with broken lines. It is only used for measurements
-  and this is why it is UpdatableObject.
-
-*/
-
-
-class BrokenLines : public Configuration::UpdatableObject {
-   std::set<Boson*> _broken_lines;
-public:
-
-   typedef std::vector<std::pair<Boson*,int> > BosonDeltaMapType;
-   BrokenLines(const std::set<Boson*> &o,Configuration &c) :  Configuration::UpdatableObject(c), _broken_lines(o) {}
-
-   inline void update(const std::vector<IndexedProductElement> &p) {
-      for(std::vector<IndexedProductElement>::const_iterator it=p.begin(); it!=p.end(); ++it) {
-         Boson *pind=it->particle_id();
-         if(pind->delta()!=0)
-            _broken_lines.insert(pind);
-         else
-            _broken_lines.erase(pind);
-      }
-   }
-
-   inline void update(const HamiltonianTerm* term,int,int) {
-      update(term->product());
-   }
-
-   // This one must be very fast
-   inline BosonDeltaMapType map() const {
-      BosonDeltaMapType vmap;
-      vmap.reserve(_broken_lines.size());
-      std::set<Boson*>::const_iterator it;
-      for(it=_broken_lines.begin(); it!=_broken_lines.end(); ++it) {
-         int delta=(*it)->delta();
-         if(delta!=0) vmap.push_back(std::pair<Boson*,int>(*it,delta));
-      }
-      return vmap;
-   }
-
-   inline const BosonDeltaMapType operator()() const {
-      return map();
-   }
-
-   // This one is ok to be slow since it is called only in the initializer
-   static inline BosonDeltaMapType map(const std::vector<IndexedProductElement> &p) {
-      std::map<Boson*,int> indices;
-      for(std::vector<IndexedProductElement>::const_iterator it=p.begin(); it!=p.end(); ++it) {
-         int delta=-it->delta();
-         if(delta!=0) indices[it->particle_id()]=delta;
-      }
-
-      BosonDeltaMapType vmap;
-      vmap.reserve(indices.size());
-      std::map<Boson*,int>::const_iterator it;
-      for(it=indices.begin(); it!=indices.end(); ++it)
-         vmap.push_back(*it);
-
-      return vmap;
-   }
-
-};
-
-/*
-  class TermCount
-
-  measures how many times each operator gets inserted minus the times
-  it is removed from the right of the GreenOperator.
-
-*/
-
-class TermCount : public Configuration::UpdatableObject {
-
-   const HamiltonianTerm * Kinetic0;
-   typedef std::vector<long> count_type;
-   typedef count_type::iterator iterator;
-   count_type _count;
-
-public:
-   TermCount(const Hamiltonian &T,Configuration &o) : Configuration::UpdatableObject(o), Kinetic0(&T[0]), _count(T.size()) {
-      reset();
-   }
-
-   inline void update(const HamiltonianTerm* term,int rl,int ar) {
-      if(rl==RIGHT) _count[term-Kinetic0]+=Sign[ar];
-   }
-
-   inline void reset() {
-      for(iterator ptr=_count.begin(); ptr!=_count.end(); ++ptr)
-         *ptr=0;
-   }
-
-};
-
-/*
-
-  class PotentialEnergies {
-   static unsigned int RebuildPeriod;
-   const Hamiltonian &Potential; 
-   const AdjacencyList pot_adjacency;
-   const HamiltonianTerm* Kinetic0;
-   _integer_counter NUpdates;
-   _float_accumulator Energies[2]; 
-   std::vector<MatrixElement> EnergyME[2];
-  }
-
-  it holds and updates then right and left potential energy.
-
-*/
-
-class PotentialEnergies {
-   const Hamiltonian &Potential;           // Local reference of the potential operators
-   const AdjacencyList pot_adjacency;      // For each term it holds a list of other kinetic terms with one common site
-   const HamiltonianTerm* Kinetic0;
-
-   const unsigned int RebuildPeriod;       // Number of updates before a rebuild.
-   _integer_counter NUpdates;              // Number of updates since last rebuild. This is only used to fix accumulating floating point errors for the energies
-   _float_accumulator Energies[2];         // energy of right and left state. It is an accumulator
-   std::vector<MatrixElement> EnergyME[2];
-
-   inline const HamiltonianTerm * Term(Hamiltonian::size_type iterm) const {
-      return &Potential[iterm];
-   }
-   inline Hamiltonian::size_type Hash(const HamiltonianTerm* term) const {
-      return term-&Potential[0];
-   }
-
-
-   inline void rebuild() {
-      NUpdates=0;
-      for(int direction=0; direction<2; ++direction) {
-         Energies[direction]=0;
-         for(HamiltonianTerm::size_type i=0; i<Potential.size(); ++i) {
-            MatrixElement me=Term(i)->me(direction);
-            EnergyME[direction][i]=me;
-            Energies[direction]+=me;
-         }
-      }
-   }
-
-
-public:
-
-   PotentialEnergies(const Hamiltonian &T,const Hamiltonian &P) : Potential(P), pot_adjacency(Orphans::GetAdjacencyList(T,P)), Kinetic0(&T[0]), NUpdates(0), RebuildPeriod(1000000) {
-      EnergyME[0].resize(Potential.size());
-      EnergyME[1].resize(Potential.size());
-      rebuild();
-   }
-
-   PotentialEnergies(const PotentialEnergies &o) : Potential(o.Potential), pot_adjacency(o.pot_adjacency), Kinetic0(o.Kinetic0), NUpdates(o.NUpdates), RebuildPeriod(o.RebuildPeriod) {
-      EnergyME[0]=o.EnergyME[0];
-      EnergyME[1]=o.EnergyME[1];
-      Energies[0]=o.Energies[0];
-      Energies[1]=o.Energies[1];
-   }
-
-   inline const _float_accumulator &operator()(int rl) const {
-      return Energies[rl];
-   }
-
-   // It updates the Energies[2], EnergyME[2][].
-   inline void update(const HamiltonianTerm* const &term,int rl) {
-      const term_vector_t &pot=pot_adjacency[term-Kinetic0];
-      for(term_vector_t::const_iterator nbr=pot.begin(); nbr!=pot.end(); ++nbr) {
-         MatrixElement me=(*nbr)->me(rl);
-         std::vector<MatrixElement>::size_type i=Hash(*nbr);
-         Energies[rl]+=me-EnergyME[rl][i];
-         EnergyME[rl][i]=me;
-      }
-      if((++NUpdates % RebuildPeriod)==0)
-         rebuild();
 
    }
 
@@ -496,10 +249,10 @@ public:
       return offsets[i];
    }
 
-   ForestType(const Hamiltonian &K) : offsets(Orphans::GetOffsets(K)) {
+   ForestType(unsigned int nterms,int_vector_t _offsets) : offsets(_offsets) {
       trees=new TreeType[size()];
       for(OffsetMap::size_type i=0; i<size(); ++i)
-         trees[i].resize(K.size());
+         trees[i].resize(nterms);
       for(OffsetMap::size_type i=0; i<size(); ++i)
          trees[i].reset();
 
@@ -510,78 +263,109 @@ public:
 };
 
 
+//
+// It is used to convert pointers to indices.
+//
+class TermHash {
+
+   const HamiltonianTerm* Origin;
+   typedef Hamiltonian::size_type size_type;
+
+public:
+   TermHash(const Hamiltonian &H) : Origin(&H[0]) {}
+   size_type Hash(const HamiltonianTerm* p) const {
+      return p-Origin;
+   }
+   const HamiltonianTerm *Term(const size_type i) const {
+      return Origin+i;
+   }
+
+};
+
 
 /*
-
-  class KineticProbabilities {
-
-   const Hamiltonian &Kinetic;
-   const AdjacencyList kin_adjacency;
-   std::vector<TreeType*> tree_cache;
-   ForestType forest;
-  
+  class Probabilities {
+   boson_vector_t _indices;
+   std::vector<UpdatableObject*> UpdatableObjects;
   }
 
-  holds and updates the Trees for each direction.
+  Contains and updates the configurations, the number of
+  broken lines, the diagonal energies, the trees. 
+
+  sub-class UpdatableObject
+
+  This is class to be used as the pure base class of objects that update themselves
+  after each addition/insertion of an operator.
+  The constructor of the class will push the new object in a static
+  list of pointers. Then the Configuration object which is a
+  friend, will read this list and call the update function of
+  the objects after each update. This way, all objects that
+  are declared UpdatableObject will be automatically updated.
+  This relies on the virtual function mechanism which is slightly
+  slow, so I only use it for measurable quantities.
+
 
 */
 
 
 
-class KineticProbabilities {
-   const Hamiltonian &Kinetic;         // Local copy of the kinetic operators
-   const AdjacencyList kin_adjacency;  // For each term it holds a list of other kinetic terms with one common site
-   inline Hamiltonian::size_type Hash(const HamiltonianTerm* term) const {
+
+class Probabilities {
+
+public:
+   class UpdatableObject {
+   public:
+      UpdatableObject(Probabilities &o) {
+         o.insert_update(this);
+      }
+      virtual inline void update(const HamiltonianTerm*,int,int) = 0;
+   };
+
+private:
+   boson_vector_t _indices;                // A list of all the bosons
+   std::vector<UpdatableObject*> UpdatableObjects;
+
+   int _NBWL;                              // The number of all broken world lines
+   GreenOperator<long double> GF;          // Defines the Green operator function
+
+   const Hamiltonian &Potential;           // Local reference of the potential operators
+   const AdjacencyList pot_adjacency;      // For each term it holds a list of other kinetic terms with one common site
+
+   const unsigned int RebuildPeriod;       // Number of updates before a rebuild.
+   _integer_counter NUpdates;              // Number of updates since last rebuild. This is only used to fix accumulating floating point errors for the energies
+   _float_accumulator Energies[2];         // energy of right and left state. It is an accumulator
+   std::vector<MatrixElement> EnergyME[2]; // All the potential energies
+
+   const Hamiltonian &Kinetic;             // Local copy of the kinetic operators
+   const AdjacencyList kin_adjacency;      // For each term it holds a list of other kinetic terms with one common site
+   std::vector<TreeType*> tree_cache;      // remembers the offset of each operator
+   ForestType forest;                      // Contains two trees one for each direction
+
+
+   inline Hamiltonian::size_type KinHash(const HamiltonianTerm* term) const {
       return term-&Kinetic[0];
    }
-   inline const HamiltonianTerm * Term(Hamiltonian::size_type iterm) const {
+   inline const HamiltonianTerm * KinTerm(Hamiltonian::size_type iterm) const {
       return &Kinetic[iterm];
    }
-   std::vector<TreeType*> tree_cache;      // remembers the offset of each operator
 
-   ForestType forest;
+   inline const HamiltonianTerm * PotTerm(Hamiltonian::size_type iterm) const {
+      return &Potential[iterm];
+   }
+   inline Hamiltonian::size_type PotHash(const HamiltonianTerm* term) const {
+      return term-&Potential[0];
+   }
+
+
 
 public:
 
-   inline OffsetMap::size_type size() const {
-      return forest.size();
-   }
-   inline const int &offset(int i) const {
-      return forest.offset(i);
-   }
-
-   KineticProbabilities(const Hamiltonian &T) : Kinetic(T), kin_adjacency(Orphans::GetAdjacencyList(Kinetic,Kinetic)), forest(Kinetic) {
-
-      tree_cache.resize(Kinetic.size());
-
-      for(int direction=0; direction<2; ++direction) {
-         for(Hamiltonian::size_type i=0; i<Kinetic.size(); ++i) {
-            TreeType *tree = forest(&Kinetic[i]);
-            tree_cache[i] = tree;
-            tree->tsum[direction].update(i,Kinetic[i].me(direction));
-         }
-      }
-
-
-   }
-
-   ~KineticProbabilities() {
-   }
-
-
-   inline const _float_accumulator &norm(int rl,int i) const {
-      return forest(i)->tsum[rl].norm();
-   }
-   inline const HamiltonianTerm * choose(int rl,int i) const {
-      return Term(forest(i)->tsum[rl].choose());
-   }
-
    // It changes _tsum[2][] and tree_cache.
-   inline void update(const HamiltonianTerm* const &term,int rl) {
+   inline void update_trees(const HamiltonianTerm* const &term,int rl) {
 
-      const term_vector_t &kin=kin_adjacency[Hash(term)];
+      const term_vector_t &kin=kin_adjacency[KinHash(term)];
       for(term_vector_t::const_iterator nbr=kin.begin(); nbr!=kin.end(); ++nbr) {
-         Hamiltonian::size_type fndex= Hash(*nbr);
+         Hamiltonian::size_type fndex= KinHash(*nbr);
          TreeType *i_tree = tree_cache[fndex];
          TreeType *f_tree = forest(*nbr);
          MatrixElement fme = (*nbr)->me(rl);
@@ -596,21 +380,81 @@ public:
       }
    }
 
-};
+   // It updates the Energies[2], EnergyME[2][].
+   inline void update_energies(const HamiltonianTerm* const &term,int rl) {
+      const term_vector_t &pot=pot_adjacency[KinHash(term)];
+      for(term_vector_t::const_iterator nbr=pot.begin(); nbr!=pot.end(); ++nbr) {
+         MatrixElement me=(*nbr)->me(rl);
+         std::vector<MatrixElement>::size_type i=PotHash(*nbr);
+         Energies[rl]+=me-EnergyME[rl][i];
+         EnergyME[rl][i]=me;
+      }
+      if((++NUpdates % RebuildPeriod)==0)
+         rebuild_energies();
 
+   }
 
-class Probabilities : public Configuration {
-protected:
-   KineticProbabilities Trees;
-   int _NBWL;
-   GreenOperator<long double> GF;                // Defines the Green operator function
-   PotentialEnergies Energy;
+   inline void rebuild_energies() {
+      NUpdates=0;
+      for(int direction=0; direction<2; ++direction) {
+         Energies[direction]=0;
+         for(HamiltonianTerm::size_type i=0; i<Potential.size(); ++i) {
+            MatrixElement me=PotTerm(i)->me(direction);
+            EnergyME[direction][i]=me;
+            Energies[direction]+=me;
+         }
+      }
+   }
+
+   void insert_update(UpdatableObject *p) {
+      UpdatableObjects.push_back(p);
+   }
 
 
 public:
-   Probabilities(const Hamiltonian &T,const Hamiltonian &P,const GreenOperator<long double> &g) : Configuration(T), Trees(T), GF(g), Energy(T,P) {
-      _NBWL=CountBrokenLines();
+
+   Probabilities(const Hamiltonian &T,const Hamiltonian &P,const GreenOperator<long double> &g) :
+
+      _indices(Orphans::GetConfiguration(T)),
+      _NBWL(Orphans::CountBrokenLines(_indices)),
+      UpdatableObjects(),
+      GF(g),
+      Potential(P),
+      pot_adjacency(Orphans::GetAdjacencyList(T,P)),
+      NUpdates(0),
+      RebuildPeriod(1000000),
+      Kinetic(T),
+      kin_adjacency(Orphans::GetAdjacencyList(T,T)),
+      forest(T.size(),Orphans::GetOffsets(T))
+
+   {
+
+      EnergyME[0].resize(P.size());
+      EnergyME[1].resize(P.size());
+      rebuild_energies();
+
+      tree_cache.resize(T.size());
+
+      for(int direction=0; direction<2; ++direction) {
+         for(Hamiltonian::size_type i=0; i<T.size(); ++i) {
+            TreeType *tree = forest(&T[i]);
+            tree_cache[i] = tree;
+            tree->tsum[direction].update(i,T[i].me(direction));
+         }
+      }
+
    }
+
+
+   inline const _float_accumulator &Energy(int rl) const {
+      return Energies[rl];
+   }
+
+
+   std::set<Boson*> GetListBrokenLines() const {
+      return Orphans::GetListBrokenLines(_indices);
+   }
+
 
    inline MatrixElement G(int offset=0) const {
       return GF(NBrokenLines()+offset);   // The value of the Green Operator given the total broken lines and the offset.
@@ -618,8 +462,8 @@ public:
 
    inline double weight(int rl) const {
       _float_accumulator s=0.0;
-      for( OffsetMap::size_type i=0; i<Trees.size(); ++i)
-         s+=G(Trees.offset(i))*Trees.norm(rl,i);
+      for( OffsetMap::size_type i=0; i<forest.size(); ++i)
+         s+=G(forest.offset(i))*forest(i)->tsum[rl].norm();
       return s;
    }
 
@@ -628,10 +472,11 @@ public:
 
       double R=RNG::Uniform()*weight(rl);
       OffsetMap::size_type i=0;
-      while((R-=G(Trees.offset(i))*Trees.norm(rl,i))>=0)
+      while((R-=G(forest.offset(i))*forest(i)->tsum[rl].norm())>=0)
          ++i;
 
-      return Trees.choose(rl,i);
+      return KinTerm(forest(i)->tsum[rl].choose());
+
    }
 
    inline const int &NBrokenLines() const {
@@ -641,7 +486,10 @@ public:
 
    inline void update(const HamiltonianTerm* term,int rl,int arflag) {
 
-      Configuration::update(term,rl,arflag);
+      term->update_psi(rl,arflag);
+
+      for(std::vector<UpdatableObject*>::size_type i=0; i<UpdatableObjects.size(); ++i)
+         UpdatableObjects[i]->update(term,rl,arflag);
 
       /* Updating the number of broken lines.
         if the update is before the configuration change then
@@ -650,12 +498,113 @@ public:
         _NBWL-=term->offset(!arflag); */
 
       _NBWL-=term->offset(!arflag);
-      Trees.update(term,rl);
-      Energy.update(term,rl);
+      update_trees(term,rl);
+      update_energies(term,rl);
 
    }
 
 };
+
+
+
+
+
+/*
+  class BrokenLines
+
+  It holds a list of the indices with broken lines. It is only used for measurements
+  and this is why it is UpdatableObject.
+
+*/
+
+
+class BrokenLines : public Probabilities::UpdatableObject {
+   std::set<Boson*> _broken_lines;
+public:
+
+   typedef std::vector<std::pair<Boson*,int> > BosonDeltaMapType;
+   BrokenLines(const std::set<Boson*> &o,Probabilities &c) :  Probabilities::UpdatableObject(c), _broken_lines(o) {}
+
+   inline void update(const std::vector<IndexedProductElement> &p) {
+      for(std::vector<IndexedProductElement>::const_iterator it=p.begin(); it!=p.end(); ++it) {
+         Boson *pind=it->particle_id();
+         if(pind->delta()!=0)
+            _broken_lines.insert(pind);
+         else
+            _broken_lines.erase(pind);
+      }
+   }
+
+   inline void update(const HamiltonianTerm* term,int,int) {
+      update(term->product());
+   }
+
+   // This one must be very fast
+   inline BosonDeltaMapType map() const {
+      BosonDeltaMapType vmap;
+      vmap.reserve(_broken_lines.size());
+      std::set<Boson*>::const_iterator it;
+      for(it=_broken_lines.begin(); it!=_broken_lines.end(); ++it) {
+         int delta=(*it)->delta();
+         if(delta!=0) vmap.push_back(std::pair<Boson*,int>(*it,delta));
+      }
+      return vmap;
+   }
+
+   inline const BosonDeltaMapType operator()() const {
+      return map();
+   }
+
+   // This one is ok to be slow since it is called only in the initializer
+   static inline BosonDeltaMapType map(const std::vector<IndexedProductElement> &p) {
+      std::map<Boson*,int> indices;
+      for(std::vector<IndexedProductElement>::const_iterator it=p.begin(); it!=p.end(); ++it) {
+         int delta=-it->delta();
+         if(delta!=0) indices[it->particle_id()]=delta;
+      }
+
+      BosonDeltaMapType vmap;
+      vmap.reserve(indices.size());
+      std::map<Boson*,int>::const_iterator it;
+      for(it=indices.begin(); it!=indices.end(); ++it)
+         vmap.push_back(*it);
+
+      return vmap;
+   }
+
+};
+
+/*
+  class TermCount
+
+  measures how many times each operator gets inserted minus the times
+  it is removed from the right of the GreenOperator.
+
+*/
+
+class TermCount : public Probabilities::UpdatableObject {
+
+   const HamiltonianTerm * Kinetic0;
+   typedef std::vector<long> count_type;
+   typedef count_type::iterator iterator;
+   count_type _count;
+
+public:
+   TermCount(const Hamiltonian &T,Probabilities &o) : Probabilities::UpdatableObject(o), Kinetic0(&T[0]), _count(T.size()) {
+      reset();
+   }
+
+   inline void update(const HamiltonianTerm* term,int rl,int ar) {
+      if(rl==RIGHT) _count[term-Kinetic0]+=Sign[ar];
+   }
+
+   inline void reset() {
+      for(iterator ptr=_count.begin(); ptr!=_count.end(); ++ptr)
+         *ptr=0;
+   }
+
+};
+
 
 }
 

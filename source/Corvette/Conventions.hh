@@ -23,7 +23,7 @@ enum {LEFT,RIGHT};            // Directions
 enum {ANNIHILATION,CREATION}; // Operator type
 enum {REMOVE,ADD};            // Action
 enum {DESTROY,CREATE};        // another name for action
-enum {Canonical,GrandCanonical};
+typedef enum {Canonical,GrandCanonical} ensemble_t;
 
 // Absolute value
 template<class T> inline T Abs(T x) {return x<0?-x:x;}
