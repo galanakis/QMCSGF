@@ -67,13 +67,6 @@ public:
     return result==0;         
   }
 
-	inline bool match() const {
-    bool result=true;
-    for(size_type i=0;i<_product.size();++i)
-      result=result && _product[i].match();
-    return result;         		
-	}
-
   /* offset after adding/removing the present term */
   inline int offset(int action=ADD) const {
     int result=0;

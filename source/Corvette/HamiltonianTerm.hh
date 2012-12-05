@@ -206,6 +206,34 @@ public:
   Therefore when we act to the left (direction=0), we need to shift
   the occupancy.
   
+
+  Concerning the minimum and maximum offsets:
+
+  For an operator product at the same index, the offset is defined as
+  Abs(dn+NR-NL)-Abs(NR-NL) and for a given dn it takes values -dn,-dn+2,...,dn-2,dn.
+  If we have products at different indices, the offset is additive. This reminds a
+  bit addition of spins. The maximum offset is the Abs(delta())
+  (# of creation -# of annihilation operators) of the product.
+  The step of the offset is always 2. Now if we have a lot of terms, some of them
+  will have an even and some of them will have an odd and some others and even
+  offset. If all of them are even then we can set the offset step=2, otherwise
+  it will be 1.
+
+  All this does not assume the case of hard core bosons, in which the number
+  of offsets is limitted.
+  In this case we need to consider Abs(dn+DN)-Abs(DN), -Nmax<=(DN=NR-NL)<=Nmax.
+  It is easy tos show that given the constraint:
+  |dn|-2*Min(|dn|,Nmax) <= Abs(|dn|+DN)-Abs(DN) <= |dn|
+
+  This is handled by IndexedProductElement, which can return the minimum and
+  maximum offset.
+  Given that we can scan through all kinetic terms and generate a list of
+  offsets (between min and max with step 2). Then we can map them to
+  sequential integers.
+
+
+
+
 */
 
 class IndexedProductElement : public ProductElement {
@@ -238,8 +266,6 @@ public:
      
   }
 
-	inline bool match() const { return particle->n(RIGHT)+delta()==particle->n(LEFT);}
-  
   inline int minoffset() const { return ProductElement::minoffset(particle->nmax()); }
 
 };

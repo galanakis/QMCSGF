@@ -9,7 +9,8 @@
 
 #include "HamiltonianTerm.hh"
 #include <OperatorString.hh>
-#include <Simulation.hh> 
+#include <Simulation.hh>
+#include "Conventions.hh"
 
 
 #ifdef USEMPI
@@ -42,6 +43,7 @@ void BoseHubbardPeriodic1D() {
   unsigned long MeasTime=40000;
   unsigned long MeasIterations=100000000;
   unsigned long NBins=20;
+  unsigned int Ensemble=SGF::Canonical;
 
 
   RNG::Initialize(Seed);

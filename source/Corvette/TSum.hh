@@ -90,7 +90,7 @@ class TSum {
 
 public:
 
-	TSum() : _sums(), _elements(0), _guard(0) {}
+	TSum() : _sums(), _elements(0), _guard(0), _norm(0) {}
 	~TSum() {
 		delete [] _guard;
 		delete [] _buffer;

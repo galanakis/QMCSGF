@@ -7,11 +7,11 @@ BinPrefix=File.expand_path('~/')+"/.bin"
 require 'fileutils'
 
 task :default do
- puts cmd="/opt/intel/composerxe/bin/icc -fast -fp-model precise -Wall -DDEBUG #{Flags} #{Include} #{Source} -o #{Executable}"
+ puts cmd="/opt/intel/composerxe/bin/icc -fast -fp-model precise -Wall #{Flags} #{Include} #{Source} -o #{Executable}"
  puts %x{#{cmd}}
 end
-task :release do
-  puts cmd="/opt/intel/composerxe/bin/icc -fast -fp-model precise -Wall #{Flags} #{Include} #{Source} -o #{Executable}"
+task :debug do
+  puts cmd="/opt/intel/composerxe/bin/icc -fast -fp-model precise -Wall -DDEBUG #{Flags} #{Include} #{Source} -o #{Executable}"
   puts %x{#{cmd}}
 end 
 task :mpi do
@@ -31,7 +31,6 @@ task :gcc do
  puts cmd
  puts %x{#{cmd}}
 end
-
 
 task :example do
  puts cmd="/opt/intel/composerxe/bin/icc -fast -fp-model precise -Wall -DDEBUG #{Flags} #{Include} source/Boson-SGF.cpp -o Example"

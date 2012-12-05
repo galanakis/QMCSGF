@@ -183,7 +183,7 @@ void Simulator() {
   unsigned long MeasTime=MathExpression::GetValue("#MeasTime").Re();
   unsigned long MeasIterations=(MathExpression::Find("MeasIterations")!=NULL) ? static_cast<unsigned long>(MathExpression::GetValue("MeasIterations").Re()) : std::numeric_limits<unsigned long>::max();      
   unsigned long NBins=MathExpression::GetValue("#Bins").Re();
-
+  unsigned int Ensemble=MathExpression::GetValue("#Ensemble").Re();
 
 
   _Psi.resize(NumIndices);
