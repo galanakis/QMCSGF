@@ -17,6 +17,7 @@
 
 #include <Simulation.hh> 
 #include "HamiltonianTerm.hh"
+#include "SGFBase.hh"
 
 
 #ifdef USEMPI
@@ -169,13 +170,10 @@ void PrintTokens(std::ostream &o) {
 void Simulator() {
 
 
-  std::vector<SGF::Boson> _Psi;
 
   unsigned int NumIndices=MathExpression::GetNumIndices();
   unsigned int NumSpecies=MathExpression::GetNumSpecies();
   unsigned int NumSites=NumIndices/NumSpecies;
-  double Beta=MathExpression::GetValue("#InverseTemperature").Re();
-  double AlphaParameter=MathExpression::GetValue("AlphaParameter").Re();
   unsigned int NSites=MathExpression::GetNumIndices()/MathExpression::GetNumSpecies();
   unsigned int GreenOperatorLines=MathExpression::GetValue("GreenOperatorLines").Re();
   unsigned long WarmTime=MathExpression::GetValue("#WarmTime").Re();
@@ -183,41 +181,45 @@ void Simulator() {
   unsigned long MeasTime=MathExpression::GetValue("#MeasTime").Re();
   unsigned long MeasIterations=(MathExpression::Find("MeasIterations")!=NULL) ? static_cast<unsigned long>(MathExpression::GetValue("MeasIterations").Re()) : std::numeric_limits<unsigned long>::max();      
   unsigned long NBins=MathExpression::GetValue("#Bins").Re();
-  unsigned int Ensemble=MathExpression::GetValue("#Ensemble").Re();
+
+  SGF::SGFBase Container;
+
+  Container.Beta=MathExpression::GetValue("#InverseTemperature").Re();
+  Container.Alpha=MathExpression::GetValue("AlphaParameter").Re();
+  Container.Ensemble=MathExpression::GetValue("#Ensemble").Re() == 0 ? SGF::Canonical : SGF::GrandCanonical;
 
 
-  _Psi.resize(NumIndices);
+  Container.g.initialize(NSites,GreenOperatorLines);
 
-  for(std::vector<SGF::Boson>::size_type i=0;i<_Psi.size();++i)
-    _Psi[i].nmax()=MathExpression::GetNmax(i);
+  // Initializing the configuration
+  Container.Psi.resize(NumIndices);
+  for(std::vector<SGF::Boson>::size_type i=0;i<Container.Psi.size();++i)
+    Container.Psi[i].nmax()=MathExpression::GetNmax(i);
 
   for(unsigned int species=0;species<NumSpecies;++species) {
     for(int particle=0;particle<MathExpression::GetPopulation(species);++particle) {
       unsigned int i=NumSites*species+particle%NumSites;
-      _Psi[i].n(0)++;
-      _Psi[i].n(1)++;
+      Container.Psi[i].n(0)++;
+      Container.Psi[i].n(1)++;
     }
   }  
 
 
-  
-  
-  double _ConstantEnergy=0; // This holds an overall constant term of the Hamiltonian
-  SGF::Hamiltonian T,V;
-  OperatorIterator it(_Psi,"#Hamiltonian");
+  // Initializing the kinetic and potential operators
+  OperatorIterator it(Container.Psi,"#Hamiltonian");
 
-  while(it.increment()) {
-    SGF::HamiltonianTerm Term=it.Term();
-    if(Term.product().size()==0)
-      _ConstantEnergy+=Term.coefficient();
-    else if(Term.diagonal())
-      V.push_back(it.Term());
-    else {
-      Term.coefficient()*=-1.0;
-      T.push_back(Term);
-    }
+   while(it.increment()) {
+      SGF::HamiltonianTerm Term=it.Term();
+      if(Term.product().size()!=0) {
+         if(Term.diagonal())
+            Container.V.push_back(it.Term());
+         else {
+            Term.coefficient()*=-1.0;
+            Container.T.push_back(Term);
+         }
+      }
 
-  }
+   }
 
 
   // Building the list of measurable operators
@@ -227,16 +229,15 @@ void Simulator() {
   _MeasurableOperators.resize(opnames.size());
 
   for(std::vector<std::string>::size_type i=0;i<opnames.size();++i) {
-    OperatorIterator oit(_Psi,opnames[i]);
+    OperatorIterator oit(Container.Psi,opnames[i]);
 
     while(oit.increment())
       _MeasurableOperators[i].push_back(oit.Term());
 
   }
 
-  SGF::GreenOperator<long double> g(NSites,GreenOperatorLines);
 
-  SGF::OperatorStringType OperatorString(T,V,Beta,g,AlphaParameter);
+  SGF::OperatorStringType OperatorString(Container);
 
 	/* Initializing the simulation. Thermalize, Measure and pring the results */
   Simulation simul(MathExpression::GetSimulName(),cout);

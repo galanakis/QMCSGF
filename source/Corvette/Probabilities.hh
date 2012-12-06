@@ -5,6 +5,7 @@
 #include "HamiltonianTerm.hh"
 #include "GreenOperator.hh"
 #include "TSum.hh"
+#include "SGFBase.hh"
 #include <vector>
 #include <list>
 #include <map>
@@ -326,7 +327,7 @@ private:
    std::vector<UpdatableObject*> UpdatableObjects;
 
    int _NBWL;                              // The number of all broken world lines
-   GreenOperator<long double> GF;          // Defines the Green operator function
+   GreenOperator<long double> &GF;         // Defines the Green operator function
 
    const Hamiltonian &Potential;           // Local reference of the potential operators
    const AdjacencyList pot_adjacency;      // For each term it holds a list of other kinetic terms with one common site
@@ -413,33 +414,33 @@ public:
 
 public:
 
-   Probabilities(const Hamiltonian &T,const Hamiltonian &P,const GreenOperator<long double> &g) :
+   Probabilities(SGFBase &base) :
 
-      _indices(Orphans::GetConfiguration(T)),
+      _indices(Orphans::GetConfiguration(base.T)),
       _NBWL(Orphans::CountBrokenLines(_indices)),
       UpdatableObjects(),
-      GF(g),
-      Potential(P),
-      pot_adjacency(Orphans::GetAdjacencyList(T,P)),
+      GF(base.g),
+      Potential(base.V),
+      pot_adjacency(Orphans::GetAdjacencyList(base.T,base.V)),
       NUpdates(0),
       RebuildPeriod(1000000),
-      Kinetic(T),
-      kin_adjacency(Orphans::GetAdjacencyList(T,T)),
-      forest(T.size(),Orphans::GetOffsets(T))
+      Kinetic(base.T),
+      kin_adjacency(Orphans::GetAdjacencyList(base.T,base.T)),
+      forest(base.T.size(),Orphans::GetOffsets(base.T))
 
    {
 
-      EnergyME[0].resize(P.size());
-      EnergyME[1].resize(P.size());
+      EnergyME[0].resize(base.V.size());
+      EnergyME[1].resize(base.V.size());
       rebuild_energies();
 
-      tree_cache.resize(T.size());
+      tree_cache.resize(base.T.size());
 
       for(int direction=0; direction<2; ++direction) {
-         for(Hamiltonian::size_type i=0; i<T.size(); ++i) {
-            TreeType *tree = forest(&T[i]);
+         for(Hamiltonian::size_type i=0; i<base.T.size(); ++i) {
+            TreeType *tree = forest(&base.T[i]);
             tree_cache[i] = tree;
-            tree->tsum[direction].update(i,T[i].me(direction));
+            tree->tsum[direction].update(i,base.T[i].me(direction));
          }
       }
 

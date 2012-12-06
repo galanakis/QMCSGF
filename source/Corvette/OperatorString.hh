@@ -2,38 +2,15 @@
 #define __OPERATORSTRING__
 
 #include <map>
-#include <deque>
 #include <cmath>
 
-#include "CircularTime.hh"
-#include "HamiltonianTerm.hh"
 #include "Probabilities.hh"
 #include "RandomNumberGenerator.hh"
 #include "Accumulator.hh"
+#include "CircDList.hh"
+#include "SGFBase.hh"
 
 namespace SGF {
-
-/*
-  class CircDList
-  This is a wrapper to deque, which replaces push_back, push_front, etc
-  with push(direction,data). 
-*/
-
-template<class T>
-class CircDList {
-protected:
-  std::deque<T> que;
-public:
-	typedef typename std::deque<T>::size_type string_size_type;
-  CircDList() : que() {};
-  inline void pop(int direction) { direction==RIGHT ? que.pop_front() : que.pop_back(); }
-  inline void push(int direction,const T& data) { direction==RIGHT ?  que.push_front(data) : que.push_back(data); }
-  inline const T& top(int direction) const { return direction==RIGHT ? que.front() : que.back(); }
-	inline const T& top(int direction,int depth) const {return direction==RIGHT ? que[depth] : que[que.size()-depth-1];}
-  inline string_size_type length() const {return que.size();}
-  inline bool empty() const {return que.empty();}
-	inline const T &operator[](string_size_type i) const {return que[i];}
-}; 
 
 
 
@@ -63,24 +40,19 @@ public:
 
 
   
-  
-struct Operator {
-  CircularTime Time;
-  const HamiltonianTerm* Term;
-	_float_accumulator Energy;
-  
-  Operator(const Operator &o) : Time(o.Time), Term(o.Term), Energy(o.Energy) {}
-	Operator &operator=(const Operator &o) {Time=o.Time; Term=o.Term; Energy=o.Energy; return *this;}
-  Operator(const CircularTime &_time,const HamiltonianTerm *_term,const _float_accumulator &_energy) : Time(_time), Term(_term), Energy(_energy) {}
-};                       
 
 enum {LATER,EARLIER};
 
 inline double xcoth(double x) { return (x==0) ? 1 : x/tanh(x); }
 
+//typedef CircDList<Operator> OperatorCircDList;
 
-class OperatorStringType : public CircDList<Operator>, public Probabilities {
+class OperatorStringType : public Probabilities {
   
+
+
+	CircDList<Operator> &CDList;
+
   double _Beta;             // Inverse temperature.
 	double _Alpha;            // directionality parameter
 	double _Renormalization;  // We need the renormalization for the measurements
@@ -88,30 +60,32 @@ class OperatorStringType : public CircDList<Operator>, public Probabilities {
   
 	_float_accumulator _diagonal_energy; // Keeps track of the diagonal energy
 
-	inline _float_accumulator delta_diagonal(const int &direction) const { return (length()>=2) ? top(direction,direction).Energy*(top(direction,!direction).Time-top(direction,direction).Time).time() : 0;  }
-	inline double ER_Dtau() const {return empty() ? Energy(RIGHT) : Energy(RIGHT)*(top(LEFT).Time-top(RIGHT).Time).time();}
+	inline _float_accumulator delta_diagonal(const int &direction) const { return (CDList.length()>=2) ? CDList.top(direction,direction).Energy*(CDList.top(direction,!direction).Time-CDList.top(direction,direction).Time).time() : 0;  }
+	inline double ER_Dtau() const {return CDList.empty() ? Energy(RIGHT) : Energy(RIGHT)*(CDList.top(LEFT).Time-CDList.top(RIGHT).Time).time();}
 	
+
+	inline _float_accumulator DiagonalEnergyIntegral() const {
+		_float_accumulator result=0;
+		for(unsigned int i=0;i+1<CDList.length();++i) {
+			result+=CDList[i+1].Energy*(CDList[i].Time-CDList[i+1].Time).time();
+		}
+		return result;
+	}
 
 	// Calculates the diagonal energy by doing the time integral explicitly.
 	inline double GetDiagonalEnergy() const {
-		
-		_float_accumulator result=0;
-		for(unsigned int i=0;i+1<length();++i) {
-			result+=que[i+1].Energy*(que[i].Time-que[i+1].Time).time();
-		}
-
-		return ER_Dtau()+result;
+		return ER_Dtau()+DiagonalEnergyIntegral();
 	}  
 	
   inline double DeltaV() const {return Energy(LEFT)-Energy(RIGHT);} // The difference between the energies
-  inline double DeltaTau() const { return Beta()*(top(LEFT).Time-top(RIGHT).Time).time(); }
+  inline double DeltaTau() const { return Beta()*(CDList.top(LEFT).Time-CDList.top(RIGHT).Time).time(); }
 
  	inline CircularTime newtime() const {
-		if(empty())
+		if(CDList.empty())
 			return 1;
 		else {
-			CircularTime TL=top(LEFT).Time;
-			CircularTime TR=top(RIGHT).Time; 
+			CircularTime TL=CDList.top(LEFT).Time;
+			CircularTime TR=CDList.top(RIGHT).Time; 
 
 			double dt=(TL-TR).time();
 			double L=dt*Beta()*DeltaV();
@@ -139,7 +113,7 @@ class OperatorStringType : public CircDList<Operator>, public Probabilities {
 	*/
 	inline double SumWeightDestuction() const {
 
-		if(empty()) 
+		if(CDList.empty()) 
 			return 0;
 		else {
 			double dV=DeltaV();
@@ -153,7 +127,7 @@ class OperatorStringType : public CircDList<Operator>, public Probabilities {
 		This returns the difference WeightDestruction(LEFT)+WeightDestruction(RIGHT
 		which is equal to dV/(1-exp(-dV dt))+dV/(1-exp(dV dt)) = dV
 	*/ 
-	inline double DeltaWeightDestuction() const {return empty() ? 0 : DeltaV(); }
+	inline double DeltaWeightDestuction() const {return CDList.empty() ? 0 : DeltaV(); }
 
  	inline double Renormalization() const { return _Renormalization; }
 
@@ -240,17 +214,26 @@ class OperatorStringType : public CircDList<Operator>, public Probabilities {
 	
 public:
 
+	OperatorStringType(SGFBase &base) : CDList(base.OperatorCDList), Probabilities(base), _Beta(base.Beta), _Alpha(base.Alpha) {
 
-  OperatorStringType(const Hamiltonian &T,const Hamiltonian &V,double beta,GreenOperator<long double> &g,double alpha) : CircDList<Operator>(), Probabilities(T,V,g), _Beta(beta), _Alpha(alpha) {
-		_diagonal_energy=0;
 
-		double WL=WeightCreation(LEFT);
-		double WR=WeightCreation(RIGHT);
+  //OperatorStringType(const Hamiltonian &T,const Hamiltonian &V,double beta,GreenOperator<long double> &g,CircDList<Operator> &cdl, double alpha) : CDList(cdl), Probabilities(T,V,g), _Beta(beta), _Alpha(alpha) {
 
-		_Renormalization=(1-_Alpha)*(WL+WR);
-		_DeltaRenormalization=0; 
+		_diagonal_energy=DiagonalEnergyIntegral();
+
+		double WC[2],WSum,WDiff;
+
+		WC[LEFT]=WeightCreation(LEFT);
+		WC[RIGHT]=WeightCreation(RIGHT);
+		WSum=WC[LEFT]+WC[RIGHT]+SumWeightDestuction();
+		WDiff=WC[LEFT]-WC[RIGHT]+DeltaWeightDestuction(); 		    
+		_Renormalization=(1-_Alpha)*WSum+_Alpha*fabs(WDiff);
+		_DeltaRenormalization=WC[LEFT]-WC[RIGHT]+DeltaWeightDestuction();
+
 
   }
+
+  inline unsigned int length() const {return CDList.length(); }
 
   // Calculates the diagonal energy fast using the updated variable.
 	inline double DiagonalEnergy() const { return ER_Dtau()+_diagonal_energy; }
@@ -296,11 +279,11 @@ public:
 				
 				if(direction==LEFT) {
 			    update(term,opposite_direction,ADD);		
-			    push(opposite_direction,Operator(tau,term,Energy(opposite_direction)));
+			    CDList.push(opposite_direction,Operator(tau,term,Energy(opposite_direction)));
 					_diagonal_energy += delta_diagonal(opposite_direction);
 				}
 				else {
-			    push(opposite_direction,Operator(tau,term,Energy(opposite_direction)));
+			    CDList.push(opposite_direction,Operator(tau,term,Energy(opposite_direction)));
 					_diagonal_energy += delta_diagonal(opposite_direction);					
 			    update(term,opposite_direction,ADD);		
 				}
@@ -308,9 +291,9 @@ public:
 			}
 			else {
         // Destroy the operator in the front of the Green operator
-		    update(top(direction).Term,direction,REMOVE);
+		    update(CDList.top(direction).Term,direction,REMOVE);
 				_diagonal_energy -= delta_diagonal(direction);
-		    pop(direction);		
+		    CDList.pop(direction);		
 			}
        
 			++UpdateLength;
