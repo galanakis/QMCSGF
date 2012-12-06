@@ -221,7 +221,6 @@ void Simulator() {
 
    }
 
-
   // Building the list of measurable operators
   std::vector<SGF::Hamiltonian> _MeasurableOperators;
 
