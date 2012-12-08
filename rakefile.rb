@@ -2,6 +2,7 @@ Include="-Isource/Interface -Isource/Corvette -Isource"
 Executable="corvette"+"."+%x{uname}
 Source="source/Corvette-SGF.cpp"
 Flags="-DRNG_MT -DCMDLINEPROGRESS"
+#Flags="-DRNG_MT"
 BinPrefix=File.expand_path('~/')+"/.bin"
 
 require 'fileutils'

@@ -6,6 +6,7 @@
 #include "GreenOperator.hh"
 #include "TSum.hh"
 #include "SGFBase.hh"
+#include "UnorderedSet.hh"
 #include <vector>
 #include <list>
 #include <map>
@@ -162,6 +163,33 @@ public:
 
    }
 
+
+
+
+   //
+   // It generates the number operator
+   //
+   static Hamiltonian GenerateNumberOperator(std::vector<Boson> &psi) {
+      Hamiltonian result;
+      for(boson_vector_t::size_type i=0; i<psi.size(); ++i)
+         result.push_back(HamiltonianTerm(1.0,IndexedProductElement(C*A,&psi[i])));
+      return result;
+   }
+
+   //
+   // It generates the density matrix rho
+   //
+   static Hamiltonian GenerateDensityMatrix(std::vector<Boson> &psi) {
+      Hamiltonian result;
+      for(boson_vector_t::size_type i=0; i<psi.size(); ++i) {
+         for(boson_vector_t::size_type j=0; j<psi.size(); ++j) {
+            result.push_back(HamiltonianTerm(1.0,IndexedProductElement(C,&psi[i]),IndexedProductElement(A,&psi[j])));
+         }
+      }
+      return result;
+   }
+
+
 };
 
 
@@ -284,6 +312,73 @@ public:
 };
 
 
+
+//
+// This class contains the extra terms and utilities to randomly choose them
+//
+
+struct GrandCanonicalContainer {
+
+   Hamiltonian Extra;                            // The list of extra terms
+   AdjacencyList extra_kin_adjacency;            // Adjacency list between the extra terms and the kinetic terms
+   AdjacencyList extra_pot_adjacency;            // Adjacency list between the extra terms and the potential terms
+   UnorderedSet available[2];                    // contains a list of the permitted terms (non zero matrix element) in each direction
+   Boson *Psi0;                                  // It stores the origin of the bosons. It is used to corvert from Bosons to indices
+
+public:
+
+   const HamiltonianTerm *WormInit;              // It contains a pointer to the extra term in the opertor string or zero if there is none
+
+   GrandCanonicalContainer(const Hamiltonian &T,const Hamiltonian &V) : WormInit(0) {
+      std::vector<Boson*> psi=Orphans::GetConfiguration(T);
+      Psi0=psi[0];
+      //
+      // The extra terms appear in pairs with the same index.
+      //
+      for(boson_vector_t::size_type i=0; i<psi.size(); ++i) {
+         Extra.push_back(HamiltonianTerm(1.0,IndexedProductElement(C,psi[i])));
+         Extra.push_back(HamiltonianTerm(1.0,IndexedProductElement(A,psi[i])));
+      }
+
+
+      extra_kin_adjacency=Orphans::GetAdjacencyList(Extra,T);
+      extra_pot_adjacency=Orphans::GetAdjacencyList(Extra,V);
+
+      for(int rl=0; rl<2; ++rl) {
+         available[rl].initialize(Extra.size());
+         for(Hamiltonian::size_type i=0; i<Extra.size(); ++i) {
+            if(Extra[i].me(rl)!=0)
+               available[rl].insert(i);
+         }
+      }
+   }
+
+   void update(const HamiltonianTerm *term,int rl) {
+      for(unsigned int i=0; i<term->product().size(); ++i) {
+         unsigned ind=term->product()[i].particle_id()-Psi0;
+         if(Extra[2*ind].me(rl)==0)
+            available[rl].erase(2*ind);
+         if(Extra[2*ind+1].me(rl)==0)
+            available[rl].erase(2*ind+1);
+      }
+   }
+
+   // Returns a random pointer to an extra term
+   const HamiltonianTerm * choose(int rl) {
+      return &Extra[available[rl].element(RNG::UniformInteger(available[rl].size()))];
+   }
+   // Returns a reference to the vector containing the regular kinetic terms that will be affected
+   const term_vector_t &kin_adjacency(const HamiltonianTerm *term) const {
+      return extra_kin_adjacency[term-&Extra[0]];
+   }
+   // Same for the potential terms
+   const term_vector_t &pot_adjacency(const HamiltonianTerm *term) const {
+      return extra_pot_adjacency[term-&Extra[0]];
+   }
+
+};
+
+
 /*
   class Probabilities {
    boson_vector_t _indices;
@@ -291,7 +386,7 @@ public:
   }
 
   Contains and updates the configurations, the number of
-  broken lines, the diagonal energies, the trees. 
+  broken lines, the diagonal energies, the trees.
 
   sub-class UpdatableObject
 
@@ -304,6 +399,18 @@ public:
   are declared UpdatableObject will be automatically updated.
   This relies on the virtual function mechanism which is slightly
   slow, so I only use it for measurable quantities.
+
+
+   Grand Canonical Ensemble
+
+   This class does not contain much code for the Grand Canonical ensemble.
+   Anything related to this ensemble is handled separately by 
+   Another class, the GrandCanonicalContainer. The probabilities class
+   only contains a pointer to an object of type GrandCanonicalContainer.
+   If this pointer is set (i.e. it is non zero) this implies the 
+   GrandCanonical Ensemble. This object contains the extra term
+   together with utilities to update it and pick one permissible
+   extra term at random.
 
 
 */
@@ -323,9 +430,9 @@ public:
    };
 
 private:
-   boson_vector_t _indices;                // A list of all the bosons
    std::vector<UpdatableObject*> UpdatableObjects;
 
+   boson_vector_t _indices;                // A list of all the bosons
    int _NBWL;                              // The number of all broken world lines
    GreenOperator<long double> &GF;         // Defines the Green operator function
 
@@ -342,6 +449,7 @@ private:
    std::vector<TreeType*> tree_cache;      // remembers the offset of each operator
    ForestType forest;                      // Contains two trees one for each direction
 
+   GrandCanonicalContainer *ensemble;
 
    inline Hamiltonian::size_type KinHash(const HamiltonianTerm* term) const {
       return term-&Kinetic[0];
@@ -362,9 +470,7 @@ private:
 public:
 
    // It changes _tsum[2][] and tree_cache.
-   inline void update_trees(const HamiltonianTerm* const &term,int rl) {
-
-      const term_vector_t &kin=kin_adjacency[KinHash(term)];
+   inline void update_trees(const term_vector_t &kin,int rl) {
       for(term_vector_t::const_iterator nbr=kin.begin(); nbr!=kin.end(); ++nbr) {
          Hamiltonian::size_type fndex= KinHash(*nbr);
          TreeType *i_tree = tree_cache[fndex];
@@ -382,8 +488,7 @@ public:
    }
 
    // It updates the Energies[2], EnergyME[2][].
-   inline void update_energies(const HamiltonianTerm* const &term,int rl) {
-      const term_vector_t &pot=pot_adjacency[KinHash(term)];
+   inline void update_energies(const term_vector_t &pot,int rl) {
       for(term_vector_t::const_iterator nbr=pot.begin(); nbr!=pot.end(); ++nbr) {
          MatrixElement me=(*nbr)->me(rl);
          std::vector<MatrixElement>::size_type i=PotHash(*nbr);
@@ -416,19 +521,24 @@ public:
 
    Probabilities(SGFBase &base) :
 
+      UpdatableObjects(),
       _indices(Orphans::GetConfiguration(base.T)),
       _NBWL(Orphans::CountBrokenLines(_indices)),
-      UpdatableObjects(),
       GF(base.g),
       Potential(base.V),
       pot_adjacency(Orphans::GetAdjacencyList(base.T,base.V)),
-      NUpdates(0),
       RebuildPeriod(1000000),
+      NUpdates(0),
       Kinetic(base.T),
       kin_adjacency(Orphans::GetAdjacencyList(base.T,base.T)),
-      forest(base.T.size(),Orphans::GetOffsets(base.T))
+      forest(base.T.size(),Orphans::GetOffsets(base.T)),
+      ensemble(0)
 
    {
+
+      if(base.Ensemble==GrandCanonical) {
+         ensemble=new GrandCanonicalContainer(base.T,base.V);
+      }
 
       EnergyME[0].resize(base.V.size());
       EnergyME[1].resize(base.V.size());
@@ -443,9 +553,11 @@ public:
             tree->tsum[direction].update(i,base.T[i].me(direction));
          }
       }
-
    }
 
+   ~Probabilities() {
+      delete ensemble;
+   }
 
    inline const _float_accumulator &Energy(int rl) const {
       return Energies[rl];
@@ -469,7 +581,7 @@ public:
    }
 
    /* Choose the offset first. */
-   const HamiltonianTerm* choose(int rl) const {
+   const HamiltonianTerm* choose_canonical(int rl) const {
 
       double R=RNG::Uniform()*weight(rl);
       OffsetMap::size_type i=0;
@@ -484,8 +596,19 @@ public:
       return _NBWL;
    }
 
+   const HamiltonianTerm* choose(int rl) const {
+      if(ensemble==0 || ensemble->WormInit!=0 || NBrokenLines()!=0)
+         return choose_canonical(rl);
+      else {
+
+         ensemble->WormInit = ensemble->choose(rl);
+         return ensemble->WormInit;
+      }
+   }
+
 
    inline void update(const HamiltonianTerm* term,int rl,int arflag) {
+
 
       term->update_psi(rl,arflag);
 
@@ -499,10 +622,28 @@ public:
         _NBWL-=term->offset(!arflag); */
 
       _NBWL-=term->offset(!arflag);
-      update_trees(term,rl);
-      update_energies(term,rl);
+
+      if(ensemble!=0) {
+         ensemble->update(term,rl);
+      }
+
+      // If there is no reference to the GrandCanonicalContainer, we work in the canonical ensemble
+      if(ensemble==0 || term!=ensemble->WormInit) {
+         update_trees(kin_adjacency[KinHash(term)],rl);
+         update_energies(pot_adjacency[KinHash(term)],rl);
+      } else {
+         update_trees(ensemble->kin_adjacency(term),rl);
+         update_energies(ensemble->pot_adjacency(term),rl);
+         // After the extra operator is chosen and this update is run
+         // for arflag=ADD, we will reach this statement.
+         // Without this if statement the WormInit will be set to
+         // zero again. WormInit must be set to zero only when the term is removed.
+         if(arflag==REMOVE)
+            ensemble->WormInit=0;
+      }
 
    }
+
 
 };
 

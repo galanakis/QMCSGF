@@ -12,6 +12,7 @@
 #include <Simulation.hh>
 #include "Conventions.hh"
 #include "SGFBase.hh"
+#include "Probabilities.hh"
 
 
 #ifdef USEMPI
@@ -230,6 +231,8 @@ void BoseHubbardPeriodic1D() {
    _MeasurableOperators.push_back(Container.T);
    _MeasurableNameList.push_back("Atom Kinetic energy");
 
+   _MeasurableOperators.push_back(SGF::Orphans::GenerateNumberOperator(Container.Psi));
+   _MeasurableNameList.push_back("Number of Particles");
 
 
 

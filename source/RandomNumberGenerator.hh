@@ -118,6 +118,8 @@ public:
   inline static double NZUniform() {return RNGBase::NZUniform();};
 // Returns 0 or 1 with relative probabilities a and b respectively 
   static inline int CoinFlip(double a,double b) { return (a+b)*Uniform()<b;}
+// Returns one integer between 0 and N-1
+  static inline int UniformInteger(unsigned int N) {return Uniform()*N;}
 // Returns a number with relative distribution exp(-x)
   static inline double Exponential() { return -log(1.0-Uniform()); } 
 // Returns a number in the interval [0,1[ with distribution exp(A x)

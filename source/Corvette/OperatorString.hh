@@ -214,7 +214,7 @@ class OperatorStringType : public Probabilities {
 	
 public:
 
-	OperatorStringType(SGFBase &base) : CDList(base.OperatorCDList), Probabilities(base), _Beta(base.Beta), _Alpha(base.Alpha) {
+	OperatorStringType(SGFBase &base) :  Probabilities(base), CDList(base.OperatorCDList), _Beta(base.Beta), _Alpha(base.Alpha) {
 
 
   //OperatorStringType(const Hamiltonian &T,const Hamiltonian &V,double beta,GreenOperator<long double> &g,CircDList<Operator> &cdl, double alpha) : CDList(cdl), Probabilities(T,V,g), _Beta(beta), _Alpha(alpha) {

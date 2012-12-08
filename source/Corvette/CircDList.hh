@@ -43,6 +43,10 @@ struct Operator {
 };                       
 
 
+typedef CircDList<Operator> OperatorCircDlist;
+
+
+
 }
 
 
