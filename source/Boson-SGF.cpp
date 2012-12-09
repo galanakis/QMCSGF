@@ -11,6 +11,7 @@
 #include "HamiltonianTerm.hh"
 #include <OperatorString.hh>
 #include <Simulation.hh>
+#include "Measurable.hh"
 #include "Conventions.hh"
 #include "SGFBase.hh"
 #include "Probabilities.hh"
@@ -134,13 +135,20 @@ std::vector<double> trap(unsigned int Lx,double Vx,unsigned int Ly,double Vy,uns
 }
 
 
+namespace SGF {
+
+class MeasurableEigenvalues : public MeasurableFunction {
+
+};
+
+
 
 void BoseHubbardPeriodic1D() {
 
 
    // Model specific parameters
-   SGF::MatrixElement U=8.0;
-   SGF::MatrixElement t=1.0;
+   MatrixElement U=8.0;
+   MatrixElement t=1.0;
 
    unsigned int Lx=20;
 
@@ -158,11 +166,11 @@ void BoseHubbardPeriodic1D() {
    unsigned long MeasIterations=100000000;
    unsigned long NBins=20;
 
-   SGF::SGFBase Container;
+   SGFBase Container;
 
    Container.Beta=1.0/1.02;
    Container.Alpha=0.95;
-   Container.Ensemble=SGF::Canonical;
+   Container.Ensemble=Canonical;
 
 
    Container.g.initialize(NSites,GreenOperatorLines);
@@ -186,8 +194,8 @@ void BoseHubbardPeriodic1D() {
 
 
    for(unsigned int i=0; i<NSites; ++i) {
-      const SGF::IndexedProductElement atom(SGF::C*SGF::C*SGF::A*SGF::A,&Container.Psi[i]);
-      Container.V.push_back(SGF::HamiltonianTerm(U/2.0,atom));
+      const IndexedProductElement atom(C*C*A*A,&Container.Psi[i]);
+      Container.V.push_back(HamiltonianTerm(U/2.0,atom));
    }
 
 
@@ -196,18 +204,18 @@ void BoseHubbardPeriodic1D() {
    for(list_links_t::const_iterator it=links.begin(); it!=links.end(); ++it) {
       unsigned int i=it->first;
       unsigned int j=it->second;
-      const SGF::IndexedProductElement ci(SGF::C,&Container.Psi[i]);
-      const SGF::IndexedProductElement cj(SGF::C,&Container.Psi[j]);
-      const SGF::IndexedProductElement ai(SGF::A,&Container.Psi[i]);
-      const SGF::IndexedProductElement aj(SGF::A,&Container.Psi[j]);
+      const IndexedProductElement ci(C,&Container.Psi[i]);
+      const IndexedProductElement cj(C,&Container.Psi[j]);
+      const IndexedProductElement ai(A,&Container.Psi[i]);
+      const IndexedProductElement aj(A,&Container.Psi[j]);
 
-      Container.T.push_back(SGF::HamiltonianTerm(t,ci,aj));
-      Container.T.push_back(SGF::HamiltonianTerm(t,cj,ai));
+      Container.T.push_back(HamiltonianTerm(t,ci,aj));
+      Container.T.push_back(HamiltonianTerm(t,cj,ai));
 
 
    }
 
-   SGF::OperatorStringType OperatorString(Container);
+   OperatorStringType OperatorString(Container);
 
    /* Initializing the simulation. Thermalize, Measure and pring the results */
    Simulation simul("BoseHubbard",cout);
@@ -220,22 +228,25 @@ void BoseHubbardPeriodic1D() {
 
    // This defines the measurable objects some of which delay updates even if not measured.
    // This is why I declare the measurable operators after the thermalization.
-   SGF::Measurable MeasuredOperators(OperatorString);
+   Measurable MeasuredOperators(OperatorString);
 
    MeasuredOperators.insert("Potential Energy",Container.V);
    MeasuredOperators.insert("Atom Kinetic energy",Container.T);
-   MeasuredOperators.insert("Number of Particles",SGF::Orphans::GenerateNumberOperator(Container.Psi));
+   MeasuredOperators.insert("Number of Particles",Orphans::GenerateNumberOperator(Container.Psi));
 
 
    /*
+   
+   // Insert the calculation of the condensate fraction
+   
    // Inserts the density matrix
    for(unsigned int i=0;i<Container.Psi.size();++i) {
       for(unsigned int j=0;j<Container.Psi.size();++j) {
-         const SGF::IndexedProductElement ci(SGF::C,&Container.Psi[i]);
-         const SGF::IndexedProductElement aj(SGF::A,&Container.Psi[j]);
+         const IndexedProductElement ci(C,&Container.Psi[i]);
+         const IndexedProductElement aj(A,&Container.Psi[j]);
          std::stringstream ss;
          ss<<"C["<<i<<"]A["<<j<<"]";
-         MeasuredOperators.insert(ss.str(),SGF::HamiltonianTerm(1.0,ci,aj));
+         MeasuredOperators.insert(ss.str(),HamiltonianTerm(1.0,ci,aj));
       }
    }
    */
@@ -248,32 +259,14 @@ void BoseHubbardPeriodic1D() {
 
 }
 
+}
+
 // ***************************
 // * Here starts the program *
 // ***************************
 
 int main() {
 
-#ifdef USEMPI
-   // ***********************************
-   // * Initialization of MPI functions *
-   // ***********************************
+   SGF::BoseHubbardPeriodic1D();
 
-   MPI_Init(&NumArg,&Arg);
-   MPI_Comm_size(MPI_COMM_WORLD,&NumProcessors);
-   MPI_Comm_rank(MPI_COMM_WORLD,&Rank);
-   MPI_Get_processor_name(ProcessorName,&NameLength);
-
-   // Silence the other nodes. Only the root node can print
-   cout.rdbuf( Rank==Master ? std::cout.rdbuf() : 0 );
-
-#endif
-
-   BoseHubbardPeriodic1D();
-
-
-#ifdef USEMPI
-   return MPI_Finalize();
-#endif
-   return 0;
 }

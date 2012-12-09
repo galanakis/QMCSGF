@@ -261,34 +261,12 @@ void Simulator() {
 
 }
 
-int finish() {
-#ifdef USEMPI
-	return MPI_Finalize();
-#endif
-	return 0;
-}
-
 // ***************************
 // * Here starts the program *
 // ***************************
 
 int main(int NumArg,char **Arg)
   {
-
-#ifdef USEMPI
-    // ***********************************
-    // * Initialization of MPI functions *
-    // ***********************************
-    
-    MPI_Init(&NumArg,&Arg);
-    MPI_Comm_size(MPI_COMM_WORLD,&NumProcessors);
-    MPI_Comm_rank(MPI_COMM_WORLD,&Rank);
-    MPI_Get_processor_name(ProcessorName,&NameLength);
-
-		// Silence the other nodes. Only the root node can print
-		cout.rdbuf( Rank==Master ? std::cout.rdbuf() : 0 );
- 
-#endif
 
     // *********************************************************************************
     // * We check the command line. If it is not correct, a help message is displayed. *
@@ -298,7 +276,7 @@ int main(int NumArg,char **Arg)
     
     switch (CheckCommandLine(NumArg,Arg))
       {
-        case 0: return finish();        // Simulation is aborded.
+        case 0: return 0;               // Simulation is aborded.
         case 1: File=Arg[1]; break;     // Command line is correct and requests to start the simulation.
         case 2: File=Arg[2]; break;     // Command line is correct and requests to display Hamiltonian terms.
         case 3: File=Arg[3]; break;     // Command line is correct and requests to display a specified quantity.
@@ -313,7 +291,7 @@ int main(int NumArg,char **Arg)
     if ((Error=Parser::ReadFile(File)))
       {
         cout << Error << endl;
-        return finish();
+        return 0;
       }
       
     // ********************************************************
@@ -325,7 +303,7 @@ int main(int NumArg,char **Arg)
     if ((Error=ScriptSGF.ReadTokens()))
       {
         cout << Error << endl;
-        return finish();
+        return 0;
       }
 
     MathExpression::Initialize();	// We initialize the table of symbols with keywords and constants.
@@ -337,7 +315,7 @@ int main(int NumArg,char **Arg)
     if ((Error=ScriptSGF.ExecuteCommands()))
       {
         cout << Error << endl;
-        return finish();
+        return 0;
       }
     
     // ************************************************
@@ -347,7 +325,7 @@ int main(int NumArg,char **Arg)
     if ((Error=MathExpression::BuildHamiltonian()))
       {
         cout << Error << endl;
-        return finish();
+        return 0;
       }
       
     if (File==Arg[1])
@@ -359,7 +337,7 @@ int main(int NumArg,char **Arg)
         if ((Error=MathExpression::SignOrPhaseProblem()))
           {
             cout << Error << endl;      // A sign or a phase problem has been detected. A warning message
-            return finish();                   // is displayed and the simulation is aborded.
+            return 0;                   // is displayed and the simulation is aborded.
           }
 
 					Simulator();
@@ -381,5 +359,5 @@ int main(int NumArg,char **Arg)
           cout << StrError << endl;
       }
 
-    return finish();
+    return 0;
   }
