@@ -6,6 +6,7 @@
 #include <vector>
 #include <stack>
 #include <string>
+#include <sstream>
 
 #include "HamiltonianTerm.hh"
 #include <OperatorString.hh>
@@ -32,7 +33,6 @@ std::ostream cout(std::cout.rdbuf());
 
 typedef std::pair<unsigned int,unsigned int> link_t;
 typedef std::vector<link_t> list_links_t;
-
 typedef enum {periodic,open} boundary_t;
 
 
@@ -221,24 +221,6 @@ void BoseHubbardPeriodic1D() {
 
    }
 
-   // Building the list of measurable operators
-   std::vector<SGF::Hamiltonian> _MeasurableOperators;
-   std::vector<std::string> _MeasurableNameList;
-
-   _MeasurableOperators.push_back(Container.V);
-   _MeasurableNameList.push_back("Potential Energy");
-
-   _MeasurableOperators.push_back(Container.T);
-   _MeasurableNameList.push_back("Atom Kinetic energy");
-
-   _MeasurableOperators.push_back(SGF::Orphans::GenerateNumberOperator(Container.Psi));
-   _MeasurableNameList.push_back("Number of Particles");
-
-
-
-
-   
-
    SGF::OperatorStringType OperatorString(Container);
 
    /* Initializing the simulation. Thermalize, Measure and pring the results */
@@ -253,7 +235,24 @@ void BoseHubbardPeriodic1D() {
    // This defines the measurable objects some of which delay updates even if not measured.
    // This is why I declare the measurable operators after the thermalization.
    SGF::Measurable MeasuredOperators(OperatorString);
-   MeasuredOperators.insert(_MeasurableNameList,_MeasurableOperators);
+
+   MeasuredOperators.insert("Potential Energy",Container.V);
+   MeasuredOperators.insert("Atom Kinetic energy",Container.T);
+   MeasuredOperators.insert("Number of Particles",SGF::Orphans::GenerateNumberOperator(Container.Psi));
+
+
+   /*
+   // Inserts the density matrix
+   for(unsigned int i=0;i<Container.Psi.size();++i) {
+      for(unsigned int j=0;j<Container.Psi.size();++j) {
+         const SGF::IndexedProductElement ci(SGF::C,&Container.Psi[i]);
+         const SGF::IndexedProductElement aj(SGF::A,&Container.Psi[j]);
+         std::stringstream ss;
+         ss<<"C["<<i<<"]A["<<j<<"]";
+         MeasuredOperators.insert(ss.str(),SGF::HamiltonianTerm(1.0,ci,aj));
+      }
+   }
+   */
 
    //We start measurement iterations
    simul.Measure(OperatorString,MeasuredOperators,NBins,MeasIterations,MeasTime);

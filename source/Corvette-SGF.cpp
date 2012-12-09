@@ -248,8 +248,18 @@ void Simulator() {
 	// This defines the measurable objects some of which delay updates even if not measured.
 	// This is why I declare the measurable operators after the thermalization.
   SGF::Measurable MeasuredOperators(OperatorString);
-  MeasuredOperators.insert(MathExpression::GetMeasurableList(),_MeasurableOperators);
+
+  std::vector<std::string> _MeasurableNameList = MathExpression::GetMeasurableList();
+  if(_MeasurableNameList.size()!=_MeasurableOperators.size()) {
+    std::cout<<"The number of of measurable operators does not match the number of the labels"<<std::endl;
+    exit(3);
+  }
   
+  for(unsigned int i=0;i<_MeasurableOperators.size();++i) {
+    MeasuredOperators.insert(_MeasurableNameList[i],_MeasurableOperators[i]);
+  }
+
+
 	//We start measurement iterations
   simul.Measure(OperatorString,MeasuredOperators,NBins,MeasIterations,MeasTime);
   

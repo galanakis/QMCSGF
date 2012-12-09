@@ -67,49 +67,37 @@ public:
 };
 
 
-
-
-
-
-
-struct FunctionFunctor {
-	typedef std::vector<_float_accumulator*> data_type;
-	typedef std::vector<MatrixElement> coeff_type;
-	virtual _float_accumulator operator()(const data_type &_data,coeff_type &_coefficients) =0;
-};
-
-struct PlusFunctor : public FunctionFunctor {
-	_float_accumulator operator()(const data_type &_data,coeff_type &_coefficients) {
-		_float_accumulator result=0;
-		for(data_type::size_type i=0;i<_data.size();++i)
-			result+= *_data[i] * _coefficients[i];
-		return result;
-	}
-};
-
-PlusFunctor PlusData;
-
 class MeasurableFunction {
 
-	std::vector<_float_accumulator*> _data;
-	std::vector<MatrixElement> _coefficients;
-	FunctionFunctor* _function;
 public:
-	MeasurableFunction() :  _data(), _function(&PlusData) {}
-	MeasurableFunction(const MeasurableFunction &o) : _data(o._data), _function(o._function) {
-		for(std::vector<_float_accumulator*>::size_type i=0;i<o._data.size();++i)
-			_data.push_back(o._data[i]);
+	MeasurableFunction() {}
+	virtual inline _float_accumulator evaluate() const = 0;
+	virtual ~MeasurableFunction() {}
+};
+
+class MeasurableSum : public MeasurableFunction {
+	typedef std::vector<std::pair<_float_accumulator*,MatrixElement> > vector_pair_t;
+	vector_pair_t data;
+public:
+	MeasurableSum() : MeasurableFunction() {}
+	inline _float_accumulator evaluate() const {
+		_float_accumulator result=0;
+		for(vector_pair_t::const_iterator it=data.begin(); it!=data.end(); ++it)
+			result += *it->first * it->second;
+		return result;
+	}
+	void push_back(_float_accumulator *a,MatrixElement m) {
+		data.push_back(std::pair<_float_accumulator*,MatrixElement>(a,m));
 	}
 
+};
 
-	inline _float_accumulator evaluate() { return (*_function)(_data,_coefficients); }
-	inline void push_back(_float_accumulator* acc,MatrixElement me) { 
-		_data.push_back(acc);
-		_coefficients.push_back(me);
-	} 
-
-	FunctionFunctor* &function() {return _function;}
-
+class MeasurableNumber : public MeasurableFunction {
+	_float_accumulator* data;
+	MatrixElement coefficient;
+public:
+	MeasurableNumber(_float_accumulator* a,MatrixElement c) : data(a), coefficient(c) {}
+	inline _float_accumulator evaluate() const {return *data * coefficient; }	
 };
 
 /*
@@ -133,10 +121,10 @@ class Measurable  {
 
 	std::vector<MeasurableFunction*> _Meas_Ptr;
 
-	std::vector<std::string> _Tags;
 	BinnedAccumulatorME _Kinetic;
 	BinnedAccumulatorME _Potential;
 	BinnedAccumulatorME _TotalEnergy;
+	std::vector<std::string> _Tags;
 	std::vector<BinnedAccumulatorME*> _Bins;
 
 public:
@@ -149,45 +137,33 @@ public:
 			delete *it;
 	}
 
-	void insert(const std::vector<std::string> &taglist,const std::vector<Hamiltonian> &OperatorList) {
-		for(std::vector<Hamiltonian>::size_type i=0;i<OperatorList.size();++i) 
-			insert_operator(taglist[i],OperatorList[i]);
-	}
-
 	void insert_bin(const std::string &tag) {
 		BinnedAccumulatorME *_bin_ptr=new BinnedAccumulatorME;
 		_Bins.push_back(_bin_ptr);
 		_Tags.push_back(tag);		
 	}
 
-	void insert_operator(const std::string &tag,const Hamiltonian &Operator) {
-    
-		insert_bin(tag);
-
-		MeasurableFunction *_meas_ptr=new MeasurableFunction;
-		_Meas_Ptr.push_back(_meas_ptr);
-   	
+	void insert(const std::string &tag,const Hamiltonian &Operator) {
+		MeasurableSum *_meas_ptr=new MeasurableSum();
 		for(Hamiltonian::const_iterator term_ptr=Operator.begin(); term_ptr!=Operator.end(); ++term_ptr) {
-			_float_accumulator *buffer=_TermBuffers.insert(*term_ptr);
-			_meas_ptr->push_back( buffer, term_ptr->coefficient() );
+			_meas_ptr->push_back( buffer_pointer(*term_ptr), term_ptr->coefficient() );
 		}
-
+		insert_measurable(tag,_meas_ptr);
 	}
 
-	void insert_function(const std::string &tag,FunctionFunctor * functor,const Hamiltonian &Operator) {
-   
+	void insert(const std::string &tag,const HamiltonianTerm &term) {
+		MeasurableNumber *_meas_ptr=new MeasurableNumber(buffer_pointer(term), term.coefficient());
+		insert_measurable(tag,_meas_ptr);
+	}
+
+	_float_accumulator *buffer_pointer(const HamiltonianTerm &term) {
+		return _TermBuffers.insert(term);
+	}
+
+	void insert_measurable(const std::string &tag,MeasurableFunction *_meas_ptr) {
 		insert_bin(tag);
-		
-		MeasurableFunction *_meas_ptr=new MeasurableFunction;
-		_Meas_Ptr.push_back(_meas_ptr);		
-		_meas_ptr->function()=functor;
-
-		for(Hamiltonian::const_iterator term_ptr=Operator.begin(); term_ptr!=Operator.end(); ++term_ptr) {
-			_float_accumulator *buffer=_TermBuffers.insert(*term_ptr);
-			_meas_ptr->push_back( buffer, term_ptr->coefficient() );
-		}		
+		_Meas_Ptr.push_back(_meas_ptr);
 	}
-
 
 
 	inline void measure() {
