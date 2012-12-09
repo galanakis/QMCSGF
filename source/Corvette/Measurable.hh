@@ -181,7 +181,7 @@ public:
    }
 
    // Inserts an arbitrary measurable function to the list of measurables
-   void insert(const std::string &tag,MeasurableFunction *_meas_ptr) {
+   void insert(MeasurableFunction *_meas_ptr) {
       _Meas_Ptr.push_back(_meas_ptr);
    }
 

@@ -13,8 +13,8 @@ namespace SGF {
 //
 struct SGFBase {
 
-   std::vector<SGF::Boson> Psi;
-   CircDList<SGF::Operator> OperatorCDList;
+   std::vector<Boson> Psi;
+   CircDList<Operator> OperatorCDList;
    Hamiltonian T,V;
    GreenOperator<long double> g;
    double Alpha;

@@ -267,6 +267,7 @@ void Simulator() {
 
 int main(int NumArg,char **Arg)
   {
+    Simulation::InitializeEnvironment();
 
     // *********************************************************************************
     // * We check the command line. If it is not correct, a help message is displayed. *
@@ -359,5 +360,6 @@ int main(int NumArg,char **Arg)
           cout << StrError << endl;
       }
 
+      Simulation::FinalizeEnvironment();
     return 0;
   }

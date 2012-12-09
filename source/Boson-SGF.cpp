@@ -15,6 +15,7 @@
 #include "Conventions.hh"
 #include "SGFBase.hh"
 #include "Probabilities.hh"
+#include "ExtraMeasurables.hh"
 
 std::ostream cout(std::cout.rdbuf());
 
@@ -137,9 +138,7 @@ std::vector<double> trap(unsigned int Lx,double Vx,unsigned int Ly,double Vy,uns
 
 namespace SGF {
 
-class MeasurableEigenvalues : public MeasurableFunction {
 
-};
 
 
 
@@ -235,21 +234,6 @@ void BoseHubbardPeriodic1D() {
    MeasuredOperators.insert("Number of Particles",Orphans::GenerateNumberOperator(Container.Psi));
 
 
-   /*
-   
-   // Insert the calculation of the condensate fraction
-   
-   // Inserts the density matrix
-   for(unsigned int i=0;i<Container.Psi.size();++i) {
-      for(unsigned int j=0;j<Container.Psi.size();++j) {
-         const IndexedProductElement ci(C,&Container.Psi[i]);
-         const IndexedProductElement aj(A,&Container.Psi[j]);
-         std::stringstream ss;
-         ss<<"C["<<i<<"]A["<<j<<"]";
-         MeasuredOperators.insert(ss.str(),HamiltonianTerm(1.0,ci,aj));
-      }
-   }
-   */
 
    //We start measurement iterations
    simul.Measure(OperatorString,MeasuredOperators,NBins,MeasIterations,MeasTime);
@@ -267,6 +251,8 @@ void BoseHubbardPeriodic1D() {
 
 int main() {
 
+   Simulation::InitializeEnvironment();
    SGF::BoseHubbardPeriodic1D();
+   Simulation::FinalizeEnvironment();
 
 }

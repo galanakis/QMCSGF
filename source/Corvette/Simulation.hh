@@ -91,22 +91,33 @@ class Simulation
 	std::ostream &o;
 
 public:
-	Simulation(const std::string &Name,std::ostream &_o) : SimulName(Name), o(_o) {
 
+   static void InitializeEnvironment() {
 #ifdef USEMPI
-   // ***********************************
-   // * Initialization of MPI functions *
-   // ***********************************
+      // ***********************************
+      // * Initialization of MPI functions *
+      // ***********************************
 
-   MPI_Init(&NumArg,&Arg);
-   MPI_Comm_size(MPI_COMM_WORLD,&NumProcessors);
-   MPI_Comm_rank(MPI_COMM_WORLD,&Rank);
-   MPI_Get_processor_name(ProcessorName,&NameLength);
+      MPI_Init(&NumArg,&Arg);
+      MPI_Comm_size(MPI_COMM_WORLD,&NumProcessors);
+      MPI_Comm_rank(MPI_COMM_WORLD,&Rank);
+      MPI_Get_processor_name(ProcessorName,&NameLength);
 
-   // Silence the other nodes. Only the root node can print
-   o.rdbuf( Rank==Master ? std::cout.rdbuf() : 0 );
+      // Silence the other nodes. Only the root node can print
+      o.rdbuf( Rank==Master ? std::cout.rdbuf() : 0 );
 
 #endif
+   }
+
+   static void FinalizeEnvironment() {
+#ifdef USEMPI
+      MPI_Finalize();
+#endif
+
+   }
+
+	Simulation(const std::string &Name,std::ostream &_o) : SimulName(Name), o(_o) {
+
 
 		NumWarmUpdates=0;
 		NumDirectedWarmUpdates=0;
@@ -118,14 +129,6 @@ public:
 		BrokenHistorgram.resize(MAXNUMBROKENLINES);
 	} 
 
-	~Simulation() {
-
-	#ifdef USEMPI
-   	MPI_Finalize();
-	#endif
-
-
-	}
 
 	void Thermalize(SGF::OperatorStringType &OpString,unsigned long WarmIterations,unsigned long WarmTime)
 	{
