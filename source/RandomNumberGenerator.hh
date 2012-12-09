@@ -24,6 +24,12 @@
 #include <cmath>
 #include <cstdlib>
  
+#ifdef USEMPI
+	extern int Rank;
+#endif
+
+
+
 #if defined(RNG_MT)
 
 // Mersenne Twister

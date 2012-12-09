@@ -504,7 +504,7 @@ public:
       NUpdates=0;
       for(int direction=0; direction<2; ++direction) {
          Energies[direction]=0;
-         for(HamiltonianTerm::size_type i=0; i<Potential.size(); ++i) {
+         for(Hamiltonian::size_type i=0; i<Potential.size(); ++i) {
             MatrixElement me=PotTerm(i)->me(direction);
             EnergyME[direction][i]=me;
             Energies[direction]+=me;

@@ -7,6 +7,15 @@
 
 namespace SGF {
 
+
+template<typename IndexedProductElementClass>
+MatrixElement MultiplyMe(const typename std::vector<IndexedProductElementClass> &p,int direction) {
+    unsigned int result=1;
+    for(typename std::vector<IndexedProductElementClass>::size_type i=0;i<p.size();++i)
+      result*=p[i].amplitude(direction);
+    return sqrt(result);
+}
+
 /* 
 
   class AtomicTerm

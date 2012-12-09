@@ -15,20 +15,6 @@
 #include "SGFBase.hh"
 #include "Probabilities.hh"
 
-
-#ifdef USEMPI
-// *******************************************
-// * Declaration of global variables for MPI *
-// *******************************************
-#include <mpi.h>
-#define Master 0
-int NumProcessors,Rank,NameLength;
-char ProcessorName[MPI_MAX_PROCESSOR_NAME];
-
-#endif
-
-
-
 std::ostream cout(std::cout.rdbuf());
 
 typedef std::pair<unsigned int,unsigned int> link_t;

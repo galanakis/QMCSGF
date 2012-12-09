@@ -20,16 +20,6 @@
 #include "SGFBase.hh"
 
 
-#ifdef USEMPI
-// *******************************************
-// * Declaration of global variables for MPI *
-// *******************************************
-#include <mpi.h>
-#define Master 0
-int NumProcessors,Rank,NameLength;
-char ProcessorName[MPI_MAX_PROCESSOR_NAME];
-
-#endif
 
 
 
@@ -254,7 +244,7 @@ void Simulator() {
     std::cout<<"The number of of measurable operators does not match the number of the labels"<<std::endl;
     exit(3);
   }
-  
+
   for(unsigned int i=0;i<_MeasurableOperators.size();++i) {
     MeasuredOperators.insert(_MeasurableNameList[i],_MeasurableOperators[i]);
   }
@@ -273,7 +263,7 @@ void Simulator() {
 
 int finish() {
 #ifdef USEMPI
-	MPI_Finalize();
+	return MPI_Finalize();
 #endif
 	return 0;
 }

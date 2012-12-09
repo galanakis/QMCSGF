@@ -103,6 +103,8 @@ public:
 		BrokenHistorgram.resize(MAXNUMBROKENLINES);
 	} 
 
+	~Simulation() {}
+
 	void Thermalize(SGF::OperatorStringType &OpString,unsigned long WarmIterations,unsigned long WarmTime)
 	{
 
@@ -238,8 +240,19 @@ public:
 
 		o << std::endl;
 
+		o << "  ***********************************************************************************\n";
+		o << "  * Energies (obtained from operator string length and Green operator state energy) *\n";
+		o << "  ***********************************************************************************\n\n";
+		o << "    " << MeasuredOp.TotalEnergy() << "\n";
+		o << "    " << MeasuredOp.Potential() << "\n";           
+		o << "    " << MeasuredOp.Kinetic() << "\n\n";
+		o << "  ******************************\n";
+		o << "  * User's defined measurables *\n";
+		o << "  ******************************\n\n";
 
-		o << MeasuredOp;
+		for(int i=0;i<MeasuredOp.size();++i) 
+			o<<"    "<<MeasuredOp.Quantity(i)<<std::endl;
+
 	}
 };
 

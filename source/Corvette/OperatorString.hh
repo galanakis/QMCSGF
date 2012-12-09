@@ -238,6 +238,9 @@ public:
   // Calculates the diagonal energy fast using the updated variable.
 	inline double DiagonalEnergy() const { return ER_Dtau()+_diagonal_energy; }
 
+	// Returns the Kinetic energy from the length of the string
+	inline double KineticEnergy() const { return -static_cast<_float_accumulator>(length())/Beta(); }
+
 	inline double alpha() const {return _Alpha;}
   inline double Beta() const {return _Beta;} 
 

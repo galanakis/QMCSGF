@@ -16,7 +16,10 @@ task :debug do
   puts %x{#{cmd}}
 end 
 task :mpi do
- puts cmd="mpicxx -cxx=icc -fast -Wall -DDEBUG -DUSEMPI #{Flags} #{Include} #{Source} -o #{Executable}"
+# It is a pain to change the openmpi C++ compiler. It does not accept command line arguments. You need to export OMPI_CXX=icc.
+# The simplest way is to avoid using the compiler wrappers.
+# puts cmd="openmpicxx -fast -Wall -DDEBUG -DUSEMPI #{Flags} #{Include} #{Source} -o #{Executable}"
+ puts cmd="/opt/intel/composerxe/bin/icc -fast -fp-model precise -Wall #{Flags} #{Include} -I/opt/local/include/openmpi #{Source} -o #{Executable} -L/opt/local/lib -lmpi_cxx -lmpi -lm"
  puts %x{#{cmd}}
 end
 
