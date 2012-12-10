@@ -32,7 +32,7 @@ FLAGS="-DRNG_MT -DCMDLINEPROGRESS"
 LIBS=""
 
 # Compiler selections
-ICC='/opt/intel/composerxe/bin/icc -fast -fp-model precise -Wall'
+ICC='/opt/intel/composerxe/bin/icc -fast -Wall'
 GCC='g++-mp-4.7-O3 -Wall'
 CLANG='clang++ -O3 -Wall'
 
@@ -50,7 +50,7 @@ task :mpi do
 # It is a pain to change the openmpi C++ compiler. It does not accept command line arguments. You need to export OMPI_CXX=icc.
 # The simplest way is to avoid using the compiler wrappers.
 # puts cmd="openmpicxx -fast -Wall -DDEBUG -DUSEMPI #{FLAGS} #{INCLUDE} #{SOURCE} -o #{EXECUTABLE}"
- puts cmd="#{ICC} #{FLAGS} #{INCLUDE} #{MPIINCLUDE} #{LIBS} #{SOURCE} #{MPILIB} -o #{EXECUTABLE}"
+ puts cmd="#{ICC} -DUSEMPI #{FLAGS} #{INCLUDE} #{MPIINCLUDE} #{LIBS} #{SOURCE} #{MPILIB} -o #{EXECUTABLE}"
  puts %x{#{cmd}}
 end
 

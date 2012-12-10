@@ -8,23 +8,15 @@
 #include <string>
 #include <sstream>
 
-#include "HamiltonianTerm.hh"
-#include "Probabilities.hh"
-#include "OperatorString.hh"
-#include "Simulation.hh"
-#include "Measurable.hh"
-#include "Conventions.hh"
-#include "SGFBase.hh"
+#include "SGF.hh"
 #include "ExtraMeasurables.hh"
-#include "Models.hh"
 
-std::ostream cout(std::cout.rdbuf());
 
 namespace SGF {
 
 
+void BoseHubbardPeriodic1DMakeContainer(SGFBase &Container) {
 
-void BoseHubbardPeriodic1D() {
 
 
    // Model specific parameters
@@ -37,25 +29,14 @@ void BoseHubbardPeriodic1D() {
    unsigned int Population=NSites;
    unsigned int Nmax=0;
 
-   int Seed=34715;
-   unsigned int GreenOperatorLines=4;
-   unsigned long WarmTime=40000;
-   unsigned long WarmIterations=100000000;
-   unsigned long MeasTime=40000;
-   unsigned long MeasIterations=100000000;
-   unsigned long NBins=20;
-
-   SGFBase Container;
 
    Container.Beta=1.0/1.02;
    Container.Alpha=0.95;
    Container.Ensemble=Canonical;
 
 
+   unsigned int GreenOperatorLines=4;
    Container.g.initialize(NSites,GreenOperatorLines);
-
-
-   RNG::Initialize(Seed);
 
 
    Container.Psi.resize(NSites);
@@ -94,13 +75,32 @@ void BoseHubbardPeriodic1D() {
 
    }
 
+
+
+}
+
+void BoseHubbardPeriodic1D() {
+
+
+   int Seed=34715;
+
+   unsigned long WarmTime=40000;
+   unsigned long WarmIterations=100000000;
+   unsigned long MeasTime=40000;
+   unsigned long MeasIterations=100000000;
+   unsigned long NBins=20;
+
+   SGFBase Container;
+
+   BoseHubbardPeriodic1DMakeContainer(Container);
+
+
+   RNG::Initialize(Seed);
+
    OperatorStringType OperatorString(Container);
 
    /* Initializing the simulation. Thermalize, Measure and pring the results */
-   Simulation simul("BoseHubbard",cout);
-
-
-
+   Simulation simul("BoseHubbard");
 
    // We start warm up iterations
    simul.Thermalize(OperatorString,WarmIterations,WarmTime);
@@ -129,10 +129,10 @@ void BoseHubbardPeriodic1D() {
 // * Here starts the program *
 // ***************************
 
-int main() {
+int main(int argc,char *argv[]) {
 
-   Simulation::InitializeEnvironment();
+   SGF::InitializeEnvironment(argc,argv);
    SGF::BoseHubbardPeriodic1D();
-   Simulation::FinalizeEnvironment();
+   SGF::FinalizeEnvironment();
 
 }

@@ -15,15 +15,10 @@
 #include <CheckCommandLine.h>
 #include <OperatorString.hh>
 
-#include <Simulation.hh> 
-#include "HamiltonianTerm.hh"
-#include "SGFBase.hh"
-
-
-
-
+#include "SGF.hh"
 
 std::ostream cout(std::cout.rdbuf());
+
 using std::endl;
 using std::string;
 using std::fstream;
@@ -229,7 +224,7 @@ void Simulator() {
   SGF::OperatorStringType OperatorString(Container);
 
 	/* Initializing the simulation. Thermalize, Measure and pring the results */
-  Simulation simul(MathExpression::GetSimulName(),cout);
+  Simulation simul(MathExpression::GetSimulName());
 
 
 	// We start warm up iterations
@@ -267,7 +262,7 @@ void Simulator() {
 
 int main(int NumArg,char **Arg)
   {
-    Simulation::InitializeEnvironment();
+    SGF::InitializeEnvironment(NumArg,Arg);
 
     // *********************************************************************************
     // * We check the command line. If it is not correct, a help message is displayed. *
@@ -360,6 +355,6 @@ int main(int NumArg,char **Arg)
           cout << StrError << endl;
       }
 
-      Simulation::FinalizeEnvironment();
+      SGF::FinalizeEnvironment();
     return 0;
   }

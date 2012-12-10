@@ -276,7 +276,7 @@ public:
    inline double alpha() const {
       return _Alpha;
    }
-   
+
    inline double Beta() const {
       return _Beta;
    }

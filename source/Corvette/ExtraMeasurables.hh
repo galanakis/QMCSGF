@@ -1,4 +1,5 @@
 #include "Measurable.hh"
+#include <sstream>
 
 #include "mkl_lapack.h"
 typedef double _doublereal;

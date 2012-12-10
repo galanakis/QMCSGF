@@ -23,6 +23,36 @@ char ProcessorName[MPI_MAX_PROCESSOR_NAME];
 
 #endif
 
+
+namespace SGF {
+   void InitializeEnvironment(int NumArg,char *Arg[]) {
+#ifdef USEMPI
+      // ***********************************
+      // * Initialization of MPI functions *
+      // ***********************************
+
+      MPI_Init(&NumArg,&Arg);
+      MPI_Comm_size(MPI_COMM_WORLD,&NumProcessors);
+      MPI_Comm_rank(MPI_COMM_WORLD,&Rank);
+      MPI_Get_processor_name(ProcessorName,&NameLength);
+
+      // Silence the other nodes. Only the root node can print
+      std::cout.rdbuf( Rank==Master ? std::cout.rdbuf() : 0 );
+      std::cerr.rdbuf( Rank==Master ? std::cout.rdbuf() : 0 );
+
+#endif
+   }
+
+   void FinalizeEnvironment() {
+#ifdef USEMPI
+      MPI_Finalize();
+#endif
+
+   }
+
+}
+
+
 namespace SGF {
 
 // How to print the Bins
@@ -102,6 +132,10 @@ public:
 
 */
 
+// Maximum number of broken lines is only used for the BrokenLineHistogram.
+#define MAXNUMBROKENLINES 100
+
+
 class Measurable  {
 
    struct TermBuffer {
@@ -119,13 +153,13 @@ class Measurable  {
    typedef std::pair<multimap_type::iterator,multimap_type::iterator> equal_range_type;
 
    const OperatorStringType &OperatorString; // Holds a reference for the operator string being measured
+   BrokenLines BrokenLineTracer;  // It traces the list of broken lines
 
 
    _float_accumulator buffer_BoltzmannWeight;
    _float_accumulator buffer_kinetic;
    _float_accumulator buffer_potential;
 
-   BrokenLines BrokenLineTracer;  // It traces the list of broken lines
    multimap_type _multimap;       // It stores the buffers of all measurable terms
 
    // It stores the addresses of all _multimap's buffers together with the kinetic and potential buffers
@@ -134,6 +168,10 @@ class Measurable  {
    MeasurableNumber _Kinetic;
    MeasurableNumber _Potential;
    MeasurableSum _TotalEnergy;
+
+   typedef  std::vector<unsigned long> BrokenHistogramType;
+   BrokenHistogramType BrokenHistorgram;
+
 
    std::vector<MeasurableFunction*> _Meas_Ptr;
 
@@ -172,6 +210,7 @@ public:
       _buffers.push_back(&buffer_potential);
       _TotalEnergy.push_back(&buffer_kinetic,1.0);
       _TotalEnergy.push_back(&buffer_potential,1.0);
+      BrokenHistorgram.resize(MAXNUMBROKENLINES);
    }
 
    ~Measurable() {
@@ -208,6 +247,8 @@ public:
 
    inline void measure() {
 
+      BrokenHistorgram[OperatorString.NBrokenLines()]+=1;
+
       const _float_accumulator Weight=OperatorString.BoltzmannWeight();
 
       equal_range_type equal_range=_multimap.equal_range(BrokenLineTracer());
@@ -243,6 +284,10 @@ public:
 
       for(std::vector<_float_accumulator*>::size_type i=0; i<buffer_size; ++i)
          *_buffers[i]=receive_buffers[i];
+
+      std::vector<unsigned long> send_BrokenHistogram=BrokenHistorgram;
+      MPI_Reduce(&send_BrokenHistogram[0],&BrokenHistorgram[0],MAXNUMBROKENLINES,MPI_UNSIGNED_LONG,MPI_SUM,Master,MPI_COMM_WORLD);
+
 
 #endif
 
@@ -282,6 +327,9 @@ public:
    const MeasurableFunction &Quantity(std::vector<MeasurableFunction*>::size_type i) const {
       return *_Meas_Ptr[i];
    }
+
+
+   const BrokenHistogramType &Histogram() const {return BrokenHistorgram;}
 
 };
 
