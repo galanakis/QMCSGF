@@ -10,7 +10,7 @@
 namespace SGF {
 
 /*
-	This struct represents a an entry in the operator
+	This struct represents an entry in the operator
 	string. It contains
 	- a pointer to the Hamiltonian Term
 	- The time index of the Hamiltonian Term

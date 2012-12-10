@@ -344,28 +344,32 @@ public:
       extra_kin_adjacency=Orphans::GetAdjacencyList(Extra,T);
       extra_pot_adjacency=Orphans::GetAdjacencyList(Extra,V);
 
-      for(int rl=0; rl<2; ++rl) {
-         available[rl].initialize(Extra.size());
-         for(Hamiltonian::size_type i=0; i<Extra.size(); ++i) {
-            if(Extra[i].me(rl)!=0)
-               available[rl].insert(i);
-         }
+      available[LEFT].initialize(Extra.size());
+      available[RIGHT].initialize(Extra.size());
+      for(Hamiltonian::size_type i=0; i<Extra.size(); ++i) {
+         if(Extra[i].me<LEFT>()!=0)
+            available[LEFT].insert(i);
+         if(Extra[i].me<RIGHT>()!=0)
+            available[RIGHT].insert(i);
+
       }
+
    }
 
    template<int rl>
    void update(const HamiltonianTerm *term) {
       for(unsigned int i=0; i<term->product().size(); ++i) {
          unsigned ind=term->product()[i].particle_id()-Psi0;
-         if(Extra[2*ind].me(rl)==0)
+         if(Extra[2*ind].me<rl>()==0)
             available[rl].erase(2*ind);
-         if(Extra[2*ind+1].me(rl)==0)
+         if(Extra[2*ind+1].me<rl>()==0)
             available[rl].erase(2*ind+1);
       }
    }
 
    // Returns a random pointer to an extra term
-   const HamiltonianTerm * choose(int rl) {
+   template<int rl>
+   const HamiltonianTerm * choose() {
       return &Extra[available[rl].element(RNG::UniformInteger(available[rl].size()))];
    }
    // Returns a reference to the vector containing the regular kinetic terms that will be affected
@@ -478,7 +482,7 @@ public:
          Hamiltonian::size_type fndex= KinHash(*nbr);
          TreeType *i_tree = tree_cache[fndex];
          TreeType *f_tree = forest(*nbr);
-         MatrixElement fme = (*nbr)->me(rl);
+         MatrixElement fme = (*nbr)->me<rl>();
          f_tree->tsum[ rl].update(fndex,fme);
          if(i_tree!=f_tree) {
             MatrixElement jme = i_tree->tsum[!rl].element(fndex);
@@ -494,7 +498,7 @@ public:
    template<int rl>
    inline void update_energies(const term_vector_t &pot) {
       for(term_vector_t::const_iterator nbr=pot.begin(); nbr!=pot.end(); ++nbr) {
-         MatrixElement me=(*nbr)->me(rl);
+         MatrixElement me=(*nbr)->me<rl>();
          std::vector<MatrixElement>::size_type i=PotHash(*nbr);
          Energies[rl]+=me-EnergyME[rl][i];
          EnergyME[rl][i]=me;
@@ -506,14 +510,13 @@ public:
 
    inline void rebuild_energies() {
       NUpdates=0;
-      for(int direction=0; direction<2; ++direction) {
-         Energies[direction]=0;
-         for(Hamiltonian::size_type i=0; i<Potential.size(); ++i) {
-            MatrixElement me=PotTerm(i)->me(direction);
-            EnergyME[direction][i]=me;
-            Energies[direction]+=me;
-         }
+      Energies[LEFT]=0;
+      Energies[RIGHT]=0;
+      for(Hamiltonian::size_type i=0; i<Potential.size(); ++i) {
+         Energies[LEFT ]+=EnergyME[LEFT ][i]=PotTerm(i)->me<LEFT>();
+         Energies[RIGHT]+=EnergyME[RIGHT][i]=PotTerm(i)->me<RIGHT>();
       }
+
    }
 
    void insert_update(UpdatableObject *p) {
@@ -550,20 +553,21 @@ public:
 
       tree_cache.resize(base.T.size());
 
-      for(int direction=0; direction<2; ++direction) {
-         for(Hamiltonian::size_type i=0; i<base.T.size(); ++i) {
-            TreeType *tree = forest(&base.T[i]);
-            tree_cache[i] = tree;
-            tree->tsum[direction].update(i,base.T[i].me(direction));
-         }
+      for(Hamiltonian::size_type i=0; i<base.T.size(); ++i) {
+         TreeType *tree = forest(&base.T[i]);
+         tree_cache[i] = tree;
+         tree->tsum[RIGHT].update(i,base.T[i].me<RIGHT>());
+         tree->tsum[LEFT].update(i,base.T[i].me<LEFT>());
       }
+
    }
 
    ~Probabilities() {
       delete ensemble;
    }
 
-   inline const _float_accumulator &Energy(int rl) const {
+   template<int rl>
+   inline const _float_accumulator &Energy() const {
       return Energies[rl];
    }
 
@@ -577,7 +581,8 @@ public:
       return GF(NBrokenLines()+offset);   // The value of the Green Operator given the total broken lines and the offset.
    }
 
-   inline double weight(int rl) const {
+   template<int rl>
+   inline double weight() const {
       _float_accumulator s=0.0;
       for( OffsetMap::size_type i=0; i<forest.size(); ++i)
          s+=G(forest.offset(i))*forest(i)->tsum[rl].norm();
@@ -585,9 +590,10 @@ public:
    }
 
    /* Choose the offset first. */
-   const HamiltonianTerm* choose_canonical(int rl) const {
+   template<int rl>
+   const HamiltonianTerm* choose_canonical() const {
 
-      double R=RNG::Uniform()*weight(rl);
+      double R=RNG::Uniform()*weight<rl>();
       OffsetMap::size_type i=0;
       while((R-=G(forest.offset(i))*forest(i)->tsum[rl].norm())>=0)
          ++i;
@@ -600,12 +606,13 @@ public:
       return _NBWL;
    }
 
-   const HamiltonianTerm* choose(int rl) const {
+   template<int rl>
+   const HamiltonianTerm* choose() const {
       if(ensemble==0 || ensemble->WormInit!=0 || NBrokenLines()!=0)
-         return choose_canonical(rl);
+         return choose_canonical<rl>();
       else {
 
-         ensemble->WormInit = ensemble->choose(rl);
+         ensemble->WormInit = ensemble->choose<rl>();
          return ensemble->WormInit;
       }
    }
@@ -614,7 +621,7 @@ public:
    inline void update(const HamiltonianTerm* term) {
 
 
-      term->update_psi(rl,arflag);
+      term->update_psi<rl,arflag>();
 
       for(std::vector<UpdatableObject*>::size_type i=0; i<UpdatableObjects.size(); ++i)
          UpdatableObjects[i]->update(term,rl,arflag);
@@ -625,7 +632,7 @@ public:
         otherwise it is
         _NBWL-=term->offset(!arflag); */
 
-      _NBWL-=term->offset(!arflag);
+      _NBWL-=term->offset<!arflag>();
 
       if(ensemble!=0) {
          ensemble->update<rl>(term);

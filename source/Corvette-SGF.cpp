@@ -189,8 +189,8 @@ void Simulator() {
   for(unsigned int species=0;species<NumSpecies;++species) {
     for(int particle=0;particle<MathExpression::GetPopulation(species);++particle) {
       unsigned int i=NumSites*species+particle%NumSites;
-      Container.Psi[i].n(0)++;
-      Container.Psi[i].n(1)++;
+      Container.Psi[i].nL()++;
+      Container.Psi[i].nR()++;
     }
   }  
 

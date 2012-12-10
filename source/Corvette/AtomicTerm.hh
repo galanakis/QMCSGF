@@ -8,11 +8,11 @@
 namespace SGF {
 
 
-template<typename IndexedProductElementClass>
-MatrixElement MultiplyMe(const typename std::vector<IndexedProductElementClass> &p,int direction) {
+template<typename IndexedProductElementClass,int direction>
+MatrixElement MultiplyMe(const typename std::vector<IndexedProductElementClass> &p) {
     unsigned int result=1;
     for(typename std::vector<IndexedProductElementClass>::size_type i=0;i<p.size();++i)
-      result*=p[i].amplitude(direction);
+      result*=p[i].template amplitude<direction>();
     return sqrt(result);
 }
 
@@ -77,31 +77,39 @@ public:
   }
 
   /* offset after adding/removing the present term */
-  inline int offset(int action=ADD) const {
+  template<int action>
+  inline int offset() const {
     int result=0;
     for(size_type i=0;i<_product.size();++i)
-      result+=_product[i].offset(action);
+      result+=_product[i].template offset<action>();
     return result;      
+  }
+
+  inline int offset() const {
+    return offset<ADD>();
   }
 
   /* The matrix element after applying 
      the operator to the left or the right */
-  inline unsigned int amplitude(int direction) const {
+  template<int direction>
+  inline unsigned int amplitude() const {
     unsigned int result=1;
     for(size_type i=0;i<_product.size();++i)
-      result*=_product[i].amplitude(direction);
+      result*=_product[i].template amplitude<direction>();
     return result;
   }
 
   /* The matrix element after applying 
      the operator to the left or the right */
-  inline MatrixElementClass me(int direction) const {
-     return _coefficient*sqrt(amplitude(direction));
+  template<int direction>
+  inline MatrixElementClass me() const {
+     return _coefficient*sqrt(amplitude<direction>());
   }
-                    
-  inline void update_psi(int direction,int action) const {
+       
+  template<int direction,int action>            
+  inline void update_psi() const {
     for(size_type i=0;i<_product.size();++i)
-      _product[i].update(direction,action);
+      _product[i].template update<direction,action>();
   }
   
   inline int maxoffset() const {

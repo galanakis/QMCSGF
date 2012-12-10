@@ -65,8 +65,8 @@ void BoseHubbardPeriodic1D() {
 
    for(int p=0; p<Population; ++p) {
       unsigned int i=p%NSites;
-      Container.Psi[i].n(0)++;
-      Container.Psi[i].n(1)++;
+      Container.Psi[i].nL()++;
+      Container.Psi[i].nR()++;
    }
 
 

@@ -110,7 +110,7 @@ class Measurable  {
       TermBuffer(const std::vector<IndexedProductElement> &_p) : buffer(0), product(_p) {}
       TermBuffer(const TermBuffer &o) : buffer(o.buffer), product(o.product) {}
       MatrixElement me() const {
-         return MultiplyMe<IndexedProductElement>(product,RIGHT);
+         return MultiplyMe<IndexedProductElement,RIGHT>(product);
       }
    };
 

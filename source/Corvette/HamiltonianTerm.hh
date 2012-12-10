@@ -158,8 +158,11 @@ public:
     _occupancy[1]=o._occupancy[1];
     return *this;    
   }
-  inline occupancy_t &n(int direction) {return _occupancy[direction];};
-  inline const occupancy_t &n(int direction) const {return _occupancy[direction];};
+
+  template<int direction>
+  inline occupancy_t &n() {return _occupancy[direction];};
+  inline occupancy_t &nL() {return n<LEFT>();};
+  inline occupancy_t &nR() {return n<RIGHT>();};
   inline occupancy_t &nmax() {return _maximum_occupancy;};
   inline const occupancy_t &nmax() const {return _maximum_occupancy;};
   inline int delta() const {return _occupancy[RIGHT]-_occupancy[LEFT];};
@@ -245,24 +248,29 @@ public:
 	IndexedProductElement(const IndexedProductElement &o) : ProductElement(o), particle(o.particle) {}
   IndexedProductElement(const ProductElement &peprod,Boson* const _p) : ProductElement(peprod),particle(_p) {}
   Boson* const &particle_id() const {return particle;}
-  inline int offset(int action=ADD) const {return ProductElement::offset(Sign[action]*particle->delta());}
-  inline uint amplitude(int direction) const {return ProductElement::amplitude(particle->n(direction)-delta()*!direction,particle->nmax());}
-  inline void update(int direction,int action) const {
+  template<int action>
+  inline int offset() const {return ProductElement::offset(Sign[action]*particle->delta());}
+
+  template<int direction>
+  inline uint amplitude() const {return ProductElement::amplitude(particle->n<direction>()-delta()*!direction,particle->nmax());}
+
+  template<int direction,int action>
+  inline void update() const {
 
 #ifdef DEBUG    
-    if(particle->n(direction)==0 && delta()*Sign[action==direction]<0) {
+    if(particle->n<direction>()==0 && delta()*Sign[action==direction]<0) {
       std::cerr<<"Error: Negative occupancy encountered."<<std::endl;
       exit(2);
     }
 
-    if(particle->nmax()!=0 && particle->n(direction)==particle->nmax() && delta()*Sign[action==direction]>0) {
+    if(particle->nmax()!=0 && particle->n<direction>()==particle->nmax() && delta()*Sign[action==direction]>0) {
       std::cerr<<"Error: Overpopulation encountered."<<std::endl;
       exit(2);
     }
 
 #endif
 
-    particle->n(direction) += delta()*Sign[action==direction];
+    particle->n<direction>() += delta()*Sign[action==direction];
      
   }
 
