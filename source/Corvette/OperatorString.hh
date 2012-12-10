@@ -6,12 +6,9 @@
 
 #include "Probabilities.hh"
 #include "RandomNumberGenerator.hh"
-#include "Accumulator.hh"
-#include "CircDList.hh"
 #include "SGFBase.hh"
 
 namespace SGF {
-
 
 
 
@@ -44,8 +41,6 @@ namespace SGF {
 enum {LATER,EARLIER};
 
 inline double xcoth(double x) { return (x==0) ? 1 : x/tanh(x); }
-
-//typedef CircDList<Operator> OperatorCircDList;
 
 class OperatorStringType : public Probabilities {
   
@@ -214,7 +209,7 @@ class OperatorStringType : public Probabilities {
 	
 public:
 
-	OperatorStringType(SGFBase &base) :  Probabilities(base), CDList(base.OperatorCDList), _Beta(base.Beta), _Alpha(base.Alpha) {
+	OperatorStringType(SGFBase &base) :  Probabilities(base), CDList(base.OperatorCDL), _Beta(base.Beta), _Alpha(base.Alpha) {
 
 
   //OperatorStringType(const Hamiltonian &T,const Hamiltonian &V,double beta,GreenOperator<long double> &g,CircDList<Operator> &cdl, double alpha) : CDList(cdl), Probabilities(T,V,g), _Beta(beta), _Alpha(alpha) {
@@ -251,9 +246,10 @@ public:
   inline uint directed_update() {
    
 		double WC[2],WSum,WDiff,SumWD,DeltaWD;
+    uint UpdateLength=0;
 
 		unsigned int direction,opposite_direction;
-		int sign=1; 
+		int sign; 
 		
 		if( _DeltaRenormalization < _Renormalization*(1-2*RNG::Uniform()) ) {
 			direction=RIGHT;
@@ -266,7 +262,6 @@ public:
 			sign=-1;
 		}
 		
-    uint UpdateLength=0;
 
 		WC[direction]=WeightCreation(direction);
 		SumWD=SumWeightDestuction();
@@ -281,20 +276,23 @@ public:
 				CircularTime tau=newtime();         
 				
 				if(direction==LEFT) {
-			    update(term,opposite_direction,ADD);		
+			    update<RIGHT,ADD>(term);		
 			    CDList.push(opposite_direction,Operator(tau,term,Energy(opposite_direction)));
 					_diagonal_energy += delta_diagonal(opposite_direction);
 				}
 				else {
 			    CDList.push(opposite_direction,Operator(tau,term,Energy(opposite_direction)));
 					_diagonal_energy += delta_diagonal(opposite_direction);					
-			    update(term,opposite_direction,ADD);		
+			    update<LEFT,ADD>(term);		
 				}
 				
 			}
 			else {
         // Destroy the operator in the front of the Green operator
-		    update(CDList.top(direction).Term,direction,REMOVE);
+        if(direction==LEFT)
+		    	update<LEFT,REMOVE>(CDList.top(direction).Term);
+		    else
+		    	update<RIGHT,REMOVE>(CDList.top(direction).Term);
 				_diagonal_energy -= delta_diagonal(direction);
 		    CDList.pop(direction);		
 			}

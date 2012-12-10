@@ -4,7 +4,6 @@
 #include <iostream>
 #include <cmath>
 #include <vector>
-#include "Conventions.hh"
 
 namespace SGF {
 

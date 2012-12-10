@@ -2,7 +2,6 @@
 #define __CIRCULARTIME__
 
 #include <cmath>
-#include <iostream>
 
 namespace SGF {
 /*
@@ -73,7 +72,6 @@ public:
   friend CircularTime operator-(const circulartime_t ,const CircularTime &);
   
   friend bool operator==(const CircularTime &a,const CircularTime &b);
-  friend std::ostream &operator<<(std::ofstream &,const CircularTime &);
 };
 
 inline CircularTime operator+(const CircularTime &a,const CircularTime &b) {return CircularTime(CircularTime::Plus (a._time,b._time));}
@@ -85,8 +83,6 @@ inline CircularTime operator-(const CircularTime &a,const circulartime_t  t) {re
 inline CircularTime operator-(const circulartime_t  t,const CircularTime &a) {return CircularTime(t-a._time);}
 
 inline bool operator==(const CircularTime &a,const CircularTime &b) { return (a._time-b._time)*(a._time-b._time)<1e-14 && (a._time-b._time)*(a._time-b._time)<(a._time+b._time)*(a._time+b._time)*1e-14 ;}
-
-inline std::ostream &operator<<(std::ostream &f,const CircularTime &o) {f<<o.time();return f;}
 
 }
     

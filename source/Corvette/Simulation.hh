@@ -1,7 +1,8 @@
 #include <fstream>
 #include <ctime>
-#include <OperatorString.hh>
-#include <Measurable.hh>
+
+#include "OperatorString.hh"
+#include "Measurable.hh"
 
 template<class T> T Min(const T &a,const T &b) {return (a<b)?a:b;} 
 template<class T> T Max(const T &a,const T &b) {return (a>b)?a:b;} 

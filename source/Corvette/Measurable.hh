@@ -25,6 +25,12 @@ char ProcessorName[MPI_MAX_PROCESSOR_NAME];
 
 namespace SGF {
 
+// How to print the Bins
+template<class T> inline std::ostream& operator<<(std::ostream& output, const BinnedAccumulator<T> &o) { 
+   return output<<o.average()<<" +/- "<<o.sigma(); 
+} 
+
+
 typedef BinnedAccumulator<_float_accumulator> BinnedAccumulatorME;
 
 class MeasurableFunction {

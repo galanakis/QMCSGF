@@ -1,9 +1,6 @@
 #ifndef __ACCUMULATOR__
 #define __ACCUMULATOR__
 
-#include <cmath>
-#include <vector>
-#include <ostream>
 #include "Conventions.hh"
 
 namespace SGF {
@@ -64,18 +61,16 @@ public:
 	======== Usage ==========
 	BinnedAccumulator<double> bacc; // a binned accumulator of doubles
 	bacc.constant()=10;             // Constant offset.
-	bacc.push(data);                // push a value in to the buffer (repeat many times).
-	bacc.flush(Weight);             // push in to the bin the sum of the buffer divided by the Weight.
+	bacc.push(data);                // push a value in to the buffer (is meaned to be called frequently).
 	double average=bacc.average();  // get the average of the bins plus the constant value.
 	double sigma=bacc.sigma();      // get the standard deviation.
-	cout<<bacc<<std::endl;     // the "<<" has bee properly overloaded.
-	
+
 */
 
 template<class T>
 class BinnedAccumulator {
 public:
-	T Base;                       // A constant value
+	T Base;                       	// A constant value
 	Accumulator<3,T> Bins;
 public:
 	BinnedAccumulator() : Base(0) {}
@@ -87,10 +82,6 @@ public:
 	inline T average() const {return Base+Bins(1);}
 	inline T sigma() const {return sqrt(fabs(Bins(2)-Bins(1)*Bins(1))/(Bins.count()-1));}
 };
-
-template<class T> inline std::ostream& operator<<(std::ostream& output, const BinnedAccumulator<T> &o) { 
-return output<<o.average()<<" +/- "<<o.sigma(); 
-} 
 
 }
 

@@ -2,11 +2,11 @@
 #define __PROBABILITIES__
 
 #include "RandomNumberGenerator.hh"
-#include "HamiltonianTerm.hh"
 #include "GreenOperator.hh"
 #include "TSum.hh"
 #include "SGFBase.hh"
 #include "UnorderedSet.hh"
+
 #include <vector>
 #include <list>
 #include <map>
@@ -353,7 +353,8 @@ public:
       }
    }
 
-   void update(const HamiltonianTerm *term,int rl) {
+   template<int rl>
+   void update(const HamiltonianTerm *term) {
       for(unsigned int i=0; i<term->product().size(); ++i) {
          unsigned ind=term->product()[i].particle_id()-Psi0;
          if(Extra[2*ind].me(rl)==0)
@@ -470,7 +471,9 @@ private:
 public:
 
    // It changes _tsum[2][] and tree_cache.
-   inline void update_trees(const term_vector_t &kin,int rl) {
+   // Implementing this as a template results in a small but noticeable performance improvement
+   template<int rl>
+   inline void update_trees(const term_vector_t &kin) {
       for(term_vector_t::const_iterator nbr=kin.begin(); nbr!=kin.end(); ++nbr) {
          Hamiltonian::size_type fndex= KinHash(*nbr);
          TreeType *i_tree = tree_cache[fndex];
@@ -488,7 +491,8 @@ public:
    }
 
    // It updates the Energies[2], EnergyME[2][].
-   inline void update_energies(const term_vector_t &pot,int rl) {
+   template<int rl>
+   inline void update_energies(const term_vector_t &pot) {
       for(term_vector_t::const_iterator nbr=pot.begin(); nbr!=pot.end(); ++nbr) {
          MatrixElement me=(*nbr)->me(rl);
          std::vector<MatrixElement>::size_type i=PotHash(*nbr);
@@ -606,8 +610,8 @@ public:
       }
    }
 
-
-   inline void update(const HamiltonianTerm* term,int rl,int arflag) {
+   template<int rl,int arflag>
+   inline void update(const HamiltonianTerm* term) {
 
 
       term->update_psi(rl,arflag);
@@ -624,16 +628,16 @@ public:
       _NBWL-=term->offset(!arflag);
 
       if(ensemble!=0) {
-         ensemble->update(term,rl);
+         ensemble->update<rl>(term);
       }
 
       // If there is no reference to the GrandCanonicalContainer, we work in the canonical ensemble
       if(ensemble==0 || term!=ensemble->WormInit) {
-         update_trees(kin_adjacency[KinHash(term)],rl);
-         update_energies(pot_adjacency[KinHash(term)],rl);
+         update_trees<rl>(kin_adjacency[KinHash(term)]);
+         update_energies<rl>(pot_adjacency[KinHash(term)]);
       } else {
-         update_trees(ensemble->kin_adjacency(term),rl);
-         update_energies(ensemble->pot_adjacency(term),rl);
+         update_trees<rl>(ensemble->kin_adjacency(term));
+         update_energies<rl>(ensemble->pot_adjacency(term));
          // After the extra operator is chosen and this update is run
          // for arflag=ADD, we will reach this statement.
          // Without this if statement the WormInit will be set to

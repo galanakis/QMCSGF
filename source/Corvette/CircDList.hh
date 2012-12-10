@@ -2,16 +2,33 @@
 #define __CIRCDLIST__
 
 #include <deque>
-
-#include "CircularTime.hh"
-#include "HamiltonianTerm.hh"
+#include "Conventions.hh"
 
 namespace SGF {
 
 /*
   class CircDList
-  This is a wrapper to deque, which replaces push_back, push_front, etc
-  with push(direction,data). 
+
+  It represents the operator string holding N terms as follows:
+
+  (RIGHT) : 0, 1, 2, ... , N (LEFT)
+
+  where RIGHT and LEFT is relative to the Green Operator,
+  that is element 0 of the string is the first element in
+  the immediate right of the Green Operator.
+
+  The class is implemented as a wrapper to deque, which replaces 
+  push_back, push_front, etc with push(direction,data).
+  
+  The class members are
+  pop(direction): remove an element from the right or left.
+  push(direction): place a new element to the right or left
+  top(direction): read the top element in the right or left
+  top(direction,depth): read an element a distance depth from the right or left
+  length(): how many elements there are in the string
+  empty(): returns true if there are no elements
+  operator[][i]: access directly the elements of the deque.
+  
 */
 
 template<class T>
@@ -29,21 +46,6 @@ public:
   inline bool empty() const {return que.empty();}
 	inline const T &operator[](string_size_type i) const {return que[i];}
 }; 
-
-
-  
-struct Operator {
-  CircularTime Time;
-  const HamiltonianTerm* Term;
-	_float_accumulator Energy;
-  
-  Operator(const Operator &o) : Time(o.Time), Term(o.Term), Energy(o.Energy) {}
-	Operator &operator=(const Operator &o) {Time=o.Time; Term=o.Term; Energy=o.Energy; return *this;}
-  Operator(const CircularTime &_time,const HamiltonianTerm *_term,const _float_accumulator &_energy) : Time(_time), Term(_term), Energy(_energy) {}
-};                       
-
-
-typedef CircDList<Operator> OperatorCircDlist;
 
 
 

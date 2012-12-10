@@ -1,5 +1,5 @@
-#ifndef __UnorderedSet__
-#define __UnorderedSet__
+#ifndef __UNORDEREDSET__
+#define __UNORDEREDSET__
 
 
 namespace SGF { 
@@ -21,7 +21,7 @@ public:
 	inline size_type capacity() const {return _capacity;}
 	inline size_type size() const {return data_end-data_begin;}
 
-	UnorderedSet() {}
+	UnorderedSet() : _capacity(0), data_begin(0), data_end(0), map(0) {}
 
 	UnorderedSet(size_type size) {initialize(size);}
 
@@ -33,7 +33,7 @@ public:
 
 		for(size_type i=0;i<_capacity;++i) {
 			data_begin[i]=0;
-			map[i]=NULL;
+			map[i]=0;
 		}
 
 	}
@@ -66,7 +66,7 @@ public:
 			--data_end;
 			*map[i]=*data_end;
 			map[*data_end]=map[i];
-			map[i]=NULL;
+			map[i]=0;
 
 		}
 

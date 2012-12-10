@@ -4,12 +4,9 @@
 #include <climits>
 #include <limits>
 
-#include <complex>
-
 namespace SGF {
 
 typedef unsigned int uint;
-typedef unsigned long ulong;
 typedef double MatrixElement;
 typedef long double _float_accumulator;
 typedef unsigned long long _integer_counter;
