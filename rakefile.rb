@@ -15,60 +15,100 @@
 # - Debug (checks for negative occupancy): -DDEBUG
 #
 
-# MKL Library
-MKLROOT = '/opt/intel/composerxe/mkl'
-MKLLIB = "#{MKLROOT}/lib/libmkl_intel_lp64.a #{MKLROOT}/lib/libmkl_sequential.a #{MKLROOT}/lib/libmkl_core.a -lpthread -lm"
-MKLINCLUDE = "-I#{MKLROOT}/include"
-
-# OPENMPI library
-MPIINCLUDE = '-I/opt/local/include/openmpi'
-MPILIB = '-L/opt/local/lib -lmpi_cxx -lmpi -lm'
-
-INCLUDE="-Isource/Interface -Isource/Corvette -Isource"
-EXECUTABLE="corvette"+"."+%x{uname}
-SOURCE="source/Corvette-SGF.cpp"
-FLAGS="-DRNG_MT -DCMDLINEPROGRESS"
-#FLAGS="-DRNG_MT"
-LIBS=""
+executable="corv"
+source="source/Corvette-SGF.cpp"
 
 # Compiler selections
-ICC='/opt/intel/composerxe/bin/icc -fast -Wall'
-GCC='g++-mp-4.7-O3 -Wall'
-CLANG='clang++ -O3 -Wall'
+icc='/opt/intel/composerxe/bin/icc -fast -Wall -fp-model precise'
+gcc='g++-mp-4.7 -O3'
+clang='clang++ -O3'
 
-require 'fileutils'
+flags=""
+libs=""
+include="-Isource -Isource/Interface -Isource/Corvette -Isource/Library"
+compiler=icc
 
-task :default do
- puts cmd="#{ICC} #{FLAGS} #{INCLUDE} #{LIBS} #{SOURCE} -o #{EXECUTABLE}"
- puts %x{#{cmd}}
+# Use the Mersenne Twister random number generator
+task :rng_mt do
+	flags+=" -DRNG_MT"
 end
+
+# Print a progress bar in cerr
+task :cmdlineprogress do
+	flags+=" -DCMDLINEPROGRESS"
+end
+
+# enable debugging options
 task :debug do
-  puts cmd="#{ICC} -DDEBUG #{FLAGS} #{INCLUDE} #{LIBS} #{SOURCE} -o #{EXECUTABLE}"
-  puts %x{#{cmd}}
-end 
+	flags+=" -DDEBUG"
+end
+
+# print compiler warnings
+task :wall do
+	flags+=" -Wall"
+end
+
+# use the MKL library for lapack
+task :mkl do
+	mklroot = '/opt/intel/composerxe/mkl'
+	mkllib = "#{mklroot}/lib/libmkl_intel_lp64.a #{mklroot}/lib/libmkl_sequential.a #{mklroot}/lib/libmkl_core.a -lpthread -lm"
+	mklinclude = "-I#{mklroot}/include"
+	libs+=" #{mkllib}"
+	include+=" #{mklinclude}"
+end
+
+# use the open mpi library
 task :mpi do
-# It is a pain to change the openmpi C++ compiler. It does not accept command line arguments. You need to export OMPI_CXX=icc.
-# The simplest way is to avoid using the compiler wrappers.
-# puts cmd="openmpicxx -fast -Wall -DDEBUG -DUSEMPI #{FLAGS} #{INCLUDE} #{SOURCE} -o #{EXECUTABLE}"
- puts cmd="#{ICC} -DUSEMPI #{FLAGS} #{INCLUDE} #{MPIINCLUDE} #{LIBS} #{SOURCE} #{MPILIB} -o #{EXECUTABLE}"
- puts %x{#{cmd}}
+	mpiinclude = '-I/opt/local/include/openmpi'
+	mpilib = '-L/opt/local/lib -lmpi_cxx -lmpi -lm'
+	libs="#{libs} #{mpilib}"
+	include+=" #{mpiinclude}"
+	flags+=" -DUSEMPI"
 end
 
+# Intel compiler
+task :icc do
+	compiler=icc
+end
+
+# clang compiler
 task :clang do
- git_version=%x{git rev-parse HEAD}
- cmd="#{CLANG} -DDEBUG #{FLAGS} #{INCLUDE} #{LIBS} #{SOURCE} -o #{EXECUTABLE}"
- puts cmd
- puts %x{#{cmd}}
-end
-task :gcc do
- git_version=%x{git rev-parse HEAD}
- cmd="#{GCC} -DDEBUG #{FLAGS} #{INCLUDE} #{LIBS} #{SOURCE} -o #{EXECUTABLE}"
- puts cmd
- puts %x{#{cmd}}
+	compiler=clang
 end
 
-task :example do
- puts cmd="#{ICC} -DDEBUG #{FLAGS} #{INCLUDE} #{MKLINCLUDE} #{LIBS} #{MKLLIB} source/Boson-SGF.cpp -o Example"
- puts %x{#{cmd}}
+# gcc compiler
+task :gcc do
+	compiler=gcc
 end
+
+task :all => [:rng_mt,:cmdlineprogress,:wall,:debug,:mkl,:mpi] do
+end
+
+task :std => [:rng_mt,:cmdlineprogress,:debug] do
+end
+
+task :corv do
+	executable="corv"
+	source="source/Corvette-SGF.cpp"
+	puts cmd="#{compiler} #{flags} #{include} #{libs} #{source} -o #{executable}"
+	puts %x{#{cmd}}	
+end
+
+task :corv_boson do
+	executable="corv_boson"
+	source="source/SGFBosonExample.cpp"
+	puts cmd="#{compiler} #{flags} #{include} #{libs} #{source} -o #{executable}"
+	puts %x{#{cmd}}	
+end
+
+task :corv_example do
+	executable="corv_boson"
+	source="source/SGFBosonExample.cpp"
+	puts cmd="#{compiler} #{flags} #{include} #{libs} #{source} -o #{executable}"
+	puts %x{#{cmd}}	
+end
+
+task :default => [:std,:corv,:icc,:corv] do
+end
+
 

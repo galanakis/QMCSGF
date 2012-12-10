@@ -61,7 +61,7 @@ public:
    double Iterations() {
       return *counter-StartIter;
    }
-   ~Timer() {}
+   virtual ~Timer() {}
 };
 
 
@@ -76,12 +76,15 @@ public:
       Time=clock();
       strcpy(Status,Name.c_str());
       Ptr=Status+strlen(Status);
-      sprintf(Ptr," - 000 - 000h 00m 00s");
-#ifndef CMDLINEPROGRESS
+      sprintf(Ptr," - 000 %% - 000h 00m 00s -       0 updates per second");
+#ifdef CMDLINEPROGRESS
+      std::cerr<<Status<<std::flush;
+#else
       std::fstream File;
       File.open(Status,std::ios::out);
       File.close();
 #endif
+
    }
    ~ProgressBar() {
 #ifdef CMDLINEPROGRESS
@@ -200,7 +203,7 @@ public:
 
    void Measure(SGF::OperatorStringType &OpString,SGF::Measurable &MeasuredOp,unsigned long NumBins,unsigned long MeasIterations,unsigned long MeasTime) {
 
-      ProgressBar pbar(SimulName+std::string(": Measuring   "),&NumMeasUpdates,MeasIterations,MeasTime);
+      ProgressBar pbar(SimulName+std::string(": Measuring    "),&NumMeasUpdates,MeasIterations,MeasTime);
 
       NumMeasUpdates=0;
       NumDirectedMeasUpdates=0;
