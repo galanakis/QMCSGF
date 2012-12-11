@@ -9,6 +9,7 @@
 #include <sstream>
 
 #include "SGF.hh"
+#include "Simulation.hh"
 #include "ExtraMeasurables.hh"
 
 
@@ -112,12 +113,13 @@ void BoseHubbardPeriodic1D() {
    MeasuredOperators.insert("Potential Energy",Container.V);
    MeasuredOperators.insert("Atom Kinetic energy",Container.T);
    MeasuredOperators.insert("Number of Particles",Orphans::GenerateNumberOperator(Container.Psi));
-
+   InsertLocalDensity(Container.Psi, MeasuredOperators);
 
 
    //We start measurement iterations
    simul.Measure(OperatorString,MeasuredOperators,NBins,MeasIterations,MeasTime);
 
+   std::cout<<std::endl;
    // We diplay the results of the simulation
    simul.Results(MeasuredOperators);
 

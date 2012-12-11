@@ -8,7 +8,7 @@
 # - Random Number Generator can be 
 # 		a) MerseneTwister: -DRNG_MT
 # 		b) Sprng: -DRNGSPRNG
-#     c) Linear Congruence (Val's original): -DRNGLC
+#     c) Linear Congruence (Val's original): -DRNGLC (this is the default)
 # - LAPACK provided by MKL can be included to provide extra functionality (diagonalizations)
 # - OPENMPI can also be compiled for parallel computation
 # - Progress bar on the terminal: -DCMDLINEPROGRESS
@@ -19,7 +19,7 @@ executable="corv"
 source="source/Corvette-SGF.cpp"
 
 # Compiler selections
-icc='/opt/intel/composerxe/bin/icc -fast -Wall -fp-model precise'
+icc='/opt/intel/composerxe/bin/icc -fast -fp-model precise -fvisibility=protected'
 gcc='g++-mp-4.7 -O3'
 clang='clang++ -O3'
 
@@ -87,22 +87,22 @@ end
 task :std => [:rng_mt,:cmdlineprogress,:debug] do
 end
 
-task :corv do
+task :corv => [:rng_mt,:cmdlineprogress] do
 	executable="corv"
 	source="source/Corvette-SGF.cpp"
 	puts cmd="#{compiler} #{flags} #{include} #{libs} #{source} -o #{executable}"
 	puts %x{#{cmd}}	
 end
 
-task :corv_boson do
+task :corv_boson => [:rng_mt,:cmdlineprogress,:mkl] do
 	executable="corv_boson"
-	source="source/SGFBosonExample.cpp"
+	source="source/SGFBoson.cpp"
 	puts cmd="#{compiler} #{flags} #{include} #{libs} #{source} -o #{executable}"
-	puts %x{#{cmd}}	
+	puts %x{#{cmd}}
 end
 
-task :corv_example do
-	executable="corv_boson"
+task :corv_example => [:rng_mt,:cmdlineprogress,:mkl] do
+	executable="corv_example"
 	source="source/SGFBosonExample.cpp"
 	puts cmd="#{compiler} #{flags} #{include} #{libs} #{source} -o #{executable}"
 	puts %x{#{cmd}}	
@@ -111,4 +111,6 @@ end
 task :default => [:std,:corv,:icc,:corv] do
 end
 
+task :everything => [:corv,:corv_boson,:corv_example] do
+end
 

@@ -362,8 +362,12 @@ public:
          unsigned ind=term->product()[i].particle_id()-Psi0;
          if(Extra[2*ind].me<rl>()==0)
             available[rl].erase(2*ind);
+         else
+            available[rl].insert(2*ind);
          if(Extra[2*ind+1].me<rl>()==0)
             available[rl].erase(2*ind+1);
+         else
+            available[rl].insert(2*ind+1); 
       }
    }
 

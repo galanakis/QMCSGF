@@ -245,7 +245,7 @@ public:
 
 
    inline void EvalueRenormalizations() {
-   	  _Renormalization=(1-_Alpha)*WSum+_Alpha*fabs(WDiff);
+   	_Renormalization=(1-_Alpha)*WSum+_Alpha*fabs(WDiff);
       _DeltaRenormalization=WC[LEFT]-WC[RIGHT]+DeltaWeightDestuction();
 
    }

@@ -1,8 +1,8 @@
 #include "Parameters.hh"
 #include "ExtraMeasurables.hh"
+#include "Simulation.hh"
 
 namespace SGF {
-
 
 
 void Simulator(const SGF::Parameters &p) {
@@ -39,13 +39,41 @@ void Simulator(const SGF::Parameters &p) {
    Measurable MeasuredOperators(OperatorString);
 
    MeasuredOperators.insert("Potential Energy",Container.V);
-   MeasuredOperators.insert("Atom Kinetic energy",Container.T);
-   MeasuredOperators.insert("Number of Particles",Orphans::GenerateNumberOperator(Container.Psi));
+   MeasuredOperators.insert("Kinetic Energy",Container.T);
 
+
+   if(p.HasMeasurable("Number")) {
+      MeasuredOperators.insert("Particle Number",Orphans::GenerateNumberOperator(Container.Psi));
+   }
+
+   if(p.HasMeasurable("LocalDensity")) {
+      InsertLocalDensity(Container.Psi, MeasuredOperators);
+   }
+
+   if(p.HasMeasurable("CondensateFraction")) {
+      InsertCondensateFraction(Container.Psi, MeasuredOperators);
+   }
+
+   if(p.HasMeasurable("EigenvaluesDensityMatrix")) {
+      InsertDensityMatrixEigenvalues(Container.Psi, MeasuredOperators);
+   }
+
+   if(p.HasMeasurable("DensityMatrix")) {
+      InsertDensityMatrix(Container.Psi, MeasuredOperators);
+   }
 
 
    //We start measurement iterations
    simul.Measure(OperatorString,MeasuredOperators,NBins,MeasIterations,MeasTime);
+
+
+   std::cout<< "******************************\n";
+   std::cout<< "* Model and parameters        *\n";
+   std::cout<< "******************************\n\n";
+
+   p.print(std::cout);
+
+   std::cout<<std::endl;
 
    // We diplay the results of the simulation
    simul.Results(MeasuredOperators);
@@ -69,7 +97,6 @@ int main(int argc, char *argv[]) {
 
    SGF::Parameters p(json);
 
-   p.print(std::cout);
    Simulator(p);
    SGF::FinalizeEnvironment();
 

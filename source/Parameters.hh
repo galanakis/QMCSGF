@@ -64,7 +64,7 @@ public:
    }
    std::ostream &print(std::ostream &o) const {
       int w=25;
-      return o<<std::setw(w)<<std::left<<"Lattice"<<"Chain Lx="<<Lx<<" ("<<Bx<<")"<<std::endl;
+      return o<<"    "<<std::setw(w)<<std::left<<"Lattice"<<"Chain Lx="<<Lx<<" ("<<Bx<<")"<<std::endl;
    }
    ~Chain() {};
    list_links_t links() const {
@@ -90,7 +90,7 @@ public:
    }
    std::ostream &print(std::ostream &o) const {
       int w=25;
-      return o<<std::setw(w)<<std::left<<"Lattice"<<"Square Lx="<<Lx<<" ("<<Bx<<") Ly="<<Ly<<" ("<<By<<")"<<std::endl;
+      return o<<"    "<<std::setw(w)<<std::left<<"Lattice"<<"Square Lx="<<Lx<<" ("<<Bx<<") Ly="<<Ly<<" ("<<By<<")"<<std::endl;
    }
    ~Square() {};
    list_links_t links() const {
@@ -117,7 +117,7 @@ public:
    }
    std::ostream &print(std::ostream &o) const {
       int w=25;
-      return o<<std::setw(w)<<std::left<<"Lattice"<<"Cubic Lx="<<Lx<<" ("<<Bx<<") Ly="<<Ly<<" ("<<By<<") "<<Ly<<" ("<<By<<")"<<std::endl;
+      return o<<"    "<<std::setw(w)<<std::left<<"Lattice"<<"Cubic Lx="<<Lx<<" ("<<Bx<<") Ly="<<Ly<<" ("<<By<<") "<<Ly<<" ("<<By<<")"<<std::endl;
    }
    ~Cubic() {};
    list_links_t links() const {
@@ -162,7 +162,7 @@ struct BoseHubbard : public Model {
 
    void MakeHamiltonian(SGFBase &Container) const {
 
-      Container.Ensemble=Canonical;
+      Container.Ensemble=ensemble;
 
       int NSites=lattice->size();
 
@@ -200,7 +200,7 @@ struct BoseHubbard : public Model {
 
       }
 
-      if(HasTrap()) {
+      if(HasTrap() || mu!=0) {
          std::vector<double> potential=lattice->potential();
 
          if(Container.Psi.size()!=potential.size()) {
@@ -209,13 +209,15 @@ struct BoseHubbard : public Model {
          }
 
          for(unsigned int i=0; i<Container.Psi.size(); ++i) {
-            if(potential[i]!=0) {
+            double TotalV=mu+potential[i];
+            if(TotalV!=0) {
                const IndexedProductElement ni(C*A,&Container.Psi[i]);
-               Container.V.push_back(HamiltonianTerm(potential[i],ni));
+               Container.V.push_back(HamiltonianTerm(TotalV,ni));
             }
 
          }
       }
+
 
    }
 
@@ -228,20 +230,20 @@ struct BoseHubbard : public Model {
 
    std::ostream &print(std::ostream &o) const {
       int w=25;
-      o<<std::setw(w)<<std::left<<"Model"<<"BoseHubbard"<<std::endl;
+      o<<"    "<<std::setw(w)<<std::left<<"Model"<<"BoseHubbard"<<std::endl;
       lattice->print(o);
-      o<<std::setw(w)<<std::left<<"Hoppingt"<<Hoppingt<<std::endl;
-      o<<std::setw(w)<<std::left<<"CoulombU"<<CoulombU<<std::endl;
-      o<<std::setw(w)<<std::left<<"Population"<<Population<<std::endl;
-      o<<std::setw(w)<<std::left<<"Ensemble"<<ensemble<<std::endl;
-      o<<std::setw(w)<<std::left<<"Mu"<<mu<<std::endl;
-      o<<std::setw(w)<<std::left<<"Population"<<Population<<std::endl;
-      o<<std::setw(w)<<std::left<<"Nmax"<<Nmax<<std::endl;
+      o<<"    "<<std::setw(w)<<std::left<<"Hoppingt"<<Hoppingt<<std::endl;
+      o<<"    "<<std::setw(w)<<std::left<<"CoulombU"<<CoulombU<<std::endl;
+      o<<"    "<<std::setw(w)<<std::left<<"Population"<<Population<<std::endl;
+      o<<"    "<<std::setw(w)<<std::left<<"Ensemble"<<ensemble<<std::endl;
+      o<<"    "<<std::setw(w)<<std::left<<"Mu"<<mu<<std::endl;
+      o<<"    "<<std::setw(w)<<std::left<<"Population"<<Population<<std::endl;
+      o<<"    "<<std::setw(w)<<std::left<<"Nmax"<<Nmax<<std::endl;
 
-      o<<std::setw(w)<<std::left<<"ParabolicTrapHeights";
+      o<<"    "<<std::setw(w)<<std::left<<"ParabolicTrapHeights";
       for(int i=0; i<ParabolicTrapHeights.size(); ++i)
          o<<ParabolicTrapHeights[i]<<" ";
-      o<<std::endl;
+      o<<"    "<<std::endl;
 
       return o;
    }
@@ -260,7 +262,7 @@ struct BoseHubbard : public Model {
 
       // If the ensemble is Canonical there should be a chemical potential
       mu=0;
-      if(ensemble==GrandCanonical) {
+      if(m.HasMember("Mu")) {
          assert(m["Mu"].IsNumber());
          mu=m["Mu"].GetDouble();
       }
@@ -292,6 +294,8 @@ struct BoseHubbard : public Model {
       assert(dimensions<=3);
       std::vector<unsigned int> LSizes;
       std::vector<boundary_t> BCond;
+
+
 
 
       ParabolicTrapHeights.resize(dimensions);
@@ -347,6 +351,8 @@ struct BoseHubbard : public Model {
 //
 struct Parameters {
 
+   std::string json;
+
    double Alpha;
    double Beta;
    unsigned int GreenOperatorLines;
@@ -389,17 +395,17 @@ struct Parameters {
 
       model->print(o);
 
-      o<<std::setw(w)<<std::left<<"Beta"<<Beta<<std::endl;
-      o<<std::setw(w)<<std::left<<"Alpha"<<Alpha<<std::endl;
-      o<<std::setw(w)<<std::left<<"GreenOperatorLines"<<GreenOperatorLines<<std::endl;
-      o<<std::setw(w)<<std::left<<"Seed"<<Seed<<std::endl;
-      o<<std::setw(w)<<std::left<<"NBins"<<NBins<<std::endl;
-      o<<std::setw(w)<<std::left<<"WarmTime"<<WarmTime<<std::endl;
-      o<<std::setw(w)<<std::left<<"WarmIterations"<<WarmIterations<<std::endl;
-      o<<std::setw(w)<<std::left<<"MeasTime"<<MeasTime<<std::endl;
-      o<<std::setw(w)<<std::left<<"MeasIterations"<<MeasIterations<<std::endl;
+      o<<"    "<<std::setw(w)<<std::left<<"Beta"<<Beta<<std::endl;
+      o<<"    "<<std::setw(w)<<std::left<<"Alpha"<<Alpha<<std::endl;
+      o<<"    "<<std::setw(w)<<std::left<<"GreenOperatorLines"<<GreenOperatorLines<<std::endl;
+      o<<"    "<<std::setw(w)<<std::left<<"Seed"<<Seed<<std::endl;
+      o<<"    "<<std::setw(w)<<std::left<<"NBins"<<NBins<<std::endl;
+      o<<"    "<<std::setw(w)<<std::left<<"WarmTime"<<WarmTime<<std::endl;
+      o<<"    "<<std::setw(w)<<std::left<<"WarmIterations"<<WarmIterations<<std::endl;
+      o<<"    "<<std::setw(w)<<std::left<<"MeasTime"<<MeasTime<<std::endl;
+      o<<"    "<<std::setw(w)<<std::left<<"MeasIterations"<<MeasIterations<<std::endl;
 
-      o<<std::setw(w)<<std::left<<"Measurables";
+      o<<"    "<<std::setw(w)<<std::left<<"Measurables";
       for(int i=0; i<Measurables.size(); ++i)
          o<<Measurables[i]<<" ";
       o<<std::endl;
@@ -407,14 +413,14 @@ struct Parameters {
       return o;
    }
 
-   Parameters(std::string &json) {
+   Parameters(std::string &json_input) : json(json_input) {
 
       rapidjson::Document d;
       d.Parse<0>(json.c_str());
 
 
       // Only one of "Beta" or "Temperature" should be present, but not both.
-      assert(d["Beta"].IsDouble() ^ d["Temperature"].IsDouble());
+      assert(d["Beta"].IsNumber() ^ d["Temperature"].IsNumber());
       Beta= d.HasMember("Beta") ? d["Beta"].GetDouble() : 1.0/d["Temperature"].GetDouble();
 
       // The cutoff for the Green operator lines.
@@ -432,13 +438,13 @@ struct Parameters {
       // at least one of "WarmTime" and "WarmIterations" should exist
       assert(d["WarmTime"].IsInt() || d["WarmIterations"].IsInt());
 
-      // at least one of "WarmTime" and "WarmIterations" should exist
+      // at least one of "MeasTime" and "WarmIterations" should exist
       assert(d["MeasTime"].IsInt() || d["MeasIterations"].IsInt());
 
       WarmTime=d["WarmTime"].IsInt() ? d["WarmTime"].GetInt() : -1;
       WarmIterations=d["WarmIterations"].IsInt() ? d["WarmIterations"].GetInt() : -1 ;
       MeasTime=d["MeasTime"].IsInt() ? d["MeasTime"].GetInt() : -1;
-      MeasIterations=d["MeasIterations"].GetInt() ? d["MeasIterations"].GetInt() : -1;
+      MeasIterations=d["MeasIterations"].IsInt() ? d["MeasIterations"].GetInt() : -1;
 
       // Names of the operators to measure
       const rapidjson::Value &measure=d["Measure"];

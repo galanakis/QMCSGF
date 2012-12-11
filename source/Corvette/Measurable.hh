@@ -6,6 +6,9 @@
 #include <set>
 #include <string>
 #include <cmath>
+#include <iostream>
+#include <iomanip>
+
 
 #include "HamiltonianTerm.hh"
 #include "Accumulator.hh"
@@ -57,37 +60,49 @@ namespace SGF {
 
 // How to print the Bins
 template<class T> inline std::ostream& operator<<(std::ostream& output, const BinnedAccumulator<T> &o) { 
-   return output<<o.average()<<" +/- "<<o.sigma(); 
+   return output<<std::fixed<<std::setprecision(9)<<std::setw(15)<<std::right<<o.average()<<std::setw(6)<<" +/- "<<o.sigma(); 
 } 
 
 
 typedef BinnedAccumulator<_float_accumulator> BinnedAccumulatorME;
 
-class MeasurableFunction {
+class MeasurableObject {
+protected:
    std::string _tag;
-   BinnedAccumulatorME _bin;
 public:
-   MeasurableFunction(const std::string &tag) :_tag(tag) {}
-   virtual inline _float_accumulator evaluate() const = 0;
-   virtual ~MeasurableFunction() {}
+   MeasurableObject(const std::string &tag) :_tag(tag) {}
+   virtual ~MeasurableObject() {}
+   virtual void push(const _float_accumulator &Weight) =0;
+   virtual std::ostream& print(std::ostream& o) const = 0;
+};
+
+inline std::ostream& operator<<(std::ostream& o,const MeasurableObject &m) {
+   return m.print(o);
+}
+
+class MeasurableFunction : public MeasurableObject {
+protected:
+   BinnedAccumulatorME _bin;
+   virtual _float_accumulator evaluate() const = 0;
+public:
+   MeasurableFunction(const std::string &tag) : MeasurableObject(tag) {}
    void push(const _float_accumulator &Weight) {
 #ifdef USEMPI
       if(Rank==Master)
 #endif
          _bin.push(evaluate()/Weight);
    }
-   std::ostream &print(std::ostream &o) const {
-      return o<<_tag<<": "<<_bin;
-   }
-};
 
-inline std::ostream& operator<<(std::ostream& o,const MeasurableFunction &m) {
-   return m.print(o);
-}
+   std::ostream& print(std::ostream& o) const {
+      return o<<std::setw(25)<<std::left<<_tag<<"| "<<_bin;
+   }
+
+};
 
 class MeasurableSum : public MeasurableFunction {
    typedef std::vector<std::pair<_float_accumulator*,MatrixElement> > vector_pair_t;
    vector_pair_t data;
+
 public:
    MeasurableSum(const std::string &tag) : MeasurableFunction(tag) {}
    inline _float_accumulator evaluate() const {
@@ -99,6 +114,10 @@ public:
    void push_back(_float_accumulator *a,MatrixElement m) {
       data.push_back(std::pair<_float_accumulator*,MatrixElement>(a,m));
    }
+   std::ostream &print(std::ostream &o) const {
+      return o<<std::setw(25)<<std::left<<_tag<<"| "<<_bin;
+   }
+
 
 };
 
@@ -173,7 +192,7 @@ class Measurable  {
    BrokenHistogramType BrokenHistorgram;
 
 
-   std::vector<MeasurableFunction*> _Meas_Ptr;
+   std::vector<MeasurableObject*> _Meas_Ptr;
 
    //
    // For a given HamiltonianTerm, it will search to find it in the map
@@ -214,7 +233,7 @@ public:
    }
 
    ~Measurable() {
-      for(std::vector<MeasurableFunction*>::iterator it=_Meas_Ptr.begin(); it!=_Meas_Ptr.end(); ++it)
+      for(std::vector<MeasurableObject*>::iterator it=_Meas_Ptr.begin(); it!=_Meas_Ptr.end(); ++it)
          delete *it;
    }
 
@@ -226,7 +245,7 @@ public:
    }
 
    // Inserts an arbitrary measurable function to the list of measurables
-   void insert(MeasurableFunction *_meas_ptr) {
+   void insert(MeasurableObject *_meas_ptr) {
       _Meas_Ptr.push_back(_meas_ptr);
    }
 
@@ -291,7 +310,7 @@ public:
 
 #endif
 
-      for(std::vector<MeasurableFunction*>::size_type i=0; i<_Meas_Ptr.size(); ++i)
+      for(std::vector<MeasurableObject*>::size_type i=0; i<_Meas_Ptr.size(); ++i)
          _Meas_Ptr[i]->push(buffer_BoltzmannWeight);
 
       _Kinetic.push(buffer_BoltzmannWeight);
@@ -312,19 +331,19 @@ public:
       buffer_potential=0;
    }
 
-   std::vector<MeasurableFunction*>::size_type size() const {
+   std::vector<MeasurableObject*>::size_type size() const {
       return _Meas_Ptr.size();
    }
-   const MeasurableFunction &TotalEnergy() const {
+   const MeasurableObject &TotalEnergy() const {
       return _TotalEnergy;
    }
-   const MeasurableFunction &Potential() const {
+   const MeasurableObject &Potential() const {
       return _Potential;
    }
-   const MeasurableFunction &Kinetic() const {
+   const MeasurableObject &Kinetic() const {
       return _Kinetic;
    }
-   const MeasurableFunction &Quantity(std::vector<MeasurableFunction*>::size_type i) const {
+   const MeasurableObject &Quantity(std::vector<MeasurableObject*>::size_type i) const {
       return *_Meas_Ptr[i];
    }
 

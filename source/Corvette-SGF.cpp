@@ -14,6 +14,7 @@
 #include <ScrEx.h>
 #include <CheckCommandLine.h>
 #include <OperatorString.hh>
+#include <Simulation.hh>
 
 #include "SGF.hh"
 
