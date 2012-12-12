@@ -441,10 +441,10 @@ struct Parameters {
       // at least one of "MeasTime" and "WarmIterations" should exist
       assert(d["MeasTime"].IsInt() || d["MeasIterations"].IsInt());
 
-      WarmTime=d["WarmTime"].IsInt() ? d["WarmTime"].GetInt64() : -1;
-      WarmIterations=d["WarmIterations"].IsInt() ? d["WarmIterations"].GetInt64() : -1 ;
-      MeasTime=d["MeasTime"].IsInt() ? d["MeasTime"].GetInt64() : -1;
-      MeasIterations=d["MeasIterations"].IsInt() ? d["MeasIterations"].GetInt64() : -1;
+      WarmTime=d["WarmTime"].IsInt64() ? d["WarmTime"].GetInt64() : -1;
+      WarmIterations=d["WarmIterations"].IsInt64() ? d["WarmIterations"].GetInt64() : -1 ;
+      MeasTime=d["MeasTime"].IsInt64() ? d["MeasTime"].GetInt64() : -1;
+      MeasIterations=d["MeasIterations"].IsInt64() ? d["MeasIterations"].GetInt64() : -1;
 
       // Names of the operators to measure
       const rapidjson::Value &measure=d["Measure"];
