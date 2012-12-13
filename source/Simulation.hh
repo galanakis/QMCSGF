@@ -140,7 +140,7 @@ public:
       std::cout<<"  *******************************\n";
       std::cout<<"  * Broken worldlines histogram *\n";
       std::cout<<"  *******************************\n\n";
-      std::cout<<"    N lines\tCount\tProbability\n\n";
+      std::cout<<"    "<<std::setw(10)<<std::left<<"N lines"<<std::setw(10)<<"Count"<<std::setw(10)<<"Probability\n\n";
 
 
       double Normalization=0;
@@ -149,7 +149,7 @@ public:
 
       for(int i=0; i<BrokenHistorgram.size(); ++i)
          if(BrokenHistorgram[i]!=0)
-            std::cout<<"    "<<i<<"\t\t"<<BrokenHistorgram[i]<<"\t"<<BrokenHistorgram[i]/Normalization<<std::endl;
+            std::cout<<"    "<<std::fixed<<std::setprecision(9)<<std::setw(10)<<std::left<<i<<std::setw(10)<<BrokenHistorgram[i]<<std::setw(10)<<std::right<<BrokenHistorgram[i]/Normalization<<std::endl;
 
       std::cout<< std::endl;
 

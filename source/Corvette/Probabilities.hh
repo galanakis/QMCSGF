@@ -359,15 +359,13 @@ public:
    template<int rl>
    void update(const HamiltonianTerm *term) {
       for(unsigned int i=0; i<term->product().size(); ++i) {
-         unsigned ind=term->product()[i].particle_id()-Psi0;
-         if(Extra[2*ind].me<rl>()==0)
-            available[rl].erase(2*ind);
-         else
-            available[rl].insert(2*ind);
-         if(Extra[2*ind+1].me<rl>()==0)
-            available[rl].erase(2*ind+1);
-         else
-            available[rl].insert(2*ind+1); 
+         unsigned int ind=term->product()[i].particle_id()-Psi0;
+         for(unsigned int u=0; u<2; ++u) {
+            if(Extra[2*ind+u].me<rl>()==0)
+               available[rl].erase(2*ind+u);
+            else
+               available[rl].insert(2*ind+u);
+         }
       }
    }
 
@@ -425,6 +423,7 @@ public:
 */
 
 
+const double ExtraTermProbability=0.05;
 
 
 class Probabilities {
@@ -610,15 +609,25 @@ public:
       return _NBWL;
    }
 
+   /*
+
+      If the ensemble is GrandCanonical (ensemble!=0) 
+      AND if there is no extra term (ensemble->WormInit!=0)
+      AND if there are no broken lines (NBrokenLines()==0)
+      then pick a regular term with a fixed probability.
+
+   */
+
    template<int rl>
    const HamiltonianTerm* choose() const {
-      if(ensemble==0 || ensemble->WormInit!=0 || NBrokenLines()!=0)
-         return choose_canonical<rl>();
-      else {
 
+      if(ensemble!=0 && ensemble->WormInit==0 && NBrokenLines()==0 && RNG::Uniform()<ExtraTermProbability) {
          ensemble->WormInit = ensemble->choose<rl>();
-         return ensemble->WormInit;
+         return ensemble->WormInit;         
       }
+      else 
+         return choose_canonical<rl>();
+
    }
 
    template<int rl,int arflag>

@@ -38,7 +38,7 @@ class Timer {
 protected:
    unsigned long *counter;
 public:
-   Timer(unsigned long *c,unsigned long Iter,unsigned int Time) : counter(c) {
+   Timer(unsigned long *c,unsigned long Iter,unsigned long Time) : counter(c) {
 
       StartTime=clock();
       EndTime=StartTime+Time*CLOCKS_PER_SEC;
@@ -81,7 +81,7 @@ class ProgressBar : public Timer {
    unsigned long NumUpdates;
    clock_t Time;
 public:
-   ProgressBar(const std::string &Name,unsigned long *c,unsigned long Iter,unsigned int TotalTime) : Timer(c,Iter,TotalTime), Progress(0), NumUpdates(0) {
+   ProgressBar(const std::string &Name,unsigned long *c,unsigned long Iter,unsigned long TotalTime) : Timer(c,Iter,TotalTime), Progress(0), NumUpdates(0) {
       Time=clock();
       strcpy(Status,Name.c_str());
       Ptr=Status+strlen(Status);
