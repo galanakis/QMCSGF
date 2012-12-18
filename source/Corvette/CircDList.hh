@@ -17,9 +17,9 @@ namespace SGF {
   that is element 0 of the string is the first element in
   the immediate right of the Green Operator.
 
-  The class is implemented as a wrapper to deque, which replaces 
+  The class is implemented as a wrapper to deque, which replaces
   push_back, push_front, etc with push(direction,data).
-  
+
   The class members are
   pop(direction): remove an element from the right or left.
   push(direction): place a new element to the right or left
@@ -28,7 +28,7 @@ namespace SGF {
   length(): how many elements there are in the string
   empty(): returns true if there are no elements
   operator[][i]: access directly the elements of the deque.
-  
+
 */
 
 template<class T>
@@ -36,7 +36,7 @@ class CircDList {
 protected:
   std::deque<T> que;
 public:
-	typedef typename std::deque<T>::size_type string_size_type;
+  typedef typename std::deque<T>::size_type string_size_type;
   CircDList() : que() {};
 
   template<int direction>
@@ -49,12 +49,12 @@ public:
   inline const T& top() const { return direction==RIGHT ? que.front() : que.back(); }
 
   template<int direction>
-	inline const T& top(int depth) const {return direction==RIGHT ? que[depth] : que[que.size()-depth-1];}
+  inline const T& top(int depth) const {return direction==RIGHT ? que[depth] : que[que.size()-depth-1];}
 
   inline string_size_type length() const {return que.size();}
   inline bool empty() const {return que.empty();}
-	inline const T &operator[](string_size_type i) const {return que[i];}
-}; 
+  inline const T &operator[](string_size_type i) const {return que[i];}
+};
 
 
 

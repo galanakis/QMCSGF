@@ -65,7 +65,7 @@ end
 
 # enable debugging options
 task :debug do
-	flags+=" -DDEBUG"
+	flags+=" -g -DDEBUG"
 end
 
 # print compiler warnings

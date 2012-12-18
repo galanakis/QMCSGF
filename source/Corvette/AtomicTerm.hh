@@ -10,23 +10,23 @@ namespace SGF {
 
 template<typename IndexedProductElementClass,int direction>
 MatrixElement MultiplyMe(const typename std::vector<IndexedProductElementClass> &p) {
-    unsigned int result=1;
-    for(typename std::vector<IndexedProductElementClass>::size_type i=0;i<p.size();++i)
-      result*=p[i].template amplitude<direction>();
-    return sqrt(result);
+  unsigned int result=1;
+  for(typename std::vector<IndexedProductElementClass>::size_type i=0; i<p.size(); ++i)
+    result*=p[i].template amplitude<direction>();
+  return sqrt(result);
 }
 
-/* 
+/*
 
   class AtomicTerm
 
-  This is the actual data structure that holds a kinetic/potential 
+  This is the actual data structure that holds a kinetic/potential
   term, that is a product creation/annihilation operators for
   different indices.
-  
+
   Note: the structure does not necessarily guarantee that there can't
   be two ProductElements for the same index. To do this one we
-  should use a map instead of a vector. However the std::map costs a 
+  should use a map instead of a vector. However the std::map costs a
   factor of 10 in performance. I am in serious need of an amazing
   implementation of a map or hash map for integers. Or I should just
   give up some performance.
@@ -34,7 +34,7 @@ MatrixElement MultiplyMe(const typename std::vector<IndexedProductElementClass> 
   This class is defined as a template with two parameters
   the one is the type of the MatrixElement (usually double)
   and the other one a special class which contains the combination
-  of a particle and an operator. 
+  of a particle and an operator.
 
 */
 
@@ -44,88 +44,88 @@ class AtomicTerm {
   std::vector<IndexedProductElementClass> _product;
 public:
   AtomicTerm() : _coefficient(1) {} // The constructor really depends on the interface
-  
-  AtomicTerm(const MatrixElementClass &c,const IndexedProductElementClass &p) : _coefficient(c) { 
+
+  AtomicTerm(const MatrixElementClass &c,const IndexedProductElementClass &p) : _coefficient(c) {
     _product.reserve(1);
-    _product.push_back(p); 
+    _product.push_back(p);
   }
 
   AtomicTerm(const MatrixElementClass &c,const IndexedProductElementClass &p1,const IndexedProductElementClass &p2) : _coefficient(c) {
-    _product.reserve(2); 
+    _product.reserve(2);
     _product.push_back(p1);
-    _product.push_back(p2); 
-  }  
-  
-	AtomicTerm(MatrixElementClass c,const std::vector<IndexedProductElementClass> &p) : _coefficient(c), _product(p) {}
- 
+    _product.push_back(p2);
+  }
+
+  AtomicTerm(MatrixElementClass c,const std::vector<IndexedProductElementClass> &p) : _coefficient(c), _product(p) {}
+
   AtomicTerm(const std::vector<IndexedProductElementClass> &p) : _coefficient(MatrixElementClass(1.0)), _product(p) {}
 
   AtomicTerm(const AtomicTerm &o) : _coefficient(o._coefficient), _product(o._product) {}
-  
+
   typedef typename std::vector<IndexedProductElementClass>::const_iterator iterator;
-	typedef typename std::vector<IndexedProductElementClass>::size_type size_type;
-  
-	inline MatrixElementClass &coefficient() {return _coefficient;};
-  inline const MatrixElementClass &coefficient() const {return _coefficient;}; 
+  typedef typename std::vector<IndexedProductElementClass>::size_type size_type;
+
+  inline MatrixElementClass &coefficient() {return _coefficient;};
+  inline const MatrixElementClass &coefficient() const {return _coefficient;};
   inline const std::vector<IndexedProductElementClass>& product() const {return _product;}
-    
-  inline bool diagonal() const { 
+
+  inline bool diagonal() const {
     int result=0;
-    for(size_type i=0;i<_product.size();++i)
+    for(size_type i=0; i<_product.size(); ++i)
       result+=abs(_product[i].delta());
-    return result==0;         
+    return result==0;
   }
 
   /* offset after adding/removing the present term */
   template<int action>
   inline int offset() const {
     int result=0;
-    for(size_type i=0;i<_product.size();++i)
+    for(size_type i=0; i<_product.size(); ++i)
       result+=_product[i].template offset<action>();
-    return result;      
+    return result;
   }
 
   inline int offset() const {
     return offset<ADD>();
   }
 
-  /* The matrix element after applying 
+  /* The matrix element after applying
      the operator to the left or the right */
   template<int direction>
   inline unsigned int amplitude() const {
     unsigned int result=1;
-    for(size_type i=0;i<_product.size();++i)
+    for(size_type i=0; i<_product.size(); ++i)
       result*=_product[i].template amplitude<direction>();
     return result;
   }
 
-  /* The matrix element after applying 
+  /* The matrix element after applying
      the operator to the left or the right */
   template<int direction>
   inline MatrixElementClass me() const {
-     return _coefficient*sqrt(amplitude<direction>());
+    return _coefficient*sqrt(amplitude<direction>());
   }
-       
-  template<int direction,int action>            
+
+  template<int direction,int action>
   inline void update_psi() const {
-    for(size_type i=0;i<_product.size();++i)
+    for(size_type i=0; i<_product.size(); ++i)
       _product[i].template update<direction,action>();
   }
-  
+
   inline int maxoffset() const {
     int result=0;
-    for(size_type i=0;i<_product.size();++i)
+    for(size_type i=0; i<_product.size(); ++i)
       result+=_product[i].maxoffset();
-    return result;      
+    return result;
   }
 
   inline int minoffset() const {
     int result=0;
-    for(size_type i=0;i<_product.size();++i)
+    for(size_type i=0; i<_product.size(); ++i)
       result+=_product[i].minoffset();
-    return result;      
+    return result;
   }
-    
+
 };
 
 }

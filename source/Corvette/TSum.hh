@@ -51,106 +51,106 @@ t.reset();              // clear everything.
 
 
 class TSum {
-	typedef std::vector<MatrixElement>::size_type index_type;
+  typedef std::vector<MatrixElement>::size_type index_type;
 
-	std::vector<MatrixElement> _sums;
-	MatrixElement *_elements;
-	index_type _nsums,_base;
-	_float_accumulator _norm;
+  std::vector<MatrixElement> _sums;
+  MatrixElement *_elements;
+  index_type _nsums,_base;
+  _float_accumulator _norm;
 
-	index_type _nterms;
-	bool *_guard;
-	index_type *_buffer,*_buffer_entry;
-
-
-	inline void flush() {
-
-		while(_buffer_entry>_buffer) {
-			--_buffer_entry;
-
-			_guard[*_buffer_entry]=true;
-			index_type index=*_buffer_entry/2+_base;
-			MatrixElement newme=_sums[2*index-1]+_sums[2*index];
-			MatrixElement oldme=_sums[index-1];
-
-			if(newme!=oldme) {
-				while(index) {
-					_sums[index-1] =  newme;
-					newme += _sums[index-2*(index&1)];
-					index/=2;
-				}
-			}
+  index_type _nterms;
+  bool *_guard;
+  index_type *_buffer,*_buffer_entry;
 
 
+  inline void flush() {
 
-		}
+    while(_buffer_entry>_buffer) {
+      --_buffer_entry;
 
-		_norm=_sums[0];
-	}
+      _guard[*_buffer_entry]=true;
+      index_type index=*_buffer_entry/2+_base;
+      MatrixElement newme=_sums[2*index-1]+_sums[2*index];
+      MatrixElement oldme=_sums[index-1];
+
+      if(newme!=oldme) {
+        while(index) {
+          _sums[index-1] =  newme;
+          newme += _sums[index-2*(index&1)];
+          index/=2;
+        }
+      }
+
+
+
+    }
+
+    _norm=_sums[0];
+  }
 
 public:
 
-	TSum() : _sums(), _elements(0), _norm(0), _guard(0) {}
-	~TSum() {
-		delete [] _guard;
-		delete [] _buffer;
-	}
+  TSum() : _sums(), _elements(0), _norm(0), _guard(0) {}
+  ~TSum() {
+    delete [] _guard;
+    delete [] _buffer;
+  }
 
-	/* resizes the vector */
-	inline void resize(index_type NTerms) {
-		index_type _size=1;
-		while(_size<NTerms) _size<<=1;
-		_sums.resize(2*_size-1,MatrixElement(0));
-		_nsums=_size-1;
-		_base=(1+_nsums)/2;
-		_elements=&_sums[_nsums];
-		_nterms=NTerms;
-		_guard=new bool[_nterms];
-		_buffer=new index_type[_nterms];
-		_buffer_entry=_buffer;
-		_norm=0;
-	}
+  /* resizes the vector */
+  inline void resize(index_type NTerms) {
+    index_type _size=1;
+    while(_size<NTerms) _size<<=1;
+    _sums.resize(2*_size-1,MatrixElement(0));
+    _nsums=_size-1;
+    _base=(1+_nsums)/2;
+    _elements=&_sums[_nsums];
+    _nterms=NTerms;
+    _guard=new bool[_nterms];
+    _buffer=new index_type[_nterms];
+    _buffer_entry=_buffer;
+    _norm=0;
+  }
 
-	inline void update(index_type index,MatrixElement me) {
-		if(me!=_elements[index]) {
-			if(_guard[index]) {
-				*_buffer_entry=index;
-				++_buffer_entry;
-				_guard[index]=false;
-			}
-			_norm+=me-_elements[index];
-			_elements[index]=me;
-		}
-	}
+  inline void update(index_type index,MatrixElement me) {
+    if(me!=_elements[index]) {
+      if(_guard[index]) {
+        *_buffer_entry=index;
+        ++_buffer_entry;
+        _guard[index]=false;
+      }
+      _norm+=me-_elements[index];
+      _elements[index]=me;
+    }
+  }
 
-	inline const MatrixElement &element(index_type index) const {return _elements[index];}
+  inline const MatrixElement &element(index_type index) const {return _elements[index];}
 
-	inline index_type choose() {
-		flush();
+  inline index_type choose() {
+    flush();
 
-		MatrixElement w,wl;
-		index_type index=0;
-		while(index<_nsums) {
-			w =_sums[index];
-			index=2*index+1;
-			wl=_sums[index];
-			index+=!(w*RNG::Uniform()<wl);
-		}
+    MatrixElement w,wl;
+    index_type index=0;
+    while(index<_nsums) {
+      w =_sums[index];
+      index=2*index+1;
+      wl=_sums[index];
+      index+=!(w*RNG::Uniform()<wl);
+    }
 
-		return index-_nsums;
+    return index-_nsums;
 
-	}
+  }
 
-	const _float_accumulator &norm() const {return _norm;}
-	/* Makes all elements zero */
-	inline void reset() {
-		_buffer_entry=_buffer;
-		_norm=0;
-		for(index_type i=0;i<_nterms;++i)
-			_guard[i]=true;
-		for(std::vector<MatrixElement>::iterator it=_sums.begin();it!=_sums.end();++it)
-			*it=MatrixElement(0);
-	}
+  const _float_accumulator &norm() const {return _norm;}
+  /* Makes all elements zero */
+  inline void reset() {
+    _buffer_entry=_buffer;
+    _norm=0;
+    for(index_type i=0; i<_nterms; ++i)
+      _guard[i]=true;
+    for(std::vector<MatrixElement>::iterator it=_sums.begin(); it!=_sums.end(); ++it)
+      *it=MatrixElement(0);
+  }
 
 };
 

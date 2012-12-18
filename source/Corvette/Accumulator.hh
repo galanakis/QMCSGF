@@ -25,39 +25,39 @@ namespace SGF {
 
 template<const int MomentOrder,class T>
 class Accumulator {
-	T _sum[MomentOrder];
-	_integer_counter _count;
+  T _sum[MomentOrder];
+  _integer_counter _count;
 public:
-	Accumulator() { reset(); }
-	Accumulator(const Accumulator &o) {
-		_count=o._count; 
-		for(int i=0;i<MomentOrder;++i) _sum[i]=o._sum[i]; 
-	}
-	Accumulator & push(const T &data,const T &Weight=T(1.0)) {
-		T moment(Weight);
-		for(int i=0;i<MomentOrder;++i) {
-			_sum[i]+=moment;
-			moment*=data;
-		}
-		++_count;
-		return *this;
-	}
-	inline void reset() {
-		_count=0; 
-		for(int i=0;i<MomentOrder;++i) _sum[i]=T(0); 
-	}
-	inline const _integer_counter &count() const {return _count;}
-	inline T operator()(int i) const {return _sum[i]/_sum[0];}
-	inline int nmoments() const {return MomentOrder;}
+  Accumulator() { reset(); }
+  Accumulator(const Accumulator &o) {
+    _count=o._count;
+    for(int i=0; i<MomentOrder; ++i) _sum[i]=o._sum[i];
+  }
+  Accumulator & push(const T &data,const T &Weight=T(1.0)) {
+    T moment(Weight);
+    for(int i=0; i<MomentOrder; ++i) {
+      _sum[i]+=moment;
+      moment*=data;
+    }
+    ++_count;
+    return *this;
+  }
+  inline void reset() {
+    _count=0;
+    for(int i=0; i<MomentOrder; ++i) _sum[i]=T(0);
+  }
+  inline const _integer_counter &count() const {return _count;}
+  inline T operator()(int i) const {return _sum[i]/_sum[0];}
+  inline int nmoments() const {return MomentOrder;}
 };
 
 
-/* 
+/*
 
 	class BinnedAccumulator
   An accumulator that has bins. When you push data to it, it stores them in
 	a buffer until the bin is full in which case it pushes them in the bin.
-	
+
 	======== Usage ==========
 	BinnedAccumulator<double> bacc; // a binned accumulator of doubles
 	bacc.constant()=10;             // Constant offset.
@@ -70,17 +70,17 @@ public:
 template<class T>
 class BinnedAccumulator {
 public:
-	T Base;                       	// A constant value
-	Accumulator<3,T> Bins;
+  T Base;                       	// A constant value
+  Accumulator<3,T> Bins;
 public:
-	BinnedAccumulator() : Base(0) {}
-	inline void push(const T &val) {
-		Bins.push(val);
-	}
-  
-	inline T &constant() {return Base;}
-	inline T average() const {return Base+Bins(1);}
-	inline T sigma() const {return sqrt(fabs(Bins(2)-Bins(1)*Bins(1))/(Bins.count()-1));}
+  BinnedAccumulator() : Base(0) {}
+  inline void push(const T &val) {
+    Bins.push(val);
+  }
+
+  inline T &constant() {return Base;}
+  inline T average() const {return Base+Bins(1);}
+  inline T sigma() const {return sqrt(fabs(Bins(2)-Bins(1)*Bins(1))/(Bins.count()-1));}
 };
 
 }

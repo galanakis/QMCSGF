@@ -1,31 +1,13 @@
 #ifndef __RANDOMNUMBERGENERATOR__
 #define __RANDOMNUMBERGENERATOR__
 
-// ********************************************************************************
-// * This class is a high speed random number generator.                          *
-// *                                                                              *
-// * Initialization: Before first use, the function RNG::Initialize(Seed) must    *
-// * be called, where Seed is any non zero integer value.                         *
-// *                                                                              *
-// * RNG::Uniform() returns a random number in [0;1[ with a uniform distribution. *
-// *                                                                              *
-// * RNG::Exponential(A) returns a random number in [0;+inf[ with an exponential  *
-// * distribution of the form A*Exp(-A*x). A must be positive.                    *
-// *                                                                              *
-// * RNG::Exponential(A,T) returns a random number in [0;T[ with an exponential   *
-// * distribution of the form A*Exp(-A*x)/(1-Exp(-A*T)). A can be any real value. *
-// *                                                                              *
-// * Valy Rousseau - October 2007                                                 *
-// *                                                                              *
-// * Modified by Dimitris Galanakis to include sprng and MersenneTwister          *
-// ********************************************************************************
 
 #include <iostream>
 #include <cmath>
 #include <cstdlib>
- 
+
 #ifdef USEMPI
-	extern int Rank;
+extern int Rank;
 #endif
 
 
@@ -33,9 +15,9 @@
 #if defined(RNG_MT)
 
 // Mersenne Twister
-#include "MersenneTwister.h" 
+#include "MersenneTwister.h"
 class RNGMT {
-  static MTRand rand; 
+  static MTRand rand;
 public:
   inline static void Initialize(int s) {
 //    cout<<"Using the Mersenne Twister random number generator."<<std::endl;
@@ -66,10 +48,11 @@ class RNGSPRNG {
   // Returns a uniformly distributed random number in the interval ]0,1[
   inline static double NZUniform() {
     double result=0;
-    do { result=Uniform(); } while(result==0);
+    do { result=Uniform(); }
+    while(result==0);
     return result;
-  }      
-}; 
+  }
+};
 
 typedef RNGSPRNG RNGBase;
 
@@ -79,7 +62,7 @@ typedef RNGSPRNG RNGBase;
 class RNGLC {
   static int Seed;
 public:
-// Initialize the random number generator with a non zero seed. 
+// Initialize the random number generator with a non zero seed.
   inline static void Initialize(int S) {
 //    cout<<"Using the Linear Congruence random number generator."<<std::endl;
 #ifdef USEMPI
@@ -90,7 +73,7 @@ public:
       std::cerr<<"Error in RNG::Initialize: The initialization seed cannot be zero."<<std::endl;
       exit(1);
     }
-    for (int i=0;i<1000;++i)
+    for (int i=0; i<1000; ++i)
       Seed*=16807;
   }
 // Returns a uniformly distributed random number in the interval [0,1[
@@ -98,9 +81,10 @@ public:
 // Returns a uniformly distributed random number in the interval ]0,1[
   inline static double NZUniform() {
     double result=0;
-    do { result=Uniform(); } while(result==0);
+    do { result=Uniform(); }
+    while(result==0);
     return result;
-  }      
+  }
 };
 
 int RNGLC::Seed;
@@ -111,31 +95,32 @@ typedef RNGLC RNGBase;
 
 
 class RNG : public RNGBase {
-	
+
 // This variables are used by Exponential(double)
-	static double Lg1,Lg2,Lg3,Lg4,Lg5,Lg6,Lg7;
-	inline static double ExponentialHelper(double r,double L);	
+  static double Lg1,Lg2,Lg3,Lg4,Lg5,Lg6,Lg7;
+  inline static double ExponentialHelper(double r,double L);
 public:
-// Initialize the random number generator with a non zero seed. 
+// Initialize the random number generator with a non zero seed.
   static void Initialize(int S) {RNGBase::Initialize(S);};
 // Returns a uniformly distributed random number in the interval [0,1[
   inline static double Uniform() {return RNGBase::Uniform();};
 // Returns a uniformly distributed random number in the interval ]0,1[
   inline static double NZUniform() {return RNGBase::NZUniform();};
-// Returns 0 or 1 with relative probabilities a and b respectively 
+// Returns 0 or 1 with relative probabilities a and b respectively
   static inline int CoinFlip(double a,double b) { return (a+b)*Uniform()<b;}
 // Returns one integer between 0 and N-1
   static inline int UniformInteger(unsigned int N) {return Uniform()*N;}
 // Returns a number with relative distribution exp(-x)
-  static inline double Exponential() { return -log(1.0-Uniform()); } 
+  static inline double Exponential() { return -log(1.0-Uniform()); }
 // Returns a number in the interval [0,1[ with distribution exp(A x)
-	static inline double Exponential(double A);
+  static inline double Exponential(double A);
 // Returns a number in the interval ]0,1[ with distribution exp(A x)
-	static inline double NZExponential(double A) {
-		double result=0;
-    do { result=Exponential(A); } while(result==0);
+  static inline double NZExponential(double A) {
+    double result=0;
+    do { result=Exponential(A); }
+    while(result==0);
     return result;
-	}
+  }
 
 };
 
@@ -154,42 +139,42 @@ public:
 	The algorithm is based on bisecting the interval [0,1)
 	repeatedly until it's width is smaller than a cutoff
 	and the use a fast polynomial approximation.
-   
-  
+
+
  	At first the interval is bisected repeatedly. In the first iteration
 	the relative weigth of the leftmost interval (the one that contains zero)
 	is 1 and the weight of the rightmost is exp(-L/2). If (1+exp(-L/2))*r<1
 	then the left interval is selected. The index i is the index of the
 	interval and takes values between 0 and 2^k-1 where k is the number
-	of bisections. The index n=2^k. The bisections continue until the 
+	of bisections. The index n=2^k. The bisections continue until the
 	width L<T.
-  
+
 	At that point the interval which starts at i/n has been selected
-	and we need to proceed by selecting one number in this interval. 
+	and we need to proceed by selecting one number in this interval.
 	Next we need to pick a number in the interval [0,L]
-	We can use the formula X=-log(1-r(1-exp(-L)))/L, but we can Taylor expand it in a smart way. 
+	We can use the formula X=-log(1-r(1-exp(-L)))/L, but we can Taylor expand it in a smart way.
 	Let u=r(1-exp(-L)) and s=u/(2-u) such that 1-u=(1-s)/(1+s)
-	Then 
-	-log(1-u)=log(1+s)-log(1-s)=2*s(1+s^2/3+s^4/5...)=2*s+s*R 
+	Then
+	-log(1-u)=log(1+s)-log(1-s)=2*s(1+s^2/3+s^4/5...)=2*s+s*R
 	where R has only even powers. Then I follow http://www.netlib.org/fdlibm/e_log.c
-	where R is approximated by a 14 order polynomial such that in the s interval 
+	where R is approximated by a 14 order polynomial such that in the s interval
 	[0,0.1716] the accuracy is better than 2**-58.45. This corresponds to
 	L<0.346629.
 
 	Finally if we let a=(1-exp(-L))/L;
-	X=r*a/L(2+R)/(2-u) 
+	X=r*a/L(2+R)/(2-u)
 	where all the quantities are finite for small values of L.
 
 	To calculate "a" without floating point errors we use the identity
 	a=2*exp(-L/2)sinh(L/2)/L
 	We then only need to check if L==0.
-	
- 
+
+
 	Note. In the above derivation we assume that L>0.
 	In the case of L<0 we have the distribution
 	-log(1-r*(1-exp(-L)))/L = 1+log(1-(1-r)(1-exp(L)))/L
 	= 1-log(1-(1-r)(1-exp(-|L|)))/|L|
-  So all we need to do is flip the result and the 
+  So all we need to do is flip the result and the
 	uniform random number generator.
 
 
@@ -205,48 +190,48 @@ double RNG::Lg6 = 1.531383769920937332e-01;
 double RNG::Lg7 = 1.479819860511658591e-01;
 
 
-/* 
+/*
 	In this function r is the uniform random generator
 	and 0<L<0.346629.
 	It calculates accurately the expression
 	-log(1-r*(1-exp(-L)))/L
 */
 inline double RNG::ExponentialHelper(double r,double L) {
-	double u=r*(1-exp(L));
-	double s=u/(2-u);
-	double ss=s*s;
-	double R=((((((ss*Lg7+Lg6)*ss+Lg5)*ss+Lg4)*ss+Lg3)*ss+Lg2)*ss+Lg1)*ss;
-	double a= (L==0) ? exp(L/2) : 2*exp(L/2)*sinh(L/2)/L;
-	return r*a*(2+R)/(2-u);
+  double u=r*(1-exp(L));
+  double s=u/(2-u);
+  double ss=s*s;
+  double R=((((((ss*Lg7+Lg6)*ss+Lg5)*ss+Lg4)*ss+Lg3)*ss+Lg2)*ss+Lg1)*ss;
+  double a= (L==0) ? exp(L/2) : 2*exp(L/2)*sinh(L/2)/L;
+  return r*a*(2+R)/(2-u);
 }
 
-inline double RNG::Exponential(double L) {	
- 	
-	// Do not dare to touch this before you read the documentation above.
-	const double T=0.346629;
+inline double RNG::Exponential(double L) {
 
-	unsigned long n=1;  
-	unsigned long i=0;
-	
-	while(fabs(L)>=T) {
-		
-		L/=2;
-    
-		i<<=1;
-		double r=Uniform();
-		if(exp(-L)<=r/(1-r))
-			i+=1;		 
-		
-		n<<=1;
-		
-	}
+  // Do not dare to touch this before you read the documentation above.
+  const double T=0.346629;
+
+  unsigned long n=1;
+  unsigned long i=0;
+
+  while(fabs(L)>=T) {
+
+    L/=2;
+
+    i<<=1;
+    double r=Uniform();
+    if(exp(-L)<=r/(1-r))
+      i+=1;
+
+    n<<=1;
+
+  }
   double r=Uniform();
-	if(L>0)
-		return (i+ExponentialHelper(r,L))/n;
-	else
-		return (i+1-ExponentialHelper(1-r,-L))/n; 
-	
-	
+  if(L>0)
+    return (i+ExponentialHelper(r,L))/n;
+  else
+    return (i+1-ExponentialHelper(1-r,-L))/n;
+
+
 }
 
 

@@ -15,7 +15,7 @@ typedef uint occupancy_t;
 const uint Infinity=UINT_MAX; // The maximum possible integer is infinity
 
 
-const int Sign[]={-1,1};
+const int Sign[]= {-1,1};
 enum {LEFT,RIGHT};            // Directions
 enum {ANNIHILATION,CREATION}; // Operator type
 enum {REMOVE,ADD};            // Action

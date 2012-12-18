@@ -20,12 +20,12 @@ namespace SGF {
 struct Operator {
   CircularTime Time;
   const HamiltonianTerm* Term;
-	_float_accumulator Energy;
-  
+  _float_accumulator Energy;
+
   Operator(const Operator &o) : Time(o.Time), Term(o.Term), Energy(o.Energy) {}
-	Operator &operator=(const Operator &o) {Time=o.Time; Term=o.Term; Energy=o.Energy; return *this;}
+  Operator &operator=(const Operator &o) {Time=o.Time; Term=o.Term; Energy=o.Energy; return *this;}
   Operator(const CircularTime &_time,const HamiltonianTerm *_term,const _float_accumulator &_energy) : Time(_time), Term(_term), Energy(_energy) {}
-};                       
+};
 
 
 typedef CircDList<Operator> OperatorCircDlist;
@@ -35,13 +35,13 @@ typedef CircDList<Operator> OperatorCircDlist;
 //
 struct SGFBase {
 
-   std::vector<Boson> Psi;
-   OperatorCircDlist OperatorCDL;
-   Hamiltonian T,V;
-   GreenOperator<long double> g;
-   double Alpha;
-   double Beta;
-   ensemble_t Ensemble;
+  std::vector<Boson> Psi;
+  OperatorCircDlist OperatorCDL;
+  Hamiltonian T,V;
+  GreenOperator<long double> g;
+  double Alpha;
+  double Beta;
+  ensemble_t Ensemble;
 
 };
 
