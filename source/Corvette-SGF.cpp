@@ -239,7 +239,7 @@ void Simulator() {
   }
 
   for(unsigned int i=0; i<_MeasurableOperators.size(); ++i) {
-    MeasuredOperators.insert(_MeasurableNameList[i],_MeasurableOperators[i]);
+    InsertOperator(_MeasurableNameList[i],_MeasurableOperators[i],MeasuredOperators);
   }
 
 

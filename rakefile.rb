@@ -17,6 +17,7 @@
 
 # Applies some heuristics to determine mkl root in the system
 def get_mkl_line
+
 # Get the location of ICC
 mklroot=File.dirname(%x{which icc}.strip)
 output=nil
@@ -127,6 +128,14 @@ task :corv_boson => [:rng_mt,:cmdlineprogress,:mkl] do
 	puts %x{#{cmd}}
 end
 
+task :mf_boson => [:mkl] do
+	executable="mf_boson"
+	source="source/BosonMF.cpp"
+	puts cmd="#{compiler} -openmp #{source} #{flags} #{include} #{libs} -o #{executable}"
+	puts %x{#{cmd}}
+end
+
+
 task :corv_example => [:rng_mt,:cmdlineprogress,:mkl] do
 	executable="corv_example"
 	source="source/SGFBosonExample.cpp"
@@ -134,7 +143,7 @@ task :corv_example => [:rng_mt,:cmdlineprogress,:mkl] do
 	puts %x{#{cmd}}	
 end
 
-task :default => [:std,:corv,:icc,:corv] do
+task :default => [:corv] do
 end
 
 task :everything => [:corv,:corv_boson,:corv_example] do

@@ -182,12 +182,12 @@ public:
 
 };
 
-class MeasurableEigen : public MeasurableMultiFunction {
+class MeasurableEigenvalues : public MeasurableMultiFunction {
   std::vector<_float_accumulator*> data_ptr;
   unsigned int N;
 
 public:
-  MeasurableEigen(const std::string &tag,unsigned int nn) : MeasurableMultiFunction(tag,nn), N(nn), data_ptr(nn*nn) {}
+  MeasurableEigenvalues(const std::string &tag,unsigned int nn) : MeasurableMultiFunction(tag,nn), N(nn), data_ptr(nn*nn) {}
 
   void push(const _float_accumulator &Weight) {
 
@@ -222,11 +222,12 @@ public:
 
 };
 
-void InsertDensityMatrixEigenvalues(std::vector<SGF::Boson> &Psi,Measurable &MeasuredOperators) {
+
+void InsertDensityMatrixEigenvalues(const std::string &tag,std::vector<SGF::Boson> &Psi,Measurable &MeasuredOperators) {
 
   // Insert the calculation of the condensate fraction
 
-  MeasurableEigen *MEig=new MeasurableEigen("Density Matrix Eigenvalues",Psi.size());
+  MeasurableEigenvalues *MEig=new MeasurableEigenvalues(tag,Psi.size());
 
   // Inserts the density matrix
   for(unsigned int i=0; i<Psi.size(); ++i) {
@@ -252,11 +253,11 @@ void InsertDensityMatrixEigenvalues(std::vector<SGF::Boson> &Psi,Measurable &Mea
 }
 
 
-void InsertDensityMatrixEigenSystem(std::vector<SGF::Boson> &Psi,Measurable &MeasuredOperators) {
+void InsertDensityMatrixEigenSystem(const std::string &tag,std::vector<SGF::Boson> &Psi,Measurable &MeasuredOperators) {
 
   // Insert the calculation of the condensate fraction
 
-  MeasurableEigenSystem *MEig=new MeasurableEigenSystem("Density Matrix Eigen System",Psi.size());
+  MeasurableEigenSystem *MEig=new MeasurableEigenSystem(tag,Psi.size());
 
   // Inserts the density matrix
   for(unsigned int i=0; i<Psi.size(); ++i) {
@@ -286,7 +287,7 @@ void InsertDensityMatrixEigenSystem(std::vector<SGF::Boson> &Psi,Measurable &Mea
 // We need to separately build the diagonal and the off diagonal terms
 // Because the code assumes that all elements of IndexedProductElement
 // correspond to different bosons.
-void InsertDensityMatrix(std::vector<SGF::Boson> &Psi,Measurable &MeasuredOperators) {
+void InsertDensityMatrix(const std::string &tag,std::vector<SGF::Boson> &Psi,Measurable &MeasuredOperators) {
 
   MeasurableVector *MVec=new MeasurableVector("Density Matrix",Psi.size()*Psi.size());
   // Inserts the density matrix
@@ -315,8 +316,8 @@ void InsertDensityMatrix(std::vector<SGF::Boson> &Psi,Measurable &MeasuredOperat
 
 
 
-void InsertLocalDensity(std::vector<SGF::Boson> &Psi,Measurable &MeasuredOperators) {
-  MeasurableVector *MVec=new MeasurableVector("Local Density",Psi.size());
+void InsertLocalDensity(const std::string &tag,std::vector<SGF::Boson> &Psi,Measurable &MeasuredOperators) {
+  MeasurableVector *MVec=new MeasurableVector(tag,Psi.size());
   // Inserts the density matrix
   for(unsigned int i=0; i<Psi.size(); ++i) {
     const IndexedProductElement ni(C*A,&Psi[i]);

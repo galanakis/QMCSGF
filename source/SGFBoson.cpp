@@ -38,24 +38,23 @@ void Simulator(const SGF::Parameters &p) {
   // This is why I declare the measurable operators after the thermalization.
   Measurable MeasuredOperators(OperatorString);
 
-  MeasuredOperators.insert("Potential Energy",Container.V);
-  MeasuredOperators.insert("Kinetic Energy",Container.T);
-
+  InsertOperator("Potential Energy",Container.V,MeasuredOperators);
+  InsertOperator("Kinetic Energy",Container.T,MeasuredOperators);
 
   if(p.HasMeasurable("Number")) {
-    MeasuredOperators.insert("Particle Number",Orphans::GenerateNumberOperator(Container.Psi));
+    InsertOperator("Particle Number",Orphans::GenerateNumberOperator(Container.Psi),MeasuredOperators);
   }
 
   if(p.HasMeasurable("LocalDensity")) {
-    InsertLocalDensity(Container.Psi, MeasuredOperators);
+    InsertLocalDensity("Local Density",Container.Psi, MeasuredOperators);
   }
 
   if(p.HasMeasurable("DensityMatrixEigenSystem")) {
-    InsertDensityMatrixEigenSystem(Container.Psi, MeasuredOperators);
+    InsertDensityMatrixEigenSystem("Density Matrix EigenSystem",Container.Psi, MeasuredOperators);
   }
 
   if(p.HasMeasurable("DensityMatrix")) {
-    InsertDensityMatrix(Container.Psi, MeasuredOperators);
+    InsertDensityMatrix("Density Matrix",Container.Psi, MeasuredOperators);
   }
 
 

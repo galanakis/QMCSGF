@@ -249,21 +249,6 @@ public:
     _Meas_Ptr.push_back(_meas_ptr);
   }
 
-  // Measure an operator (sum of terms)
-  void insert(const std::string &tag,const Hamiltonian &Operator) {
-    MeasurableSum *_meas_ptr=new MeasurableSum(tag);
-    for(Hamiltonian::const_iterator term_ptr=Operator.begin(); term_ptr!=Operator.end(); ++term_ptr) {
-      _meas_ptr->push_back( new_buffer_pointer(*term_ptr), term_ptr->coefficient() );
-    }
-    _Meas_Ptr.push_back(_meas_ptr);
-  }
-
-  // Measure an individual term
-  void insert(const std::string &tag,const HamiltonianTerm &term) {
-    MeasurableNumber *_meas_ptr=new MeasurableNumber(tag, new_buffer_pointer(term), term.coefficient());
-    _Meas_Ptr.push_back(_meas_ptr);
-  }
-
   inline void measure() {
 
     BrokenHistorgram[OperatorString.NBrokenLines()]+=1;
@@ -351,6 +336,22 @@ public:
   const BrokenHistogramType &Histogram() const {return BrokenHistorgram;}
 
 };
+
+void InsertOperator(const std::string &tag,const Hamiltonian &Operator,Measurable &MeasuredOperators) {
+  MeasurableSum *_meas_ptr=new MeasurableSum(tag);
+  for(Hamiltonian::const_iterator term_ptr=Operator.begin(); term_ptr!=Operator.end(); ++term_ptr) {
+    _meas_ptr->push_back( MeasuredOperators.new_buffer_pointer(*term_ptr), term_ptr->coefficient() );
+  }
+  MeasuredOperators.insert(_meas_ptr);
+}
+
+// Measure an individual term
+void InsertTerm(const std::string &tag,const HamiltonianTerm &term,Measurable &MeasuredOperators) {
+  MeasurableNumber *_meas_ptr=new MeasurableNumber(tag, MeasuredOperators.new_buffer_pointer(term), term.coefficient());
+  MeasuredOperators.insert(_meas_ptr);
+}
+
+
 
 }
 

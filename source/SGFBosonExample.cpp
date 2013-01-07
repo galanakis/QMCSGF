@@ -110,10 +110,10 @@ void BoseHubbardPeriodic1D() {
   // This is why I declare the measurable operators after the thermalization.
   Measurable MeasuredOperators(OperatorString);
 
-  MeasuredOperators.insert("Potential Energy",Container.V);
-  MeasuredOperators.insert("Atom Kinetic energy",Container.T);
-  MeasuredOperators.insert("Number of Particles",Orphans::GenerateNumberOperator(Container.Psi));
-  InsertLocalDensity(Container.Psi, MeasuredOperators);
+  InsertOperator("Potential Energy",Container.V,MeasuredOperators);
+  InsertOperator("Atom Kinetic energy",Container.T,MeasuredOperators);
+  InsertOperator("Number of Particles",Orphans::GenerateNumberOperator(Container.Psi),MeasuredOperators);
+  InsertLocalDensity("Local Density",Container.Psi, MeasuredOperators);
 
 
   //We start measurement iterations
