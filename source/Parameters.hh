@@ -30,110 +30,15 @@ readInputFile( const char *path ) {
 namespace SGF {
 
 
-std::ostream &operator<<(std::ostream &o,boundary_t e) {
-  return o << ((e==open) ? "open" : "periodic");
-}
-
-
 std::ostream &operator<<(std::ostream &o,ensemble_t e) {
   return o << ((e==Canonical) ? "Canonical" : "GrandCanonical");
 }
 
-class Lattice {
-public:
-  Lattice() {}
-  virtual unsigned int size() const =0;
-  virtual std::ostream &print(std::ostream &o) const =0;
-  virtual const std::vector<double> potential() const =0;
-  virtual ~Lattice() {};
-};
 
-class LatticeLinks : public Lattice {
-public:
-  virtual list_links_t links() const =0;
-};
-
-class Chain : public LatticeLinks {
-  boundary_t Bx;
-  unsigned int Lx;
-  double Vx;
-public:
-  Chain(unsigned int lx,boundary_t bx) : Bx(bx), Lx(lx), Vx(0) {}
-  unsigned int size() const {
-    return Lx;
-  }
-  std::ostream &print(std::ostream &o) const {
-    int w=25;
-    return o<<"    "<<std::setw(w)<<std::left<<"Lattice"<<"Chain Lx="<<Lx<<" ("<<Bx<<")"<<std::endl;
-  }
-  ~Chain() {};
-  list_links_t links() const {
-    return links_square(Lx,Bx);
-  }
-  void set_trap(double a) {
-    Vx=a;
-  }
-  const std::vector<double> potential() const {
-    return trap(Lx,Vx);
-  }
-
-};
-
-class Square : public LatticeLinks {
-  boundary_t Bx,By;
-  unsigned int Lx,Ly;
-  double Vx,Vy;
-public:
-  Square(unsigned int lx,boundary_t bx,unsigned int ly,boundary_t by) : Bx(bx), Lx(lx), By(by), Ly(ly), Vx(0), Vy(0) {}
-  unsigned int size() const {
-    return Lx*Ly;
-  }
-  std::ostream &print(std::ostream &o) const {
-    int w=25;
-    return o<<"    "<<std::setw(w)<<std::left<<"Lattice"<<"Square Lx="<<Lx<<" ("<<Bx<<") Ly="<<Ly<<" ("<<By<<")"<<std::endl;
-  }
-  ~Square() {};
-  list_links_t links() const {
-    return links_square(Lx,Bx,Ly,By);
-  }
-  void set_trap(double a,double b) {
-    Vx=a;
-    Vy=b;
-  }
-  const std::vector<double> potential() const {
-    return trap(Lx,Vx,Ly,Vy);
-  }
-
-};
-
-class Cubic : public LatticeLinks {
-  boundary_t Bx,By,Bz;
-  unsigned int Lx,Ly,Lz;
-  double Vx,Vy,Vz;
-public:
-  Cubic(unsigned int lx,boundary_t bx,unsigned int ly,boundary_t by,unsigned int lz,boundary_t bz) : Bx(bx), Lx(lx), By(by), Ly(ly), Bz(bz), Lz(lz), Vx(0), Vy(0), Vz(0) {}
-  unsigned int size() const {
-    return Lx*Ly*Lz;
-  }
-  std::ostream &print(std::ostream &o) const {
-    int w=25;
-    return o<<"    "<<std::setw(w)<<std::left<<"Lattice"<<"Cubic Lx="<<Lx<<" ("<<Bx<<") Ly="<<Ly<<" ("<<By<<") "<<Ly<<" ("<<By<<")"<<std::endl;
-  }
-  ~Cubic() {};
-  list_links_t links() const {
-    return links_square(Lx,Bx,Ly,By,Lz,Bz);
-  }
-  void set_trap(double a,double b,double c) {
-    Vx=a;
-    Vy=b;
-    Vz=c;
-  }
-  const std::vector<double> potential() const {
-    return trap(Lx,Vx,Ly,Vy,Lz,Vz);
-  }
-
-};
-
+inline void AppendHamiltonianTerm(Hamiltonian &H,const HamiltonianTerm &term) {
+  if(term.coefficient()!=0)
+    H.push_back(term);
+}
 
 class Model {
 public:
@@ -151,8 +56,7 @@ struct BoseHubbard : public Model {
   unsigned int Population;
   ensemble_t ensemble;
   double mu;
-  LatticeLinks *lattice;
-  std::vector<double> ParabolicTrapHeights;
+  Lattice *lattice;
   int Nmax;
 
 
@@ -180,13 +84,13 @@ struct BoseHubbard : public Model {
 
     for(unsigned int i=0; i<NSites; ++i) {
       const IndexedProductElement atom(C*C*A*A,&Container.Psi[i]);
-      Container.V.push_back(HamiltonianTerm(CoulombU/2.0,atom));
+      AppendHamiltonianTerm(Container.V,HamiltonianTerm(CoulombU/2.0,atom));
     }
 
 
-    list_links_t links=lattice->links();
+    LinkDataList links=lattice->links();
 
-    for(list_links_t::const_iterator it=links.begin(); it!=links.end(); ++it) {
+    for(LinkDataList::const_iterator it=links.begin(); it!=links.end(); ++it) {
       unsigned int i=it->first;
       unsigned int j=it->second;
       const IndexedProductElement ci(C,&Container.Psi[i]);
@@ -194,44 +98,27 @@ struct BoseHubbard : public Model {
       const IndexedProductElement ai(A,&Container.Psi[i]);
       const IndexedProductElement aj(A,&Container.Psi[j]);
 
-      Container.T.push_back(HamiltonianTerm(Hoppingt,ci,aj));
-      Container.T.push_back(HamiltonianTerm(Hoppingt,cj,ai));
-
+      AppendHamiltonianTerm(Container.T,HamiltonianTerm(Hoppingt,ci,aj));
+      AppendHamiltonianTerm(Container.T,HamiltonianTerm(Hoppingt,cj,ai));
 
     }
 
-    if(HasTrap() || mu!=0) {
-      std::vector<double> potential=lattice->potential();
+    std::vector<double> potential=lattice->sitedata();
 
-      if(Container.Psi.size()!=potential.size()) {
-        std::cout<<"Potential size and psi size differ!"<<std::endl;
-        exit(34);
+    for(unsigned int i=0; i<Container.Psi.size(); ++i) {
+      double TotalV=mu+potential[i];
+      if(TotalV!=0) {
+        const IndexedProductElement ni(C*A,&Container.Psi[i]);
+        AppendHamiltonianTerm(Container.V,HamiltonianTerm(TotalV,ni));
       }
 
-      for(unsigned int i=0; i<Container.Psi.size(); ++i) {
-        double TotalV=mu+potential[i];
-        if(TotalV!=0) {
-          const IndexedProductElement ni(C*A,&Container.Psi[i]);
-          Container.V.push_back(HamiltonianTerm(TotalV,ni));
-        }
-
-      }
     }
 
-
-  }
-
-  bool HasTrap() const {
-    bool result = false;
-    for(int i=0; i<ParabolicTrapHeights.size(); ++i)
-      result = result || (ParabolicTrapHeights[i]!=0);
-    return result;
   }
 
   std::ostream &print(std::ostream &o) const {
     int w=25;
     o<<"    "<<std::setw(w)<<std::left<<"Model"<<"BoseHubbard"<<std::endl;
-    lattice->print(o);
     o<<"    "<<std::setw(w)<<std::left<<"Hoppingt"<<Hoppingt<<std::endl;
     o<<"    "<<std::setw(w)<<std::left<<"CoulombU"<<CoulombU<<std::endl;
     o<<"    "<<std::setw(w)<<std::left<<"Population"<<Population<<std::endl;
@@ -239,12 +126,7 @@ struct BoseHubbard : public Model {
     o<<"    "<<std::setw(w)<<std::left<<"Mu"<<mu<<std::endl;
     o<<"    "<<std::setw(w)<<std::left<<"Population"<<Population<<std::endl;
     o<<"    "<<std::setw(w)<<std::left<<"Nmax"<<Nmax<<std::endl;
-
-    o<<"    "<<std::setw(w)<<std::left<<"ParabolicTrapHeights";
-    for(int i=0; i<ParabolicTrapHeights.size(); ++i)
-      o<<ParabolicTrapHeights[i]<<" ";
-    o<<"    "<<std::endl;
-
+    lattice->print(o);
     return o;
   }
   ~BoseHubbard() {
@@ -289,51 +171,59 @@ struct BoseHubbard : public Model {
     assert(l["Dimensions"].IsArray() && l["Boundaries"].IsArray() && l["Dimensions"].Size()==l["Boundaries"].Size());
     unsigned int dimensions=l["Dimensions"].Size();
     assert(dimensions<=3);
-    std::vector<unsigned int> LSizes;
-    std::vector<boundary_t> BCond;
+    std::vector<unsigned int> LSizes(dimensions);
+    for(int i=0; i<dimensions; ++i)
+      LSizes[i]=l["Dimensions"][i].GetInt();
 
+    assert(!m.HasMember("ParabolicTrap") || (m["ParabolicTrap"].IsNumber() || m["ParabolicTrap"].IsArray() && m["ParabolicTrap"].Size()==dimensions));
 
+    if(m.HasMember("ParabolicTrap") && m["ParabolicTrap"].IsNumber() ) {
+      double ParabolicHeight=m["ParabolicTrap"].GetDouble();
+      switch(dimensions) {
+      case 1: {
+        lattice=new Chain(LSizes[0],open,ParabolicHeight);
+        break;
+      }
+      case 2: {
+        lattice=new Ellipsis(LSizes[0],LSizes[1],ParabolicHeight);
+        break;
+      }
+      case 3: {
+        lattice=new Ellipsoid(LSizes[0],LSizes[1],LSizes[2],ParabolicHeight);
+        break;
+      }
+      }
 
-
-    ParabolicTrapHeights.resize(dimensions);
-    // There may be a parabolic trap. The heights of it at the boundaries are provided as an array
-    // The array must have the same number of elements as the the dimensionality of the system.
-    if(m.HasMember("ParabolicTrap")) {
-      assert(m["ParabolicTrap"].IsArray() && m["ParabolicTrap"].Size()==dimensions);
+    } else {
+      std::vector<boundary_t> BCond(dimensions);
+      std::vector<double> PV(dimensions,0);
       for(int i=0; i<dimensions; ++i) {
-        ParabolicTrapHeights[i]=m["ParabolicTrap"][i].GetDouble();
+        std::string bcstring=l["Boundaries"][i].GetString();
+        assert(bcstring==std::string("open") || bcstring==std::string("periodic"));
+        BCond[i]= (bcstring==std::string("open")) ? open : periodic;
+      }
+      if(m.HasMember("ParabolicTrap")) {
+        for(int i=0; i<dimensions; ++i) {
+          PV[i]=m["ParabolicTrap"][i].GetDouble();
+        }
+      }
+      switch(dimensions) {
+      case 1: {
+        lattice=new Chain(LSizes[0],BCond[0],PV[0]);
+        break;
+      }
+      case 2: {
+        lattice=new Square(LSizes[0],BCond[0],PV[0],LSizes[1],BCond[1],PV[1]);
+        break;
+      }
+      case 3: {
+        lattice=new Cubic(LSizes[0],BCond[0],PV[0],LSizes[1],BCond[1],PV[1],LSizes[2],BCond[2],PV[2]);
+        break;
+      }
       }
     }
-    for(int i=0; i<dimensions; ++i) {
-      LSizes.push_back(l["Dimensions"][i].GetInt());
-      std::string bcstring=l["Boundaries"][i].GetString();
-      assert(bcstring==std::string("open") || bcstring==std::string("periodic"));
-      boundary_t bc= (bcstring==std::string("open")) ? open : periodic;
-      BCond.push_back(bc);
-    }
 
-    const std::vector<double> &PV=ParabolicTrapHeights;
 
-    switch(dimensions) {
-    case 1: {
-      Chain *latt=new Chain(LSizes[0],BCond[0]);
-      latt->set_trap(PV[0]);
-      lattice=latt;
-      break;
-    }
-    case 2: {
-      Square *latt=new Square(LSizes[0],BCond[0],LSizes[1],BCond[1]);
-      latt->set_trap(PV[0],PV[1]);
-      lattice=latt;
-      break;
-    }
-    case 3: {
-      Cubic *l=new Cubic(LSizes[0],BCond[0],LSizes[1],BCond[1],LSizes[2],BCond[2]);
-      l->set_trap(PV[0],PV[1],PV[2]);
-      lattice=l;
-      break;
-    }
-    }
 
 
     unsigned int NSites=lattice->size();

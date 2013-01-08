@@ -59,10 +59,11 @@ void BoseHubbardPeriodic1DMakeContainer(SGFBase &Container) {
     Container.V.push_back(HamiltonianTerm(U/2.0,atom));
   }
 
+  Chain lattice(Lx,periodic,0);
 
-  list_links_t links=links_square(Lx,periodic);
+  LinkDataList links=lattice.links();
 
-  for(list_links_t::const_iterator it=links.begin(); it!=links.end(); ++it) {
+  for(LinkDataList::const_iterator it=links.begin(); it!=links.end(); ++it) {
     unsigned int i=it->first;
     unsigned int j=it->second;
     const IndexedProductElement ci(C,&Container.Psi[i]);
