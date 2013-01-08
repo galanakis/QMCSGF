@@ -163,6 +163,10 @@ public:
   inline occupancy_t &n() {return _occupancy[direction];};
   inline occupancy_t &nL() {return n<LEFT>();};
   inline occupancy_t &nR() {return n<RIGHT>();};
+  template<int direction>
+  inline const occupancy_t &n() const {return _occupancy[direction];};
+  inline const occupancy_t &nL() const {return n<LEFT>();};
+  inline const occupancy_t &nR() const {return n<RIGHT>();};
   inline occupancy_t &nmax() {return _maximum_occupancy;};
   inline const occupancy_t &nmax() const {return _maximum_occupancy;};
   inline int delta() const {return _occupancy[RIGHT]-_occupancy[LEFT];};

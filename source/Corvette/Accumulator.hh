@@ -70,16 +70,14 @@ public:
 template<class T>
 class BinnedAccumulator {
 public:
-  T Base;                       	// A constant value
   Accumulator<3,T> Bins;
 public:
-  BinnedAccumulator() : Base(0) {}
+  BinnedAccumulator() {}
   inline void push(const T &val) {
     Bins.push(val);
   }
 
-  inline T &constant() {return Base;}
-  inline T average() const {return Base+Bins(1);}
+  inline T average() const {return Bins(1);}
   inline T sigma() const {return sqrt(fabs(Bins(2)-Bins(1)*Bins(1))/(Bins.count()-1));}
 };
 

@@ -223,7 +223,13 @@ public:
 };
 
 
-void InsertDensityMatrixEigenvalues(const std::string &tag,std::vector<SGF::Boson> &Psi,Measurable &MeasuredOperators) {
+
+
+void InsertFunnyDensityMatrix(const std::string &tag,const std::vector<Boson> &Psi,Measurable &MeasuredOperators) {
+  MeasuredOperators.insert_extra(new MeasurableDensityMatrix(tag,Psi) );
+}
+
+void InsertDensityMatrixEigenvalues(const std::string &tag,std::vector<Boson> &Psi,Measurable &MeasuredOperators) {
 
   // Insert the calculation of the condensate fraction
 

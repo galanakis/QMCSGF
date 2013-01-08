@@ -5,10 +5,14 @@
 #include "Measurable.hh"
 #include "Utilities.hh"
 
+// Maximum number of broken lines is only used for the BrokenLineHistogram.
+#define MAXNUMBROKENLINES 100
 
 class Simulation {
 public:
 
+  typedef  std::vector<unsigned long> BrokenHistogramType;
+  BrokenHistogramType BrokenHistorgram;
 
   unsigned long NumWarmUpdates,NumMeasUpdates;
   unsigned long NumDirectedWarmUpdates,NumDirectedMeasUpdates;
@@ -24,6 +28,8 @@ public:
     NumDirectedMeasUpdates=0;
     ActualWarmTime=0;
     ActualMeasTime=0;
+
+    BrokenHistorgram.resize(MAXNUMBROKENLINES);
 
   }
 
@@ -80,7 +86,9 @@ public:
         do {
           NumMeasUpdates+=OpString.directed_update();   // Perform an update.
           ++NumDirectedMeasUpdates;
-          MeasuredOp.measure();          // Perform measurements.
+          MeasuredOp.measure(OpString);          // Perform measurements.
+          BrokenHistorgram[OpString.NBrokenLines()]+=1;
+
         } while(OpString.NBrokenLines()!=0);
 
         pbar.Update();
@@ -132,8 +140,6 @@ public:
 #ifdef USEMPI
     std::cout<<std::setw(60)<< "    Number of Processors used "<<NumProcessors<<"\n\n";
 #endif
-
-    const std::vector<unsigned long> &BrokenHistorgram=MeasuredOp.Histogram();
 
     std::cout<<std::setw(60)<< "    Number of measurements: " << BrokenHistorgram[0] <<std::endl;
     std::cout<<std::setw(60)<<std::fixed<< "    Number of updates per measurements: " << double(NumMeasUpdates)/BrokenHistorgram[0] << "\n\n";

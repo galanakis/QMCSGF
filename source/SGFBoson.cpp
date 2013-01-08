@@ -53,7 +53,10 @@ void Simulator(const SGF::Parameters &p) {
     InsertDensityMatrixEigenSystem("Density Matrix EigenSystem",Container.Psi, MeasuredOperators);
   }
 
-  if(p.HasMeasurable("DensityMatrix")) {
+  if(p.HasMeasurable("DensityMatrix"))
+    InsertFunnyDensityMatrix("Density Matrix",Container.Psi, MeasuredOperators);
+
+  if(p.HasMeasurable("DensityMatrixSlow")) {
     InsertDensityMatrix("Density Matrix",Container.Psi, MeasuredOperators);
   }
 

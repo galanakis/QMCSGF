@@ -132,6 +132,119 @@ public:
 };
 
 
+class ExtraMeasurables : public MeasurableObject {
+public:
+  ExtraMeasurables(std::string tag) : MeasurableObject(tag) {}
+  typedef std::vector<std::pair<Boson*,int> > KeyType;
+  virtual void reset() =0;
+  virtual void measure(_float_accumulator Weight,const KeyType &key)=0;
+};
+
+class MeasurableDensityMatrix : public ExtraMeasurables {
+
+  std::vector<BinnedAccumulator<double> > BinsElements;
+
+  const Boson *Psi0;
+  typedef std::vector<Boson>::size_type size_type;
+  size_type N;
+  std::string tag;
+  std::vector<double> data;
+
+  _float_accumulator me_ca(size_type i,size_type j) const {
+    return sqrt( (Psi0[i].nR()+1)*Psi0[j].nR() );
+  }
+
+  size_type index(size_type i,size_type j) const {
+    return (i<j) ? (2*N-i+1)*i/2+j-i : (2*N-j+1)*j/2+i-j;
+  }
+
+
+public:
+  MeasurableDensityMatrix(const std::string &tag,const std::vector<Boson> &Psi) : ExtraMeasurables(tag) {
+    Psi0=&Psi[0];
+    N=Psi.size();
+    size_type ndata=N*(N+1)/2;
+    data.resize(ndata,0);
+    BinsElements.resize(ndata);
+  }
+
+
+  void measure(_float_accumulator Weight,const KeyType &key) {
+
+    if(key.size()==0) {
+      for(unsigned int i=0; i<N; ++i) {
+        data[index(i,i)]+=Psi0[i].nR()*Weight;
+      }
+    } else if(key.size()==2) {
+
+      if(key[0].second==1 && key[1].second==-1) {
+        size_type i=key[0].first-Psi0;
+        size_type j=key[1].first-Psi0;
+        data[index(i,j)]+=Weight/2;
+      }
+
+      if(key[1].second==1 && key[0].second==-1) {
+        size_type i=key[1].first-Psi0;
+        size_type j=key[0].first-Psi0;
+        data[index(i,j)]+=me_ca(i,j)*Weight/2;
+      }
+
+    }
+
+  }
+
+  void reset() {
+    std::fill(data.begin(),data.end(),0);
+  }
+
+
+  void reduce() {
+
+#ifdef USEMPI
+
+    std::vector<double> send_data(data);
+    MPI_Reduce(&send_data[0],&data[0],data.size(),MPI_LONG_DOUBLE,MPI_SUM,Master,MPI_COMM_WORLD);
+
+#endif
+
+  }
+
+  void push(const _float_accumulator &Weight) {
+
+    reduce();
+
+    for(unsigned int i=0; i<data.size(); ++i)
+      BinsElements[i].push(data[i]/Weight);
+
+  }
+
+
+
+  std::ostream& print(std::ostream& o) const  {
+
+    o<<std::endl;
+    o<<"    "<<_tag<<" (LDA= "<<N<<" )"<<std::endl;
+    o<<std::endl<<std::endl;
+
+    o<<"    Elements\n\n";
+
+
+
+    for(unsigned int i=0; i<N; ++i)
+      for(unsigned int j=i; j<N; ++j) {
+        unsigned int ind=index(i,j);
+        o<<"     "<<std::setw(6)<<std::left<<i<<std::setw(6)<<std::left<<j<<std::setprecision(9)<<BinsElements[ind]<<std::endl;
+      }
+    o<<std::endl;
+
+    return o;
+  }
+
+
+
+};
+
+
 /*
 
 	class Measurable
@@ -151,10 +264,6 @@ public:
 
 */
 
-// Maximum number of broken lines is only used for the BrokenLineHistogram.
-#define MAXNUMBROKENLINES 100
-
-
 
 class Measurable  {
 
@@ -172,7 +281,7 @@ class Measurable  {
   typedef std::multimap<KeyType,TermBuffer> multimap_type;
   typedef std::pair<multimap_type::iterator,multimap_type::iterator> equal_range_type;
 
-  const OperatorStringType &OperatorString; // Holds a reference for the operator string being measured
+//  const OperatorStringType &OperatorString; // Holds a reference for the operator string being measured
   BrokenLines BrokenLineTracer;  // It traces the list of broken lines
 
 
@@ -189,11 +298,11 @@ class Measurable  {
   MeasurableNumber _Potential;
   MeasurableSum _TotalEnergy;
 
-  typedef  std::vector<unsigned long> BrokenHistogramType;
-  BrokenHistogramType BrokenHistorgram;
-
-
   std::vector<MeasurableObject*> _Meas_Ptr;
+
+
+  std::vector<ExtraMeasurables*> _ExtraMeas_Ptr;
+
 
   //
   // For a given HamiltonianTerm, it will search to find it in the map
@@ -223,14 +332,13 @@ class Measurable  {
   }
 
 public:
-  Measurable(OperatorStringType &OS) : OperatorString(OS), BrokenLineTracer(OS.GetListBrokenLines(),OS), _Kinetic("Non-diagonal energy",&buffer_kinetic), _Potential("Diagonal energy",&buffer_potential), _TotalEnergy("Total energy") {
+  Measurable(OperatorStringType &OS) : BrokenLineTracer(OS.GetListBrokenLines(),OS), _Kinetic("Non-diagonal energy",&buffer_kinetic), _Potential("Diagonal energy",&buffer_potential), _TotalEnergy("Total energy") {
     reset();
     _buffers.push_back(&buffer_BoltzmannWeight);
     _buffers.push_back(&buffer_kinetic);
     _buffers.push_back(&buffer_potential);
     _TotalEnergy.push_back(&buffer_kinetic,1.0);
     _TotalEnergy.push_back(&buffer_potential,1.0);
-    BrokenHistorgram.resize(MAXNUMBROKENLINES);
   }
 
   ~Measurable() {
@@ -250,16 +358,25 @@ public:
     _Meas_Ptr.push_back(_meas_ptr);
   }
 
-  inline void measure() {
+  void insert_extra(ExtraMeasurables *ptr) {
+    _ExtraMeas_Ptr.push_back(ptr);
+    _Meas_Ptr.push_back(ptr);
+  }
 
-    BrokenHistorgram[OperatorString.NBrokenLines()]+=1;
+
+  inline void measure(const OperatorStringType &OperatorString) {
 
     const _float_accumulator Weight=OperatorString.BoltzmannWeight();
 
-    equal_range_type equal_range=_multimap.equal_range(BrokenLineTracer());
+    const KeyType &key=BrokenLineTracer();
+
+    equal_range_type equal_range=_multimap.equal_range(key);
     for(multimap_type::iterator it=equal_range.first; it!=equal_range.second; ++it) {
       it->second.buffer += it->second.me()*Weight;
     }
+
+    for(std::vector<ExtraMeasurables*>::iterator it=_ExtraMeas_Ptr.begin(); it!=_ExtraMeas_Ptr.end(); ++it)
+      (*it)->measure(Weight,key);
 
     if(OperatorString.NBrokenLines()==0) {
       buffer_BoltzmannWeight+=Weight;
@@ -290,10 +407,6 @@ public:
     for(std::vector<_float_accumulator*>::size_type i=0; i<buffer_size; ++i)
       *_buffers[i]=receive_buffers[i];
 
-    std::vector<unsigned long> send_BrokenHistogram=BrokenHistorgram;
-    MPI_Reduce(&send_BrokenHistogram[0],&BrokenHistorgram[0],MAXNUMBROKENLINES,MPI_UNSIGNED_LONG,MPI_SUM,Master,MPI_COMM_WORLD);
-
-
 #endif
 
     for(std::vector<MeasurableObject*>::size_type i=0; i<_Meas_Ptr.size(); ++i)
@@ -312,6 +425,11 @@ public:
   inline void reset() {
     for(std::vector<_float_accumulator*>::size_type i=0; i<_buffers.size(); ++i)
       *_buffers[i]=0;
+
+    for(std::vector<ExtraMeasurables*>::iterator it=_ExtraMeas_Ptr.begin(); it!=_ExtraMeas_Ptr.end(); ++it)
+      (*it)->reset();
+
+
     buffer_BoltzmannWeight=0;
     buffer_kinetic=0;
     buffer_potential=0;
@@ -332,9 +450,6 @@ public:
   const MeasurableObject &Quantity(std::vector<MeasurableObject*>::size_type i) const {
     return *_Meas_Ptr[i];
   }
-
-
-  const BrokenHistogramType &Histogram() const {return BrokenHistorgram;}
 
 };
 
