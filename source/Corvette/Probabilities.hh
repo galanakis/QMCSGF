@@ -172,7 +172,7 @@ public:
   static Hamiltonian GenerateNumberOperator(std::vector<Boson> &psi) {
     Hamiltonian result;
     for(boson_vector_t::size_type i=0; i<psi.size(); ++i)
-      result.push_back(HamiltonianTerm(1.0,IndexedProductElement(C*A,&psi[i])));
+      result.push_back(HamiltonianTerm(1.0,IndexedProductElement(CA,&psi[i])));
     return result;
   }
 

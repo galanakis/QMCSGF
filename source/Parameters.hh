@@ -70,6 +70,11 @@ struct BoseHubbard : public Model {
 
     int NSites=lattice->size();
 
+    if(Population>NSites*Nmax) {
+      std::cerr<<"The population is larger than the capacity of the system!"<<std::endl;
+      exit(33);
+    }
+
     Container.Psi.resize(NSites);
 
     for(unsigned int i=0; i<NSites; ++i)
@@ -83,7 +88,7 @@ struct BoseHubbard : public Model {
 
 
     for(unsigned int i=0; i<NSites; ++i) {
-      const IndexedProductElement atom(C*C*A*A,&Container.Psi[i]);
+      const IndexedProductElement atom(CCAA,&Container.Psi[i]);
       AppendHamiltonianTerm(Container.V,HamiltonianTerm(CoulombU/2.0,atom));
     }
 
@@ -108,7 +113,7 @@ struct BoseHubbard : public Model {
     for(unsigned int i=0; i<Container.Psi.size(); ++i) {
       double TotalV=mu+potential[i];
       if(TotalV!=0) {
-        const IndexedProductElement ni(C*A,&Container.Psi[i]);
+        const IndexedProductElement ni(CA,&Container.Psi[i]);
         AppendHamiltonianTerm(Container.V,HamiltonianTerm(TotalV,ni));
       }
 
@@ -153,6 +158,8 @@ struct BoseHubbard : public Model {
     if(Nmax!=1) {
       assert(m["CoulombU"].IsNumber());
       CoulombU=m["CoulombU"].GetDouble();
+    } else {
+      CoulombU=0;
     }
 
     // The hoping matrix elment

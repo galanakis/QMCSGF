@@ -55,7 +55,7 @@ void BoseHubbardPeriodic1DMakeContainer(SGFBase &Container) {
 
 
   for(unsigned int i=0; i<NSites; ++i) {
-    const IndexedProductElement atom(C*C*A*A,&Container.Psi[i]);
+    const IndexedProductElement atom(CCAA,&Container.Psi[i]);
     Container.V.push_back(HamiltonianTerm(U/2.0,atom));
   }
 

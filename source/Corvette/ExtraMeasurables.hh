@@ -245,7 +245,7 @@ void InsertDensityMatrixEigenvalues(const std::string &tag,std::vector<Boson> &P
         _float_accumulator *term_ptr=MeasuredOperators.new_buffer_pointer(term);
         MEig->set(i,j)=term_ptr;
       } else {
-        const IndexedProductElement ni(C*A,&Psi[i]);
+        const IndexedProductElement ni(CA,&Psi[i]);
         HamiltonianTerm term(1.0,ni);
         _float_accumulator *term_ptr=MeasuredOperators.new_buffer_pointer(term);
         MEig->set(i,j)=term_ptr;
@@ -275,7 +275,7 @@ void InsertDensityMatrixEigenSystem(const std::string &tag,std::vector<SGF::Boso
         _float_accumulator *term_ptr=MeasuredOperators.new_buffer_pointer(term);
         MEig->set(i,j)=term_ptr;
       } else {
-        const IndexedProductElement ni(C*A,&Psi[i]);
+        const IndexedProductElement ni(CA,&Psi[i]);
         HamiltonianTerm term(1.0,ni);
         _float_accumulator *term_ptr=MeasuredOperators.new_buffer_pointer(term);
         MEig->set(i,j)=term_ptr;
@@ -306,7 +306,7 @@ void InsertDensityMatrix(const std::string &tag,std::vector<SGF::Boson> &Psi,Mea
         _float_accumulator *term_ptr=MeasuredOperators.new_buffer_pointer(term);
         MVec->push_back(term_ptr);
       } else {
-        const IndexedProductElement ni(C*A,&Psi[i]);
+        const IndexedProductElement ni(CA,&Psi[i]);
         HamiltonianTerm term(1.0,ni);
         _float_accumulator *term_ptr=MeasuredOperators.new_buffer_pointer(term);
         MVec->push_back(term_ptr);
@@ -326,7 +326,7 @@ void InsertLocalDensity(const std::string &tag,std::vector<SGF::Boson> &Psi,Meas
   MeasurableVector *MVec=new MeasurableVector(tag,Psi.size());
   // Inserts the density matrix
   for(unsigned int i=0; i<Psi.size(); ++i) {
-    const IndexedProductElement ni(C*A,&Psi[i]);
+    const IndexedProductElement ni(CA,&Psi[i]);
     std::stringstream ss;
     ss<<"n"<<std::setw(6)<<i<<" ";
     HamiltonianTerm term(1.0,ni);
