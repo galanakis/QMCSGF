@@ -9,10 +9,12 @@
 
 namespace SGF {
 
-typedef enum {periodic,open} boundary_t;
+typedef enum {periodic,open,trap} boundary_t;
+
+std::string bouncary_t_names[3]= {"periodic","open","trap"};
 
 std::ostream &operator<<(std::ostream &o,const boundary_t b) {
-  return o<< ((b==periodic) ? "periodic" : "open");
+  return o<< bouncary_t_names[b];
 }
 
 typedef std::pair<unsigned int,unsigned int> LinkData;
@@ -26,11 +28,18 @@ protected:
   SiteData _sitedata;
 public:
   unsigned int size() const {return _sitedata.size();};
-  virtual std::ostream &print(std::ostream &o) const =0;
+  virtual std::ostream &yaml_print(std::ostream &,const std::string &) const =0;
   const SiteData &sitedata() const {return _sitedata;}
   LinkDataList links() const {return _links;}
   virtual ~Lattice() {};
 
+};
+
+struct Site1D {
+  unsigned int x;
+  Site1D() : x(0) {}
+  Site1D(const Site1D &o) : x(o.x) {}
+  Site1D(unsigned int a) : x(a) {}
 };
 
 struct Site2D {
@@ -48,32 +57,61 @@ struct Site3D {
 };
 
 
+struct DimensionData {
+  unsigned int L;
+  boundary_t B;
+  double V;
+  DimensionData(unsigned int _L,boundary_t _B,double _V) : L(_L), B(_B), V(_V) {}
+  DimensionData(const DimensionData &o) : L(o.L), B(o.B), V(o.V) {}
+};
 
-void print_sites(std::ostream &o,const std::vector<Site2D> &_site_coordinates,const std::vector<double> &_sitedata) {
-  o<<"\n      Site Map\n\n";
-  o<<"      "<<std::setw(5)<<"x"<<std::setw(5)<<"y"<<std::setw(9)<<"Potential"<<"\n\n";
-  for(unsigned int i=0; i<_site_coordinates.size(); ++i) {
-    unsigned x=_site_coordinates[i].x;
-    unsigned y=_site_coordinates[i].y;
-    double V=_sitedata[i];
-    o<<"      "<<std::setw(5)<<x<<std::setw(5)<<y<<std::setw(9)<<V<<"\n";
-  }
-  o<<"\n";
+std::ostream & yaml_print_site(std::ostream &o,const Site1D &s) {
+  o<<"[ "<<std::right<<std::setw(3)<<s.x<<" ]";
+  return o;
 }
 
-void print_sites(std::ostream &o,const std::vector<Site3D> &_site_coordinates,const std::vector<double> &_sitedata) {
-  o<<"\n      Site Map\n\n";
-  o<<"      "<<std::setw(5)<<"x"<<std::setw(5)<<"y"<<std::setw(9)<<"Potential"<<"\n\n";
-  for(unsigned int i=0; i<_site_coordinates.size(); ++i) {
-    unsigned x=_site_coordinates[i].x;
-    unsigned y=_site_coordinates[i].y;
-    unsigned z=_site_coordinates[i].z;
-    double V=_sitedata[i];
-    o<<"      "<<std::setw(5)<<x<<std::setw(5)<<y<<std::setw(9)<<z<<std::setw(9)<<V<<"\n";
-  }
-  o<<"\n";
+std::ostream & yaml_print_site(std::ostream &o,const Site2D &s) {
+  o<<"[ "<<std::right<<std::setw(3)<<s.x<<","<<std::setw(3)<<s.y<<" ]";
+  return o;
 }
 
+std::ostream & yaml_print_site(std::ostream &o,const Site3D &s) {
+  o<<"[ "<<std::right<<std::setw(3)<<s.x<<","<<std::setw(3)<<s.y<<","<<std::setw(3)<<s.z<<" ]";
+  return o;
+}
+
+template<class Site>
+std::ostream & yaml_print_data(std::ostream &o,const std::string &indent,const std::string &label,const std::vector<DimensionData> &d,const std::vector<Site> &_site_coordinates,const SiteData &_sitedata) {
+  o<<"\n";
+  o<<indent<<"Lattice:\n\n";
+  o<<indent<<"  Type: "<<label<<"\n";
+  o<<indent<<"  Size: "<<_site_coordinates.size()<<"\n";
+
+  o<<"\n";
+  o<<indent<<"  Dims:\n";
+  for(std::vector<DimensionData>::const_iterator it=d.begin(); it!=d.end(); ++it) {
+    o<<indent<<"    - Length: "<<it->L<<"\n";
+    o<<indent<<"      Boundary: "<<it->B<<"\n";
+    o<<indent<<"      Trap: "<<it->V<<"\n";
+
+  }
+
+  o<<"\n";
+  o<<indent<<"  Sites:\n";
+  for(typename std::vector<Site>::const_iterator it=_site_coordinates.begin(); it!=_site_coordinates.end(); ++it) {
+    o<<indent<<"    - ";
+    yaml_print_site(o,*it);
+    o<<"\n";
+  }
+
+  o<<"\n";
+  o<<indent<<"  Potential:\n";
+  for(unsigned int i=0; i<_sitedata.size(); ++i)
+    o<<indent<<"    - "<<_sitedata[i]<<"\n";
+
+  return o;
+
+}
 
 class Chain : public Lattice {
 
@@ -82,10 +120,15 @@ class Chain : public Lattice {
   }
 
   std::string label;
+  std::vector<DimensionData> dim;
+  std::vector<Site1D> _site_coordinates;
 
 public:
 
   Chain(unsigned int Lx,boundary_t Bx,double Vx) {
+
+    label="Chain";
+    dim.push_back(DimensionData(Lx,Bx,Vx));
 
     _sitedata.resize(Lx);
 
@@ -95,22 +138,12 @@ public:
       if(Bx==periodic || x+1!=Lx) _links.push_back(LinkData(i,a));
       double rx=(2.0*x-Lx+1)/(Lx-1);
       _sitedata[i]=rx*rx*Vx;
+      _site_coordinates.push_back(Site1D(x));
     }
-
-    std::stringstream s;
-    s<<"    Chain\n";
-    s<<"      x: Length= "<<Lx<<"\tBoundary= "<<Bx<<"\tTrap="<<Vx<<"\n";
-    label=s.str();
-
   }
 
-  std::ostream &print(std::ostream &o) const {
-    o<<label;
-    o<<"\n      Site Map\n\n";
-    for(unsigned int i=0; i<_sitedata.size(); ++i)
-      o<<"      "<<std::setw(5)<<i<<std::setw(9)<<_sitedata[i]<<"\n";
-    o<<"\n";
-    return o;
+  std::ostream &yaml_print(std::ostream &o,const std::string &indent) const {
+    return yaml_print_data(o,indent,label,dim,_site_coordinates,_sitedata);
   }
 
 };
@@ -123,11 +156,15 @@ class Square : public Lattice {
   }
 
   std::string label;
-
+  std::vector<DimensionData> dim;
   std::vector<Site2D> _site_coordinates;
 
 public:
   Square(unsigned int Lx,boundary_t Bx,double Vx,unsigned int Ly,boundary_t By,double Vy) {
+
+    label="Square Lattice";
+    dim.push_back(DimensionData(Lx,Bx,Vx));
+    dim.push_back(DimensionData(Ly,By,Vy));
 
     _sitedata.resize(Lx*Ly);
 
@@ -144,19 +181,10 @@ public:
         _site_coordinates.push_back(Site2D(x,y));
       }
     }
-
-    std::stringstream s;
-    s<<"    Square Lattice\n";
-    s<<"      x: Length= "<<Lx<<"\tBoundary= "<<Bx<<"\tTrap="<<Vx<<"\n";
-    s<<"      y: Length= "<<Ly<<"\tBoundary= "<<By<<"\tTrap="<<Vy<<"\n";
-    label=s.str();
-
   }
 
-  std::ostream &print(std::ostream &o) const {
-    o<<label;
-    print_sites(o,_site_coordinates,_sitedata);
-    return o;
+  std::ostream &yaml_print(std::ostream &o,const std::string &indent) const {
+    return yaml_print_data(o,indent,label,dim,_site_coordinates,_sitedata);
   }
 
 };
@@ -169,12 +197,17 @@ class Cubic : public Lattice {
   }
 
   std::string label;
-
+  std::vector<DimensionData> dim;
   std::vector<Site3D> _site_coordinates;
 
 
 public:
   Cubic(unsigned int Lx,boundary_t Bx,double Vx,unsigned int Ly,boundary_t By,double Vy,unsigned int Lz,boundary_t Bz,double Vz) {
+
+    label="Cubic Lattice";
+    dim.push_back(DimensionData(Lx,Bx,Vx));
+    dim.push_back(DimensionData(Ly,By,Vy));
+    dim.push_back(DimensionData(Lz,Bz,Vz));
 
     _sitedata.resize(Lx*Ly*Lz);
 
@@ -196,20 +229,10 @@ public:
         }
       }
     }
-
-    std::stringstream s;
-    s<<"    Square Lattice\n";
-    s<<"      x: Length= "<<Lx<<"\tBoundary= "<<Bx<<"\tTrap="<<Vx<<"\n";
-    s<<"      y: Length= "<<Ly<<"\tBoundary= "<<By<<"\tTrap="<<Vy<<"\n";
-    s<<"      z: Length= "<<Lz<<"\tBoundary= "<<Bz<<"\tTrap="<<Vz<<"\n";
-    label=s.str();
-
   }
 
-  std::ostream &print(std::ostream &o) const {
-    o<<label;
-    print_sites(o,_site_coordinates,_sitedata);
-    return o;
+  std::ostream &yaml_print(std::ostream &o,const std::string &indent) const {
+    return yaml_print_data(o,indent,label,dim,_site_coordinates,_sitedata);
   }
 
 };
@@ -218,6 +241,7 @@ public:
 class Ellipsis : public Lattice {
 
   std::string label;
+  std::vector<DimensionData> dim;
   std::vector<Site2D> _site_coordinates;
 
   void push_back(unsigned int i,unsigned int j) {
@@ -226,6 +250,11 @@ class Ellipsis : public Lattice {
 
 public:
   Ellipsis(unsigned int Lx,unsigned int Ly,double V) {
+
+    label="Square Lattice, Elliptical Domain";
+    dim.push_back(DimensionData(Lx,open,V));
+    dim.push_back(DimensionData(Ly,open,V));
+
     unsigned int Invalid=Lx*Ly;
     std::vector<std::vector<unsigned int> > index_map(Lx,std::vector<unsigned int>(Ly,Invalid));
 
@@ -257,19 +286,10 @@ public:
 
     }
 
-    std::stringstream s;
-    s<<"    Square Lattice, Elliptical Domain\n";
-    s<<"      Lx=         \t"<<Lx<<"\n";
-    s<<"      Ly=         \t"<<Ly<<"\n";
-    s<<"      Trap Height=\t"<<V<<"\n";
-    label=s.str();
-
   }
 
-  std::ostream &print(std::ostream &o) const {
-    o<<label;
-    print_sites(o,_site_coordinates,_sitedata);
-    return o;
+  std::ostream &yaml_print(std::ostream &o,const std::string &indent) const {
+    return yaml_print_data(o,indent,label,dim,_site_coordinates,_sitedata);
   }
 
 
@@ -280,6 +300,7 @@ class Ellipsoid : public Lattice {
 
 
   std::string label;
+  std::vector<DimensionData> dim;
   std::vector<Site3D> _site_coordinates;
 
   void push_back(unsigned int i,unsigned int j) {
@@ -289,6 +310,10 @@ class Ellipsoid : public Lattice {
 public:
   Ellipsoid(unsigned int Lx,unsigned int Ly,unsigned int Lz,double V) {
 
+    label="Cubic Lattice, Ellipsoid Domain";
+    dim.push_back(DimensionData(Lx,open,V));
+    dim.push_back(DimensionData(Ly,open,V));
+    dim.push_back(DimensionData(Lz,open,V));
 
     unsigned int Invalid=Lx*Ly*Lz;
     std::vector<std::vector<std::vector<unsigned int> > > index_map(Lx,std::vector<std::vector<unsigned int> >(Ly,std::vector<unsigned int>(Lz,Invalid)));
@@ -330,20 +355,10 @@ public:
 
     }
 
-    std::stringstream s;
-    s<<"    Square Lattice, Ellipsoid Domain\n";
-    s<<"      Lx=         \t"<<Lx<<"\n";
-    s<<"      Ly=         \t"<<Ly<<"\n";
-    s<<"      Ly=         \t"<<Lz<<"\n";
-    s<<"      Trap Height=\t"<<V<<"\n";
-    label=s.str();
-
   }
 
-  std::ostream &print(std::ostream &o) const {
-    o<<label;
-    print_sites(o,_site_coordinates,_sitedata);
-    return o;
+  std::ostream &yaml_print(std::ostream &o,const std::string &indent) const {
+    return yaml_print_data(o,indent,label,dim,_site_coordinates,_sitedata);
   }
 
 

@@ -7,7 +7,6 @@ namespace SGF {
 
 void Simulator(const SGF::Parameters &p) {
 
-
   SGFBase Container;
 
   p.MakeContainer(Container);
@@ -60,18 +59,13 @@ void Simulator(const SGF::Parameters &p) {
     InsertDensityMatrix("Density Matrix",Container.Psi, MeasuredOperators);
   }
 
-
   //We start measurement iterations
   simul.Measure(OperatorString,MeasuredOperators,NBins,MeasIterations,MeasTime);
 
 
-  std::cout<< "******************************\n";
-  std::cout<< "* Model and parameters        *\n";
-  std::cout<< "******************************\n\n";
-
   p.print(std::cout);
 
-  std::cout<<std::endl;
+
 
   // We diplay the results of the simulation
   simul.Results(MeasuredOperators);

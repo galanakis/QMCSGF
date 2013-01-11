@@ -1,14 +1,13 @@
 {
    "Model":{
       "Label":"BoseHubbard",
-      "Lattice":{
-         "Type": "Square",
-         "Dimensions":[20],
-         "Boundaries":["periodic"]
-      },
+      "Temperature":1.02,
+      "Lattice": "Square",
+      "Dimensions":[20],
+      "Boundary": "periodic",
       "Ensemble":"Canonical",
       "Population":20,
-      "ParabolicTrap":[0],
+      "ParabolicTrapHeight":0.0,
       "CoulombU":8,
       "Nmax":0,
       "Hoppingt":1
@@ -19,13 +18,14 @@
       "Number",
       "DensityMatrix"
    ],
-   "Temperature":1.02,
-   "GreenOperatorLines":4,
-   "Alpha":0.95,
-   "Seed":34715,
-   "Bins":20,
-   "WarmTime":40000,
-   "WarmIterations":100000000,
-   "MeasTime":40000,
-   "MeasIterations":100000000
+   "SGF": {
+      "GreenOperatorLines":4,
+      "Alpha":0.95,
+      "Seed":34715,
+      "Bins":20,
+      "WarmTime":40000,
+      "WarmIterations":100000000,
+      "MeasTime":40000,
+      "MeasIterations":100000000
+   }
 }

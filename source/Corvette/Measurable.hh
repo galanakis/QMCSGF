@@ -59,10 +59,9 @@ void FinalizeEnvironment() {
 namespace SGF {
 
 // How to print the Bins
-template<class T> inline std::ostream& operator<<(std::ostream& output, const BinnedAccumulator<T> &o) {
-  return output<<std::fixed<<std::setprecision(12)<<std::setw(20)<<std::right<<o.average()<<std::setw(20)<<o.sigma();
+template<class T> inline std::ostream& operator<<(std::ostream& o, const BinnedAccumulator<T> &b) {
+  return o<<"[ "<<std::fixed<<std::setprecision(12)<<std::setw(15)<<std::right<<b.average()<<", "<<std::setw(20)<<b.sigma()<<" ]";
 }
-
 
 typedef BinnedAccumulator<_float_accumulator> BinnedAccumulatorME;
 
@@ -93,9 +92,10 @@ public:
       _bin.push(evaluate()/Weight);
   }
 
-  std::ostream& print(std::ostream& o) const {
-    return o<<std::setw(25)<<std::left<<_tag<<" "<<_bin;
+  std::ostream &print(std::ostream &o) const {
+    return o<<"  "<<std::setw(25)<<std::left<<_tag+": "<<_bin;
   }
+
 
 };
 
@@ -114,10 +114,6 @@ public:
   void push_back(_float_accumulator *a,MatrixElement m) {
     data.push_back(std::pair<_float_accumulator*,MatrixElement>(a,m));
   }
-  std::ostream &print(std::ostream &o) const {
-    return o<<std::setw(25)<<std::left<<_tag<<" "<<_bin;
-  }
-
 
 };
 
@@ -158,16 +154,14 @@ class MeasurableDensityMatrix : public ExtraMeasurables {
     return (i<j) ? (2*N-i+1)*i/2+j-i : (2*N-j+1)*j/2+i-j;
   }
 
-
 public:
-  MeasurableDensityMatrix(const std::string &tag,const std::vector<Boson> &Psi) : ExtraMeasurables(tag) {
+  MeasurableDensityMatrix(const std::string &tag,std::vector<Boson> &Psi) : ExtraMeasurables(tag) {
     Psi0=&Psi[0];
     N=Psi.size();
     size_type ndata=N*(N+1)/2;
     data.resize(ndata,0);
     BinsElements.resize(ndata);
   }
-
 
   void measure(_float_accumulator Weight,const KeyType &key) {
 
@@ -178,15 +172,15 @@ public:
     } else if(key.size()==2) {
 
       if(key[0].second==1 && key[1].second==-1) {
-        size_type i=key[0].first-Psi0;
-        size_type j=key[1].first-Psi0;
-        data[index(i,j)]+=Weight/2;
+        size_type j=key[0].first-Psi0;
+        size_type i=key[1].first-Psi0;
+        data[index(i,j)]+=me_ca(i,j)*Weight/2.0;
       }
 
       if(key[1].second==1 && key[0].second==-1) {
-        size_type i=key[1].first-Psi0;
-        size_type j=key[0].first-Psi0;
-        data[index(i,j)]+=me_ca(i,j)*Weight/2;
+        size_type j=key[1].first-Psi0;
+        size_type i=key[0].first-Psi0;
+        data[index(i,j)]+=me_ca(i,j)*Weight/2.0;
       }
 
     }
@@ -222,20 +216,15 @@ public:
 
   std::ostream& print(std::ostream& o) const  {
 
-    o<<std::endl;
-    o<<"    "<<_tag<<" (LDA= "<<N<<" )"<<std::endl;
-    o<<std::endl<<std::endl;
-
-    o<<"    Elements\n\n";
-
-
+    o<<"\n";
+    o<<"  "<<_tag<<":";
+    o<<"\n";
 
     for(unsigned int i=0; i<N; ++i)
       for(unsigned int j=i; j<N; ++j) {
         unsigned int ind=index(i,j);
-        o<<"     "<<std::setw(6)<<std::left<<i<<std::setw(6)<<std::left<<j<<std::setprecision(9)<<BinsElements[ind]<<std::endl;
+        o<<"    - "<<BinsElements[ind]<<std::endl;
       }
-    o<<std::endl;
 
     return o;
   }

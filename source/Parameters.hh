@@ -44,13 +44,14 @@ class Model {
 public:
   Model() {}
   virtual ~Model() {}
-  virtual std::ostream &print(std::ostream &o) const = 0;
-  virtual void MakeHamiltonian(SGFBase &Container) const =0;
+  virtual std::ostream &print(std::ostream &o,const std::string &) const = 0;
+  virtual void MakeContainer(SGFBase &Container) const =0;
   virtual unsigned int nsites() const =0;
 };
 
 struct BoseHubbard : public Model {
 
+  double Beta;
   double Hoppingt;
   double CoulombU;
   unsigned int Population;
@@ -58,19 +59,22 @@ struct BoseHubbard : public Model {
   double mu;
   Lattice *lattice;
   int Nmax;
+  boundary_t boundary;
+  double ParabolicHeight;
 
 
   unsigned int nsites() const {
     return lattice->size();
   }
 
-  void MakeHamiltonian(SGFBase &Container) const {
+  void MakeContainer(SGFBase &Container) const {
 
+    Container.Beta=Beta;
     Container.Ensemble=ensemble;
 
     int NSites=lattice->size();
 
-    if(Population>NSites*Nmax) {
+    if(Nmax!=0 && Population>NSites*Nmax) {
       std::cerr<<"The population is larger than the capacity of the system!"<<std::endl;
       exit(33);
     }
@@ -121,17 +125,22 @@ struct BoseHubbard : public Model {
 
   }
 
-  std::ostream &print(std::ostream &o) const {
+  std::ostream &print(std::ostream &o,const std::string &indent) const {
     int w=25;
-    o<<"    "<<std::setw(w)<<std::left<<"Model"<<"BoseHubbard"<<std::endl;
-    o<<"    "<<std::setw(w)<<std::left<<"Hoppingt"<<Hoppingt<<std::endl;
-    o<<"    "<<std::setw(w)<<std::left<<"CoulombU"<<CoulombU<<std::endl;
-    o<<"    "<<std::setw(w)<<std::left<<"Population"<<Population<<std::endl;
-    o<<"    "<<std::setw(w)<<std::left<<"Ensemble"<<ensemble<<std::endl;
-    o<<"    "<<std::setw(w)<<std::left<<"Mu"<<mu<<std::endl;
-    o<<"    "<<std::setw(w)<<std::left<<"Population"<<Population<<std::endl;
-    o<<"    "<<std::setw(w)<<std::left<<"Nmax"<<Nmax<<std::endl;
-    lattice->print(o);
+    o<<indent<<std::setw(w)<<std::left<<"Model:"<<"BoseHubbard\n";
+    o<<indent<<std::setw(w)<<std::left<<"Beta:"<<std::setprecision(10)<<Beta<<"\n";
+    o<<indent<<std::setw(w)<<std::left<<"Temperature:"<<std::setprecision(10)<<1.0/Beta<<"\n";
+    o<<indent<<std::setw(w)<<std::left<<"Hoppingt:"<<Hoppingt<<"\n";
+    o<<indent<<std::setw(w)<<std::left<<"CoulombU:"<<CoulombU<<"\n";
+    o<<indent<<std::setw(w)<<std::left<<"Population:"<<Population<<"\n";
+    o<<indent<<std::setw(w)<<std::left<<"Ensemble:"<<ensemble<<"\n";
+    o<<indent<<std::setw(w)<<std::left<<"Mu:"<<mu<<"\n";
+    o<<indent<<std::setw(w)<<std::left<<"Population:"<<Population<<"\n";
+    o<<indent<<std::setw(w)<<std::left<<"Nmax:"<<Nmax<<"\n";
+    o<<indent<<std::setw(w)<<std::left<<"Boundary:"<<boundary<<"\n";
+    o<<indent<<std::setw(w)<<std::left<<"Parabolic Trap Height:"<<ParabolicHeight<<"\n";
+    lattice->yaml_print(o,"  ");
+    o<<std::endl;
     return o;
   }
   ~BoseHubbard() {
@@ -139,6 +148,10 @@ struct BoseHubbard : public Model {
   }
 
   BoseHubbard(const rapidjson::Value &m) {
+
+    // Only one of "Beta" or "Temperature" should be present, but not both.
+    assert(m["Beta"].IsNumber() ^ m["Temperature"].IsNumber());
+    Beta= m.HasMember("Beta") ? m["Beta"].GetDouble() : 1.0/m["Temperature"].GetDouble();
 
     // The ensemble can only be Canonical or GrandCanonical;
     assert(m["Ensemble"].GetString()==std::string("Canonical") || m["Ensemble"].GetString()==std::string("GrandCanonical"));
@@ -156,36 +169,41 @@ struct BoseHubbard : public Model {
 
     // If Nmax==1 then the Coulomb interaction is meaningless and can be omitted.
     if(Nmax!=1) {
-      assert(m["CoulombU"].IsNumber());
       CoulombU=m["CoulombU"].GetDouble();
     } else {
       CoulombU=0;
     }
 
-    // The hoping matrix elment
+    // The hoping matrix element
     assert(m["Hoppingt"].IsNumber());
     Hoppingt=m["Hoppingt"].GetDouble();
-
 
     /*
        Geometry specific assignments
     */
-    assert(m["Lattice"].IsObject());
-    const rapidjson::Value &l=m["Lattice"];
+    assert(m["Lattice"].GetString()==std::string("Square"));
 
-    std::string LatticeType=l["Type"].GetString();
-    assert(LatticeType==std::string("Square"));
-    assert(l["Dimensions"].IsArray() && l["Boundaries"].IsArray() && l["Dimensions"].Size()==l["Boundaries"].Size());
-    unsigned int dimensions=l["Dimensions"].Size();
-    assert(dimensions<=3);
+    std::map<std::string,boundary_t> bcmap;
+    bcmap["open"]=open;
+    bcmap["periodic"]=periodic;
+    bcmap["trap"]=trap;
+
+
+
+    std::string bcstring=m["Boundary"].GetString();
+    assert(bcstring==std::string("open") || bcstring==std::string("periodic") || bcstring==std::string("trap"));
+    boundary= bcmap[bcstring];
+
+    assert(m["Dimensions"].IsArray());
+    unsigned int dimensions=m["Dimensions"].Size();
+    assert(dimensions<=3 && dimensions>0);
     std::vector<unsigned int> LSizes(dimensions);
     for(int i=0; i<dimensions; ++i)
-      LSizes[i]=l["Dimensions"][i].GetInt();
+      LSizes[i]=m["Dimensions"][i].GetInt();
 
-    assert(!m.HasMember("ParabolicTrap") || (m["ParabolicTrap"].IsNumber() || m["ParabolicTrap"].IsArray() && m["ParabolicTrap"].Size()==dimensions));
+    ParabolicHeight=m["ParabolicTrapHeight"].GetDouble();
 
-    if(m.HasMember("ParabolicTrap") && m["ParabolicTrap"].IsNumber() ) {
-      double ParabolicHeight=m["ParabolicTrap"].GetDouble();
+    if(boundary==trap) {
       switch(dimensions) {
       case 1: {
         lattice=new Chain(LSizes[0],open,ParabolicHeight);
@@ -200,36 +218,22 @@ struct BoseHubbard : public Model {
         break;
       }
       }
-
     } else {
-      std::vector<boundary_t> BCond(dimensions);
-      std::vector<double> PV(dimensions,0);
-      for(int i=0; i<dimensions; ++i) {
-        std::string bcstring=l["Boundaries"][i].GetString();
-        assert(bcstring==std::string("open") || bcstring==std::string("periodic"));
-        BCond[i]= (bcstring==std::string("open")) ? open : periodic;
-      }
-      if(m.HasMember("ParabolicTrap")) {
-        for(int i=0; i<dimensions; ++i) {
-          PV[i]=m["ParabolicTrap"][i].GetDouble();
-        }
-      }
       switch(dimensions) {
       case 1: {
-        lattice=new Chain(LSizes[0],BCond[0],PV[0]);
+        lattice=new Chain(LSizes[0],boundary,ParabolicHeight);
         break;
       }
       case 2: {
-        lattice=new Square(LSizes[0],BCond[0],PV[0],LSizes[1],BCond[1],PV[1]);
+        lattice=new Square(LSizes[0],boundary,ParabolicHeight,LSizes[1],boundary,ParabolicHeight);
         break;
       }
       case 3: {
-        lattice=new Cubic(LSizes[0],BCond[0],PV[0],LSizes[1],BCond[1],PV[1],LSizes[2],BCond[2],PV[2]);
+        lattice=new Cubic(LSizes[0],boundary,ParabolicHeight,LSizes[1],boundary,ParabolicHeight,LSizes[2],boundary,ParabolicHeight);
         break;
       }
       }
     }
-
 
 
 
@@ -255,7 +259,6 @@ struct Parameters {
   std::string json;
 
   double Alpha;
-  double Beta;
   unsigned int GreenOperatorLines;
   int Seed;
   unsigned int NBins;
@@ -285,31 +288,26 @@ struct Parameters {
   void MakeContainer(SGFBase &Container) const {
 
     Container.Alpha=Alpha;
-    Container.Beta=Beta;
-    model->MakeHamiltonian(Container);
+    model->MakeContainer(Container);
     Container.g.initialize(model->nsites(),GreenOperatorLines);
 
   }
 
   std::ostream &print(std::ostream &o) const {
     int w=25;
+    std::string indent="  ";
+    o<<"Input:\n\n";
 
-    model->print(o);
+    model->print(o,indent);
 
-    o<<"    "<<std::setw(w)<<std::left<<"Beta"<<Beta<<std::endl;
-    o<<"    "<<std::setw(w)<<std::left<<"Alpha"<<Alpha<<std::endl;
-    o<<"    "<<std::setw(w)<<std::left<<"GreenOperatorLines"<<GreenOperatorLines<<std::endl;
-    o<<"    "<<std::setw(w)<<std::left<<"Seed"<<Seed<<std::endl;
-    o<<"    "<<std::setw(w)<<std::left<<"NBins"<<NBins<<std::endl;
-    o<<"    "<<std::setw(w)<<std::left<<"WarmTime"<<WarmTime<<std::endl;
-    o<<"    "<<std::setw(w)<<std::left<<"WarmIterations"<<WarmIterations<<std::endl;
-    o<<"    "<<std::setw(w)<<std::left<<"MeasTime"<<MeasTime<<std::endl;
-    o<<"    "<<std::setw(w)<<std::left<<"MeasIterations"<<MeasIterations<<std::endl;
-
-    o<<"    "<<std::setw(w)<<std::left<<"Measurables";
-    for(int i=0; i<Measurables.size(); ++i)
-      o<<Measurables[i]<<" ";
-    o<<std::endl;
+    o<<indent<<std::setw(w)<<std::left<<"Alpha:"<<Alpha<<std::endl;
+    o<<indent<<std::setw(w)<<std::left<<"GreenOperatorLines:"<<GreenOperatorLines<<std::endl;
+    o<<indent<<std::setw(w)<<std::left<<"Seed:"<<Seed<<std::endl;
+    o<<indent<<std::setw(w)<<std::left<<"NBins:"<<NBins<<std::endl;
+    //o<<indent<<std::setw(w)<<std::left<<"WarmTime:"<<WarmTime<<std::endl;
+    //o<<indent<<std::setw(w)<<std::left<<"WarmIterations:"<<WarmIterations<<std::endl;
+    //o<<indent<<std::setw(w)<<std::left<<"MeasTime:"<<MeasTime<<std::endl;
+    //o<<indent<<std::setw(w)<<std::left<<"MeasIterations:"<<MeasIterations<<std::endl;
 
     return o;
   }
@@ -319,33 +317,32 @@ struct Parameters {
     rapidjson::Document d;
     d.Parse<0>(json.c_str());
 
+    assert(d["SGF"].IsObject());
+    const rapidjson::Value &sgf=d["SGF"];
 
-    // Only one of "Beta" or "Temperature" should be present, but not both.
-    assert(d["Beta"].IsNumber() ^ d["Temperature"].IsNumber());
-    Beta= d.HasMember("Beta") ? d["Beta"].GetDouble() : 1.0/d["Temperature"].GetDouble();
 
     // The cutoff for the Green operator lines.
-    GreenOperatorLines=d["GreenOperatorLines"].GetInt();
+    GreenOperatorLines=sgf["GreenOperatorLines"].GetInt();
 
     // The alpha parameter for the updates
-    Alpha=d["Alpha"].GetDouble();
+    Alpha=sgf["Alpha"].GetDouble();
 
     // Initial Seed for random number generator
-    Seed=d["Seed"].GetInt();
+    Seed=sgf["Seed"].GetInt();
 
     // Number of Binds for measurements
-    NBins=d["Bins"].GetInt();
+    NBins=sgf["Bins"].GetInt();
 
     // at least one of "WarmTime" and "WarmIterations" should exist
-    assert(d["WarmTime"].IsInt() || d["WarmIterations"].IsInt());
+    assert(sgf["WarmTime"].IsInt() || sgf["WarmIterations"].IsInt());
 
     // at least one of "MeasTime" and "WarmIterations" should exist
-    assert(d["MeasTime"].IsInt() || d["MeasIterations"].IsInt());
+    assert(sgf["MeasTime"].IsInt() || sgf["MeasIterations"].IsInt());
 
-    WarmTime=d["WarmTime"].IsInt64() ? d["WarmTime"].GetInt64() : -1;
-    WarmIterations=d["WarmIterations"].IsInt64() ? d["WarmIterations"].GetInt64() : -1 ;
-    MeasTime=d["MeasTime"].IsInt64() ? d["MeasTime"].GetInt64() : -1;
-    MeasIterations=d["MeasIterations"].IsInt64() ? d["MeasIterations"].GetInt64() : -1;
+    WarmTime=sgf["WarmTime"].IsInt64() ? sgf["WarmTime"].GetInt64() : -1;
+    WarmIterations=sgf["WarmIterations"].IsInt64() ? sgf["WarmIterations"].GetInt64() : -1 ;
+    MeasTime=sgf["MeasTime"].IsInt64() ? sgf["MeasTime"].GetInt64() : -1;
+    MeasIterations=sgf["MeasIterations"].IsInt64() ? sgf["MeasIterations"].GetInt64() : -1;
 
     // Names of the operators to measure
     const rapidjson::Value &measure=d["Measure"];

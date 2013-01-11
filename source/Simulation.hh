@@ -118,37 +118,33 @@ public:
 
   void Results(SGF::Measurable &MeasuredOp) {
 
-    std::cout<< "*************************\n";
-    std::cout<< "* Results of simulation *\n";
-    std::cout<< "*************************\n\n";
-    std::cout<< "  ******************************\n";
-    std::cout<< "  * Operator string statistics *\n";
-    std::cout<< "  ******************************\n\n";
+    std::cout<<"\nResults:\n";
 
-
-    std::cout<< "    == Thermalization ==\n\n";
-    std::cout<<std::setw(60)<< "    Number of creations/annihilations:" << NumWarmUpdates << std::endl;
-    std::cout<<std::setw(60)<< "    Number of creations/annihilations per second per node:" << NumWarmUpdates/ActualWarmTime << "\n";
-    std::cout<<std::setw(60)<< "    Number of directed updates:" << NumDirectedWarmUpdates << "\n";
-    std::cout<<std::setw(60)<< "    Directed update length:"<< double(NumWarmUpdates)/NumDirectedWarmUpdates<<std::endl;
-    std::cout<< "\n    == Measurements   ==\n\n";
-    std::cout<<std::setw(60)<< "    Number of creations/annihilations:" << NumMeasUpdates << "\n";
-    std::cout<<std::setw(60)<< "    Number of creations/annihilations per second per node:" << NumMeasUpdates/ActualMeasTime << "\n";
-    std::cout<<std::setw(60)<< "    Number of directed updates:" << NumDirectedMeasUpdates << "\n";
-    std::cout<<std::setw(60)<< "    Directed update length:"<< double(NumMeasUpdates)/NumDirectedMeasUpdates<<std::endl;
+    unsigned int w=30;
+    unsigned int w2=13;
+    std::cout<<"\n";
+    std::cout<<"  Thermalization:\n";
+    std::cout<<std::setw(w)<<std::left<<"    Iterations: "<<std::setw(w2)<<std::right<<NumWarmUpdates<<"\n";
+    std::cout<<std::setw(w)<<std::left<<"    Time: "<<std::setw(w2)<<std::right<<ActualWarmTime<<std::endl;
+    std::cout<<std::setw(w)<<std::left<<"    Iterations per sec: "<<std::setw(w2)<<std::right<<std::setprecision(2)<<std::setw(w)<<std::fixed<<NumWarmUpdates/ActualWarmTime<<"\n";
+    std::cout<<std::setw(w)<<std::left<<"    Directed Updates: "<<std::setw(w2)<<std::right<<NumDirectedWarmUpdates<<"\n";
+    std::cout<<std::setw(w)<<std::left<<"    Update Length: "<<std::setw(w2)<<std::right<<double(NumWarmUpdates)/NumDirectedWarmUpdates<<"\n";
+    std::cout<<"\n";
+    std::cout<<"  Measurements:\n";
+    std::cout<<std::setw(w)<<std::left<<"    Iterations: "<<std::setw(w2)<<std::right<<std::setw(w)<<NumMeasUpdates<<"\n";
+    std::cout<<std::setw(w)<<std::left<<"    Time: "<<std::setw(w2)<<std::right<<ActualMeasTime<<"\n";
+    std::cout<<std::setw(w)<<std::left<<"    Iterations per sec: "<<std::setw(w2)<<std::right<<std::setprecision(2)<<std::setw(w)<<std::fixed<<NumMeasUpdates/ActualMeasTime<<"\n";
+    std::cout<<std::setw(w)<<std::left<<"    Directed Updates: "<<std::setw(w2)<<std::right<<NumDirectedMeasUpdates<<"\n";
+    std::cout<<std::setw(w)<<std::left<<"    Update Length: "<<std::setw(w2)<<std::right<<double(NumMeasUpdates)/NumDirectedMeasUpdates<<"\n";
+    std::cout<<std::setw(w)<<std::left<<"    Measurement Count: "<<std::setw(w2)<<std::right<< BrokenHistorgram[0]<<"\n";
+    std::cout<<std::setw(w)<<std::left<<"    Iterations per measurement: "<<std::setw(w2)<<std::right<<std::fixed<< double(NumMeasUpdates)/BrokenHistorgram[0]<<"\n";
 
 #ifdef USEMPI
-    std::cout<<std::setw(60)<< "    Number of Processors used "<<NumProcessors<<"\n\n";
+    std::cout<<std::setw(w)<<std::left<<"    Number of Processors: "<<std::right<<std::setw(w)<<NumProcessors<<"\n";
 #endif
 
-    std::cout<<std::setw(60)<< "    Number of measurements: " << BrokenHistorgram[0] <<std::endl;
-    std::cout<<std::setw(60)<<std::fixed<< "    Number of updates per measurements: " << double(NumMeasUpdates)/BrokenHistorgram[0] << "\n\n";
-    std::cout<<::std::endl;
-    std::cout<<"  *******************************\n";
-    std::cout<<"  * Broken worldlines histogram *\n";
-    std::cout<<"  *******************************\n\n";
-    std::cout<<"    "<<std::setw(10)<<std::left<<"N lines"<<std::setw(10)<<"Count"<<std::setw(10)<<"Probability\n\n";
-
+    std::cout<<"\n";
+    std::cout<<"  Broken worldlines:\n\n";
 
     double Normalization=0;
     for(int i=0; i<BrokenHistorgram.size(); ++i)
@@ -156,22 +152,16 @@ public:
 
     for(int i=0; i<BrokenHistorgram.size(); ++i)
       if(BrokenHistorgram[i]!=0)
-        std::cout<<"    "<<std::fixed<<std::setprecision(9)<<std::setw(10)<<std::left<<i<<std::setw(10)<<BrokenHistorgram[i]<<std::setw(10)<<std::right<<BrokenHistorgram[i]/Normalization<<std::endl;
+        std::cout<<"    - [ "<<std::right<<std::fixed<<std::setw(3)<<i<<","<<std::setw(12)<<BrokenHistorgram[i]<<std::setprecision(9)<<std::left<<","<<std::setw(13)<<std::right<<BrokenHistorgram[i]/Normalization<<" ]\n";
 
     std::cout<< std::endl;
 
-    std::cout<< "  ***********************************************************************************\n";
-    std::cout<< "  * Energies (obtained from operator string length and Green operator state energy) *\n";
-    std::cout<< "  ***********************************************************************************\n\n";
-    std::cout<< "    " << MeasuredOp.TotalEnergy() << "\n";
-    std::cout<< "    " << MeasuredOp.Potential() << "\n";
-    std::cout<< "    " << MeasuredOp.Kinetic() << "\n\n";
-    std::cout<< "  ******************************\n";
-    std::cout<< "  * User's defined measurables *\n";
-    std::cout<< "  ******************************\n\n";
+    std::cout<< MeasuredOp.TotalEnergy() << "\n";
+    std::cout<< MeasuredOp.Potential() << "\n";
+    std::cout<< MeasuredOp.Kinetic() << "\n\n";
 
     for(int i=0; i<MeasuredOp.size(); ++i)
-      std::cout<<"    "<<MeasuredOp.Quantity(i)<<std::endl;
+      std::cout<<MeasuredOp.Quantity(i)<<std::endl;
 
   }
 };

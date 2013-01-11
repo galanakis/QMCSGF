@@ -250,7 +250,7 @@ public:
     return Abs(dn+delta())-Abs(dn);
   }
 
-  inline int delta() const {
+  inline const int &delta() const {
     return Deltas[code];
   }
 

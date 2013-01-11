@@ -73,11 +73,11 @@ public:
   std::ostream& print(std::ostream& o) const  {
     int N=Bins.size();
     o<<std::endl;
-    o<<"    "<<_tag<<" size= "<<N<<std::endl;
+    o<<"  "<<_tag<<":"<<std::endl;
     o<<std::endl;
 
     for(unsigned int i=0; i<N; ++i) {
-      o<<"     "<<std::setw(6)<<std::left<<i<<std::setprecision(9)<<Bins[i]<<std::endl;
+      o<<"    - "<<Bins[i]<<std::endl;
     }
 
     o<<std::endl;
@@ -138,24 +138,24 @@ public:
   std::ostream& print(std::ostream& o) const  {
 
     o<<std::endl;
-    o<<"    "<<_tag<<" (LDA= "<<N<<" )"<<std::endl;
+    o<<"  "<<_tag<<":"<<std::endl;
     o<<std::endl<<std::endl;
 
-    o<<"    Elements\n\n";
+    o<<"    Elements:\n\n";
     for(unsigned int i=0; i<N*N; ++i) {
-      o<<"     "<<std::setw(6)<<std::left<<i<<std::setprecision(9)<<BinsElements[i]<<std::endl;
+      o<<"      - "<<BinsElements[i]<<std::endl;
     }
     o<<std::endl;
 
     o<<"    Eigenvalues\n\n";
     for(unsigned int i=0; i<N; ++i) {
-      o<<"     "<<std::setw(6)<<std::left<<i<<std::setprecision(9)<<BinsEigenValues[i]<<std::endl;
+      o<<"      - "<<BinsEigenValues[i]<<std::endl;
     }
     o<<std::endl;
 
     o<<"    Eigenvectors\n\n";
     for(unsigned int i=0; i<N*N; ++i) {
-      o<<"     "<<std::setw(6)<<std::left<<i<<std::setprecision(9)<<BinsEigenVectors[i]<<std::endl;
+      o<<"      - "<<BinsEigenVectors[i]<<std::endl;
     }
     o<<std::endl;
 
@@ -225,7 +225,7 @@ public:
 
 
 
-void InsertFunnyDensityMatrix(const std::string &tag,const std::vector<Boson> &Psi,Measurable &MeasuredOperators) {
+void InsertFunnyDensityMatrix(const std::string &tag,std::vector<Boson> &Psi,Measurable &MeasuredOperators) {
   MeasuredOperators.insert_extra(new MeasurableDensityMatrix(tag,Psi) );
 }
 
