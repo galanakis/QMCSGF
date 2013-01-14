@@ -83,6 +83,8 @@ inline void linsolve(_integer N,_doublereal a[],_doublereal b[]) {
 
 namespace SGF {
 
+typedef enum {D1,D2,D3} Dimensionality;
+
 // The Boltzman-Einstein distribution
 inline long double B(long double x) {
   return 1/(exp(x)-1);
@@ -218,7 +220,7 @@ struct LatticeData {
   // The total number of sites
   unsigned int NSites;
   // Contains pairs of nearest neighbors
-  list_links_t links;
+  LinkDataList links;
   // It contains the external trap potantial
   std::vector<double> V0;
   // The non interacting Hamiltonian;
@@ -229,28 +231,30 @@ struct LatticeData {
 
 public:
   LatticeData(Dimensionality dim,unsigned int L,double t,double W) {
+
+    Lattice *lattice;
+
     switch (dim) {
     case D1:
-      NSites=L;
-      links=links_square(L,open);
-      V0=trap(L,W);
+      lattice=new Chain(L,open,W);
       break;
     case D2:
-      NSites=L*L;
-      links=links_square(L,open,L,open);
-      V0=trap(L,W,L,W);
+      lattice=new Square(L,open,W,L,open,W);
       break;
     case D3:
-      NSites=L*L*L;
-      links=links_square(L,open,L,open,L,open);
-      V0=trap(L,W,L,W,L,W);
+      lattice=new Cubic(L,open,W,L,open,W,L,open,W);
       break;
     }
+
+    NSites=lattice->size();
+    links=lattice->links();
+    V0=lattice->sitedata();
+
 
     // It contains the non interacting hamiltonian
     H0.resize(NSites*NSites,0);
 
-    for(list_links_t::const_iterator it=links.begin(); it!=links.end(); ++it) {
+    for(LinkDataList::const_iterator it=links.begin(); it!=links.end(); ++it) {
 
       unsigned long i=it->first;
       unsigned long j=it->second;
@@ -517,6 +521,8 @@ void SimpleSolveMF(double beta,unsigned int NSites,const std::vector<double> &H0
 
     ++iter;
 
+    break;
+
   } while(convergence>1e-5 );
 
 
@@ -591,12 +597,12 @@ int main(int argc, char *argv[]) {
 
 
   SGF::Dimensionality dim=SGF::D1;
-  unsigned int N=10;
+  unsigned int N=100;
   double filling=0.5;
-  double U=0.5;
-  double W=10;
+  double U=0;
+  double W=2;
   double t=1;
-  double beta=10;
+  double beta=100;
 
   SGF::LatticeData lattice(dim,N,t,W);
 
@@ -615,7 +621,7 @@ int main(int argc, char *argv[]) {
   //SGF::SolveMF(beta,lattice.NSites,lattice.H0,lattice.occupancy,filling,U);
 
 
-  SGF::SolveMF(beta,lattice.NSites,lattice.H0,lattice.occupancy,filling,U);
+  SGF::SimpleSolveMF(beta,lattice.NSites,lattice.H0,lattice.occupancy,filling,U);
 
   /*
     std::vector<double> betas;

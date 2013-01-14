@@ -35,11 +35,6 @@ std::ostream &operator<<(std::ostream &o,ensemble_t e) {
 }
 
 
-inline void AppendHamiltonianTerm(Hamiltonian &H,const HamiltonianTerm &term) {
-  if(term.coefficient()!=0)
-    H.push_back(term);
-}
-
 class Model {
 public:
   Model() {}
@@ -60,7 +55,8 @@ struct BoseHubbard : public Model {
   Lattice *lattice;
   int Nmax;
   boundary_t boundary;
-  double ParabolicHeight;
+
+  std::vector<unsigned int> InitDistribution;
 
 
   unsigned int nsites() const {
@@ -81,15 +77,11 @@ struct BoseHubbard : public Model {
 
     Container.Psi.resize(NSites);
 
-    for(unsigned int i=0; i<NSites; ++i)
+    for(unsigned int i=0; i<NSites; ++i) {
       Container.Psi[i].nmax() = Nmax;
-
-    for(int p=0; p<Population; ++p) {
-      unsigned int i=p%NSites;
-      Container.Psi[i].nL()++;
-      Container.Psi[i].nR()++;
+      Container.Psi[i].nL() = InitDistribution[i];
+      Container.Psi[i].nR() = InitDistribution[i];
     }
-
 
     for(unsigned int i=0; i<NSites; ++i) {
       const IndexedProductElement atom(CCAA,&Container.Psi[i]);
@@ -135,10 +127,8 @@ struct BoseHubbard : public Model {
     o<<indent<<std::setw(w)<<std::left<<"Population:"<<Population<<"\n";
     o<<indent<<std::setw(w)<<std::left<<"Ensemble:"<<ensemble<<"\n";
     o<<indent<<std::setw(w)<<std::left<<"Mu:"<<mu<<"\n";
-    o<<indent<<std::setw(w)<<std::left<<"Population:"<<Population<<"\n";
     o<<indent<<std::setw(w)<<std::left<<"Nmax:"<<Nmax<<"\n";
     o<<indent<<std::setw(w)<<std::left<<"Boundary:"<<boundary<<"\n";
-    o<<indent<<std::setw(w)<<std::left<<"Parabolic Trap Height:"<<ParabolicHeight<<"\n";
     lattice->yaml_print(o,"  ");
     o<<std::endl;
     return o;
@@ -148,6 +138,10 @@ struct BoseHubbard : public Model {
   }
 
   BoseHubbard(const rapidjson::Value &m) {
+
+    // The hoping matrix element
+    assert(m["Hoppingt"].IsNumber());
+    Hoppingt=m["Hoppingt"].GetDouble();
 
     // Only one of "Beta" or "Temperature" should be present, but not both.
     assert(m["Beta"].IsNumber() ^ m["Temperature"].IsNumber());
@@ -174,10 +168,6 @@ struct BoseHubbard : public Model {
       CoulombU=0;
     }
 
-    // The hoping matrix element
-    assert(m["Hoppingt"].IsNumber());
-    Hoppingt=m["Hoppingt"].GetDouble();
-
     /*
        Geometry specific assignments
     */
@@ -201,35 +191,40 @@ struct BoseHubbard : public Model {
     for(int i=0; i<dimensions; ++i)
       LSizes[i]=m["Dimensions"][i].GetInt();
 
-    ParabolicHeight=m["ParabolicTrapHeight"].GetDouble();
+    std::vector<double> W(dimensions,0);
+    if(m.HasMember("ParabolicTrapHeight")) {
+      assert(m["ParabolicTrapHeight"].IsArray() && m["ParabolicTrapHeight"].Size()==dimensions);
+      for(int i=0; i<dimensions; ++i)
+        W[i]=m["ParabolicTrapHeight"][i].GetDouble();
+    }
 
     if(boundary==trap) {
       switch(dimensions) {
       case 1: {
-        lattice=new Chain(LSizes[0],open,ParabolicHeight);
+        lattice=new Chain(LSizes[0],open,W[0]);
         break;
       }
       case 2: {
-        lattice=new Ellipsis(LSizes[0],LSizes[1],ParabolicHeight);
+        lattice=new Ellipsis(LSizes[0],LSizes[1],W[0],W[1]);
         break;
       }
       case 3: {
-        lattice=new Ellipsoid(LSizes[0],LSizes[1],LSizes[2],ParabolicHeight);
+        lattice=new Ellipsoid(LSizes[0],LSizes[1],LSizes[2],W[0],W[1],W[3]);
         break;
       }
       }
     } else {
       switch(dimensions) {
       case 1: {
-        lattice=new Chain(LSizes[0],boundary,ParabolicHeight);
+        lattice=new Chain(LSizes[0],boundary,W[0]);
         break;
       }
       case 2: {
-        lattice=new Square(LSizes[0],boundary,ParabolicHeight,LSizes[1],boundary,ParabolicHeight);
+        lattice=new Square(LSizes[0],boundary,LSizes[1],boundary,W[0],W[1]);
         break;
       }
       case 3: {
-        lattice=new Cubic(LSizes[0],boundary,ParabolicHeight,LSizes[1],boundary,ParabolicHeight,LSizes[2],boundary,ParabolicHeight);
+        lattice=new Cubic(LSizes[0],boundary,LSizes[1],boundary,LSizes[2],boundary,W[0],W[1],W[2]);
         break;
       }
       }
@@ -243,8 +238,38 @@ struct BoseHubbard : public Model {
 
     Population=m["Population"].IsInt() ? m["Population"].GetInt() : m["Filling"].GetDouble()*NSites;
 
-  }
 
+    InitDistribution.resize(NSites);
+    for(int p=0; p<Population; ++p) {
+      unsigned int i=p%NSites;
+      InitDistribution[i]++;
+    }
+
+    if(Nmax==0 && m.HasMember("InitDistribution") && m["InitDistribution"].GetString()==std::string("Gaussian")) {
+      std::vector<double> g=lattice->NonInteractingGS();
+      double norm=0;
+      unsigned int index0=0;
+      double max=0;
+      for(unsigned int i=0; i<g.size(); ++i) {
+        norm+=g[i];
+        if(g[i]>max) {
+          max=g[i];
+          index0=i;
+        }
+      }
+      unsigned int count=0;
+      for(unsigned int i=0; i<g.size(); ++i) {
+        unsigned int LocalPopulation=floor(Population*g[i]/norm);
+        count+=LocalPopulation;
+        InitDistribution[i]+=LocalPopulation;
+      }
+      if(count<Population) {
+        InitDistribution[index0]+=Population-count;
+      }
+
+    }
+
+  }
 
 };
 

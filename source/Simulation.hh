@@ -124,23 +124,23 @@ public:
     unsigned int w2=13;
     std::cout<<"\n";
     std::cout<<"  Thermalization:\n";
-    std::cout<<std::setw(w)<<std::left<<"    Iterations: "<<std::setw(w2)<<std::right<<NumWarmUpdates<<"\n";
-    std::cout<<std::setw(w)<<std::left<<"    Time: "<<std::setw(w2)<<std::right<<ActualWarmTime<<std::endl;
-    std::cout<<std::setw(w)<<std::left<<"    Iterations per sec: "<<std::setw(w2)<<std::right<<std::setprecision(2)<<std::setw(w)<<std::fixed<<NumWarmUpdates/ActualWarmTime<<"\n";
-    std::cout<<std::setw(w)<<std::left<<"    Directed Updates: "<<std::setw(w2)<<std::right<<NumDirectedWarmUpdates<<"\n";
-    std::cout<<std::setw(w)<<std::left<<"    Update Length: "<<std::setw(w2)<<std::right<<double(NumWarmUpdates)/NumDirectedWarmUpdates<<"\n";
+    std::cout<<"    Iterations:                     "<<NumWarmUpdates<<"\n";
+    std::cout<<"    Time:                           "<<ActualWarmTime<<std::endl;
+    std::cout<<"    Iterations per sec:             "<<std::setprecision(2)<<std::fixed<<NumWarmUpdates/ActualWarmTime<<"\n";
+    std::cout<<"    Directed Updates:               "<<NumDirectedWarmUpdates<<"\n";
+    std::cout<<"    Update Length:                  "<<double(NumWarmUpdates)/NumDirectedWarmUpdates<<"\n";
     std::cout<<"\n";
     std::cout<<"  Measurements:\n";
-    std::cout<<std::setw(w)<<std::left<<"    Iterations: "<<std::setw(w2)<<std::right<<std::setw(w)<<NumMeasUpdates<<"\n";
-    std::cout<<std::setw(w)<<std::left<<"    Time: "<<std::setw(w2)<<std::right<<ActualMeasTime<<"\n";
-    std::cout<<std::setw(w)<<std::left<<"    Iterations per sec: "<<std::setw(w2)<<std::right<<std::setprecision(2)<<std::setw(w)<<std::fixed<<NumMeasUpdates/ActualMeasTime<<"\n";
-    std::cout<<std::setw(w)<<std::left<<"    Directed Updates: "<<std::setw(w2)<<std::right<<NumDirectedMeasUpdates<<"\n";
-    std::cout<<std::setw(w)<<std::left<<"    Update Length: "<<std::setw(w2)<<std::right<<double(NumMeasUpdates)/NumDirectedMeasUpdates<<"\n";
-    std::cout<<std::setw(w)<<std::left<<"    Measurement Count: "<<std::setw(w2)<<std::right<< BrokenHistorgram[0]<<"\n";
-    std::cout<<std::setw(w)<<std::left<<"    Iterations per measurement: "<<std::setw(w2)<<std::right<<std::fixed<< double(NumMeasUpdates)/BrokenHistorgram[0]<<"\n";
+    std::cout<<"    Iterations:                     "<<NumMeasUpdates<<"\n";
+    std::cout<<"    Time:                           "<<ActualMeasTime<<"\n";
+    std::cout<<"    Iterations per sec:             "<<std::setprecision(2)<<std::fixed<<NumMeasUpdates/ActualMeasTime<<"\n";
+    std::cout<<"    Directed Updates:               "<<NumDirectedMeasUpdates<<"\n";
+    std::cout<<"    Update Length:                  "<<double(NumMeasUpdates)/NumDirectedMeasUpdates<<"\n";
+    std::cout<<"    Measurement Count:              "<< BrokenHistorgram[0]<<"\n";
+    std::cout<<"    Iterations per measurement:     "<<std::fixed<< double(NumMeasUpdates)/BrokenHistorgram[0]<<"\n";
 
 #ifdef USEMPI
-    std::cout<<std::setw(w)<<std::left<<"    Number of Processors: "<<std::right<<std::setw(w)<<NumProcessors<<"\n";
+    std::cout<<"    Number of Processors:           "<<NumProcessors<<"\n";
 #endif
 
     std::cout<<"\n";

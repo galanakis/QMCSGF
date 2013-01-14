@@ -7,7 +7,7 @@
       "Boundary": "periodic",
       "Ensemble":"Canonical",
       "Population":20,
-      "ParabolicTrapHeight":0.0,
+      "ParabolicTrapHeight":[0],
       "CoulombU":8,
       "Nmax":0,
       "Hoppingt":1

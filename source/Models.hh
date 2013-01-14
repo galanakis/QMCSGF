@@ -5,7 +5,7 @@
 #include <vector>
 #include <sstream>
 #include <iomanip>
-
+#include <cmath>
 
 namespace SGF {
 
@@ -26,10 +26,13 @@ class Lattice {
 protected:
   LinkDataList _links;
   SiteData _sitedata;
+  SiteData _gaussian;
+  std::string label;
 public:
   unsigned int size() const {return _sitedata.size();};
   virtual std::ostream &yaml_print(std::ostream &,const std::string &) const =0;
   const SiteData &sitedata() const {return _sitedata;}
+  const SiteData &NonInteractingGS() const {return _gaussian;}
   LinkDataList links() const {return _links;}
   virtual ~Lattice() {};
 
@@ -63,6 +66,22 @@ struct DimensionData {
   double V;
   DimensionData(unsigned int _L,boundary_t _B,double _V) : L(_L), B(_B), V(_V) {}
   DimensionData(const DimensionData &o) : L(o.L), B(o.B), V(o.V) {}
+
+  double cratio(unsigned int x) {
+    return (2.0*x-L+1)/(L-1);
+  }
+
+  double parabola(unsigned int x) {
+    double r=(2.0*x-L+1)/(L-1);
+    return V*r*r;
+  }
+
+  double gaussian(unsigned int x) {
+    double k=2.0*sqrt(V)/L;
+    double x0=0.5*(L-1);
+    return exp(-k*(x-x0)*(x-x0));
+  }
+
 };
 
 std::ostream & yaml_print_site(std::ostream &o,const Site1D &s) {
@@ -90,9 +109,9 @@ std::ostream & yaml_print_data(std::ostream &o,const std::string &indent,const s
   o<<"\n";
   o<<indent<<"  Dims:\n";
   for(std::vector<DimensionData>::const_iterator it=d.begin(); it!=d.end(); ++it) {
-    o<<indent<<"    - Length: "<<it->L<<"\n";
-    o<<indent<<"      Boundary: "<<it->B<<"\n";
-    o<<indent<<"      Trap: "<<it->V<<"\n";
+    o<<indent<<"    - Length:      "<<it->L<<"\n";
+    o<<indent<<"      Boundary:    "<<it->B<<"\n";
+    o<<indent<<"      Trap Height: "<<it->V<<"\n";
 
   }
 
@@ -113,15 +132,67 @@ std::ostream & yaml_print_data(std::ostream &o,const std::string &indent,const s
 
 }
 
-class Chain : public Lattice {
+
+class Lattice1D : public Lattice {
+protected:
+  std::vector<DimensionData> dim;
+  std::vector<Site1D> _site_coordinates;
+  double parabola(unsigned int x) {
+    return dim[0].parabola(x);
+  }
+  double gaussian(unsigned int x) {
+    return dim[0].gaussian(x);
+  }
+  double relativeradious(unsigned x) {
+    double X=dim[0].cratio(x);
+    return X*X;
+  }
+
+};
+
+class Lattice2D : public Lattice {
+protected:
+  std::vector<DimensionData> dim;
+  std::vector<Site2D> _site_coordinates;
+  double parabola(unsigned int x,unsigned int y) {
+    return dim[0].parabola(x)+dim[1].parabola(y);
+  }
+  double gaussian(unsigned int x,unsigned int y) {
+    return dim[0].gaussian(x)*dim[1].gaussian(y);
+  }
+  double relativeradious(unsigned int x,unsigned int y) {
+    double X=dim[0].cratio(x);
+    double Y=dim[1].cratio(y);
+    return X*X+Y*Y;
+  }
+
+};
+
+class Lattice3D : public Lattice {
+protected:
+  std::vector<DimensionData> dim;
+  std::vector<Site3D> _site_coordinates;
+  double parabola(unsigned int x,unsigned int y,unsigned int z) {
+    return dim[0].parabola(x)+dim[1].parabola(y)+dim[2].parabola(z);
+  }
+  double gaussian(unsigned int x,unsigned int y,unsigned int z) {
+    return dim[0].gaussian(x)*dim[1].gaussian(y)*dim[2].gaussian(z);
+  }
+
+  double relativeradious(unsigned int x,unsigned int y,unsigned int z) {
+    double X=dim[0].cratio(x);
+    double Y=dim[1].cratio(y);
+    double Z=dim[2].cratio(z);
+    return X*X+Y*Y+Z*Z;
+  }
+
+};
+
+class Chain : public Lattice1D {
 
   static unsigned int periodic_site_index(unsigned int x,unsigned int Lx) {
     return x%Lx;
   }
-
-  std::string label;
-  std::vector<DimensionData> dim;
-  std::vector<Site1D> _site_coordinates;
 
 public:
 
@@ -131,13 +202,14 @@ public:
     dim.push_back(DimensionData(Lx,Bx,Vx));
 
     _sitedata.resize(Lx);
+    _gaussian.resize(Lx);
 
     for(unsigned int x=0; x<Lx; ++x) {
       unsigned int i=periodic_site_index(x,Lx);
       unsigned int a=periodic_site_index(x+1,Lx);
       if(Bx==periodic || x+1!=Lx) _links.push_back(LinkData(i,a));
-      double rx=(2.0*x-Lx+1)/(Lx-1);
-      _sitedata[i]=rx*rx*Vx;
+      _sitedata[i]=parabola(x);
+      _gaussian[i]=gaussian(x);
       _site_coordinates.push_back(Site1D(x));
     }
   }
@@ -149,24 +221,21 @@ public:
 };
 
 
-class Square : public Lattice {
+class Square : public Lattice2D {
 
   inline unsigned int periodic_site_index(unsigned int x,unsigned int Lx,unsigned int y,unsigned int Ly) {
     return x%Lx+Lx*(y%Ly);
   }
 
-  std::string label;
-  std::vector<DimensionData> dim;
-  std::vector<Site2D> _site_coordinates;
-
 public:
-  Square(unsigned int Lx,boundary_t Bx,double Vx,unsigned int Ly,boundary_t By,double Vy) {
+  Square(unsigned int Lx,boundary_t Bx,unsigned int Ly,boundary_t By,double Vx,double Vy) {
 
     label="Square Lattice";
     dim.push_back(DimensionData(Lx,Bx,Vx));
     dim.push_back(DimensionData(Ly,By,Vy));
 
     _sitedata.resize(Lx*Ly);
+    _gaussian.resize(Lx*Ly);
 
     for(unsigned int x=0; x<Lx; ++x) {
       for(unsigned int y=0; y<Ly; ++y) {
@@ -175,9 +244,8 @@ public:
         unsigned int b=periodic_site_index(x,Lx,y+1,Ly);
         if(Bx==periodic || x+1!=Lx) _links.push_back(LinkData(i,a));
         if(By==periodic || y+1!=Ly) _links.push_back(LinkData(i,b));
-        double rx=(2.0*x-Lx+1)/(Lx-1);
-        double ry=(2.0*y-Ly+1)/(Ly-1);
-        _sitedata[i]=rx*rx*Vx+ry*ry*Vy;
+        _sitedata[i]=parabola(x,y);
+        _gaussian[i]=gaussian(x,y);
         _site_coordinates.push_back(Site2D(x,y));
       }
     }
@@ -190,19 +258,14 @@ public:
 };
 
 
-class Cubic : public Lattice {
+class Cubic : public Lattice3D {
 
   inline unsigned int periodic_site_index(unsigned int x,unsigned int Lx,unsigned int y,unsigned int Ly,unsigned int z,unsigned int Lz) {
     return x%Lx+Lx*((y%Ly)+Ly*(z%Lz));
   }
 
-  std::string label;
-  std::vector<DimensionData> dim;
-  std::vector<Site3D> _site_coordinates;
-
-
 public:
-  Cubic(unsigned int Lx,boundary_t Bx,double Vx,unsigned int Ly,boundary_t By,double Vy,unsigned int Lz,boundary_t Bz,double Vz) {
+  Cubic(unsigned int Lx,boundary_t Bx,unsigned int Ly,boundary_t By,unsigned int Lz,boundary_t Bz,double Vx,double Vy,double Vz) {
 
     label="Cubic Lattice";
     dim.push_back(DimensionData(Lx,Bx,Vx));
@@ -210,6 +273,7 @@ public:
     dim.push_back(DimensionData(Lz,Bz,Vz));
 
     _sitedata.resize(Lx*Ly*Lz);
+    _gaussian.resize(Lx*Ly*Lz);
 
     for(unsigned int x=0; x<Lx; ++x) {
       for(unsigned int y=0; y<Ly; ++y) {
@@ -221,10 +285,8 @@ public:
           if(Bx==periodic || x+1!=Lx) _links.push_back(LinkData(i,a));
           if(By==periodic || y+1!=Ly) _links.push_back(LinkData(i,b));
           if(Bz==periodic || z+1!=Lz) _links.push_back(LinkData(i,c));
-          double rx=(2.0*x-Lx+1)/(Lx-1);
-          double ry=(2.0*y-Ly+1)/(Ly-1);
-          double rz=(2.0*z-Lz+1)/(Lz-1);
-          _sitedata[i]=rx*rx*Vx+ry*ry*Vy+rz*rz*Vz;
+          _sitedata[i]=parabola(x,y,z);
+          _gaussian[i]=gaussian(x,y,z);
           _site_coordinates.push_back(Site3D(x,y,z));
         }
       }
@@ -238,22 +300,18 @@ public:
 };
 
 
-class Ellipsis : public Lattice {
-
-  std::string label;
-  std::vector<DimensionData> dim;
-  std::vector<Site2D> _site_coordinates;
+class Ellipsis : public Lattice2D {
 
   void push_back(unsigned int i,unsigned int j) {
     _links.push_back(LinkData(i,j));
   }
 
 public:
-  Ellipsis(unsigned int Lx,unsigned int Ly,double V) {
+  Ellipsis(unsigned int Lx,unsigned int Ly,double Vx,double Vy) {
 
     label="Square Lattice, Elliptical Domain";
-    dim.push_back(DimensionData(Lx,open,V));
-    dim.push_back(DimensionData(Ly,open,V));
+    dim.push_back(DimensionData(Lx,open,Vx));
+    dim.push_back(DimensionData(Ly,open,Vy));
 
     unsigned int Invalid=Lx*Ly;
     std::vector<std::vector<unsigned int> > index_map(Lx,std::vector<unsigned int>(Ly,Invalid));
@@ -262,12 +320,10 @@ public:
 
     for(unsigned int x=0; x<Lx; ++x) {
       for(unsigned int y=0; y<Ly; ++y) {
-        double rx=(2.0*x-Lx+1)/(Lx-1);
-        double ry=(2.0*y-Ly+1)/(Ly-1);
-        double rr=rx*rx+ry*ry;
-        if(rr<=1) {
+        if(relativeradious(x,y)<=1) {
           _site_coordinates.push_back(Site2D(x,y));
-          _sitedata.push_back(rr*V);
+          _sitedata.push_back(parabola(x,y));
+          _gaussian.push_back(gaussian(x,y));
           index_map[x][y]=count;
           ++count;
         }
@@ -296,24 +352,19 @@ public:
 };
 
 
-class Ellipsoid : public Lattice {
-
-
-  std::string label;
-  std::vector<DimensionData> dim;
-  std::vector<Site3D> _site_coordinates;
+class Ellipsoid : public Lattice3D {
 
   void push_back(unsigned int i,unsigned int j) {
     _links.push_back(LinkData(i,j));
   }
 
 public:
-  Ellipsoid(unsigned int Lx,unsigned int Ly,unsigned int Lz,double V) {
+  Ellipsoid(unsigned int Lx,unsigned int Ly,unsigned int Lz,double Vx,double Vy,double Vz) {
 
     label="Cubic Lattice, Ellipsoid Domain";
-    dim.push_back(DimensionData(Lx,open,V));
-    dim.push_back(DimensionData(Ly,open,V));
-    dim.push_back(DimensionData(Lz,open,V));
+    dim.push_back(DimensionData(Lx,open,Vx));
+    dim.push_back(DimensionData(Ly,open,Vy));
+    dim.push_back(DimensionData(Lz,open,Vz));
 
     unsigned int Invalid=Lx*Ly*Lz;
     std::vector<std::vector<std::vector<unsigned int> > > index_map(Lx,std::vector<std::vector<unsigned int> >(Ly,std::vector<unsigned int>(Lz,Invalid)));
@@ -323,13 +374,10 @@ public:
     for(unsigned int x=0; x<Lx; ++x) {
       for(unsigned int y=0; y<Ly; ++y) {
         for(unsigned int z=0; z<Lz; ++z) {
-          double rx=(2.0*x-Lx+1)/(Lx-1);
-          double ry=(2.0*y-Ly+1)/(Ly-1);
-          double rz=(2.0*z-Lz+1)/(Lz-1);
-          double rr=rx*rx+ry*ry+rz*rz;
-          if(rr<=1) {
+          if(relativeradious(x,y,z)<=1) {
             _site_coordinates.push_back(Site3D(x,y,z));
-            _sitedata.push_back(rr*V);
+            _sitedata.push_back(parabola(x,y,z));
+            _gaussian.push_back(gaussian(x,y,z));
             index_map[x][y][z]=count;
             ++count;
           }

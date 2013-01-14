@@ -304,6 +304,12 @@ typedef AtomicTerm<MatrixElement,IndexedProductElement> HamiltonianTerm;
 // Define the type of the Kinetic and Potential Part of the Hamiltonian
 typedef std::vector<HamiltonianTerm> Hamiltonian;
 
+inline void AppendHamiltonianTerm(Hamiltonian &H,const HamiltonianTerm &term) {
+  if(term.coefficient()!=0)
+    H.push_back(term);
+}
+
+
 }
 
 #endif
