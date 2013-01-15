@@ -166,7 +166,7 @@ public:
   void measure(_float_accumulator Weight,const KeyType &key) {
 
     if(key.size()==0) {
-      for(unsigned int i=0; i<N; ++i) {
+      for(unsigned long i=0; i<N; ++i) {
         data[index(i,i)]+=Psi0[i].nR()*Weight;
       }
     } else if(key.size()==2) {
@@ -207,7 +207,7 @@ public:
 
     reduce();
 
-    for(unsigned int i=0; i<data.size(); ++i)
+    for(unsigned long i=0; i<data.size(); ++i)
       BinsElements[i].push(data[i]/Weight);
 
   }
@@ -220,9 +220,9 @@ public:
     o<<"  "<<_tag<<":";
     o<<"\n";
 
-    for(unsigned int i=0; i<N; ++i)
-      for(unsigned int j=i; j<N; ++j) {
-        unsigned int ind=index(i,j);
+    for(unsigned long i=0; i<N; ++i)
+      for(unsigned long j=i; j<N; ++j) {
+        unsigned long ind=index(i,j);
         o<<"    - "<<BinsElements[ind]<<std::endl;
       }
 

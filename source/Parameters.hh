@@ -209,7 +209,7 @@ struct BoseHubbard : public Model {
         break;
       }
       case 3: {
-        lattice=new Ellipsoid(LSizes[0],LSizes[1],LSizes[2],W[0],W[1],W[3]);
+        lattice=new Ellipsoid(LSizes[0],LSizes[1],LSizes[2],W[0],W[1],W[2]);
         break;
       }
       }

@@ -68,7 +68,7 @@ class MeasurableMultiFunction : public MeasurableObject {
 protected:
   std::vector<BinnedAccumulatorME> Bins;
 public:
-  MeasurableMultiFunction(const std::string &s,unsigned int nn) : Bins(nn), MeasurableObject(s) {}
+  MeasurableMultiFunction(const std::string &s,unsigned long nn) : Bins(nn), MeasurableObject(s) {}
 
   std::ostream& print(std::ostream& o) const  {
     int N=Bins.size();
@@ -76,7 +76,7 @@ public:
     o<<"  "<<_tag<<":"<<std::endl;
     o<<std::endl;
 
-    for(unsigned int i=0; i<N; ++i) {
+    for(unsigned long i=0; i<N; ++i) {
       o<<"    - "<<Bins[i]<<std::endl;
     }
 
@@ -94,13 +94,13 @@ protected:
   std::vector<_float_accumulator*> data_ptr;
   unsigned long N;
 public:
-  MeasurableEigenSystem(const std::string &s,unsigned int nn) : MeasurableObject(s), N(nn), BinsElements(nn*nn), BinsEigenVectors(nn*nn), BinsEigenValues(nn), data_ptr(nn*nn) {}
+  MeasurableEigenSystem(const std::string &s,unsigned long nn) : MeasurableObject(s), N(nn), BinsElements(nn*nn), BinsEigenVectors(nn*nn), BinsEigenValues(nn), data_ptr(nn*nn) {}
 
-  unsigned int index(unsigned int i,unsigned int j) const {
+  unsigned long index(unsigned long i,unsigned long j) const {
     return i+N*j;
   }
 
-  _float_accumulator* &set(unsigned int i,unsigned int j) {
+  _float_accumulator* &set(unsigned long i,unsigned long j) {
     return data_ptr[index(i,j)];
   }
 
@@ -109,26 +109,26 @@ public:
     std::vector<_doublereal> data_copy(N*N);
     std::vector<_doublereal> vals(N);
 
-    for(unsigned int i=0; i<data_copy.size(); ++i) {
+    for(unsigned long i=0; i<data_copy.size(); ++i) {
       data_copy[i]=*data_ptr[i]/Weight;
     }
 
     // Symmetrize the matrix
-    for(unsigned int i=0; i<N; ++i)
-      for(unsigned int j=0; j<N; ++j) {
+    for(unsigned long i=0; i<N; ++i)
+      for(unsigned long j=0; j<N; ++j) {
         _doublereal temp=data_copy[index(i,j)]+data_copy[index(j,i)];
         data_copy[index(i,j)]=data_copy[index(j,i)]=0.5*temp;
       }
 
-    for(unsigned int i=0; i<N*N; ++i)
+    for(unsigned long i=0; i<N*N; ++i)
       BinsElements[i].push(data_copy[i]);
 
     eig(N,'V',&data_copy[0],&vals[0]);
 
-    for(unsigned int i=0; i<N; ++i)
+    for(unsigned long i=0; i<N; ++i)
       BinsEigenValues[i].push(vals[i]);
 
-    for(unsigned int i=0; i<N*N; ++i)
+    for(unsigned long i=0; i<N*N; ++i)
       BinsEigenVectors[i].push(data_copy[i]);
 
   }
@@ -142,19 +142,19 @@ public:
     o<<std::endl<<std::endl;
 
     o<<"    Elements:\n\n";
-    for(unsigned int i=0; i<N*N; ++i) {
+    for(unsigned long i=0; i<N*N; ++i) {
       o<<"      - "<<BinsElements[i]<<std::endl;
     }
     o<<std::endl;
 
     o<<"    Eigenvalues\n\n";
-    for(unsigned int i=0; i<N; ++i) {
+    for(unsigned long i=0; i<N; ++i) {
       o<<"      - "<<BinsEigenValues[i]<<std::endl;
     }
     o<<std::endl;
 
     o<<"    Eigenvectors\n\n";
-    for(unsigned int i=0; i<N*N; ++i) {
+    for(unsigned long i=0; i<N*N; ++i) {
       o<<"      - "<<BinsEigenVectors[i]<<std::endl;
     }
     o<<std::endl;
@@ -168,12 +168,12 @@ public:
 
 class MeasurableVector : public MeasurableMultiFunction {
   std::vector<_float_accumulator*> data_ptr;
-  unsigned int N;
+  unsigned long N;
 public:
-  MeasurableVector(const std::string &tag,unsigned int nn) : MeasurableMultiFunction(tag,nn), N(nn), data_ptr() {}
+  MeasurableVector(const std::string &tag,unsigned long nn) : MeasurableMultiFunction(tag,nn), N(nn), data_ptr() {}
   void push(const _float_accumulator &Weight) {
 
-    for(unsigned int i=0; i<N; ++i)
+    for(unsigned long i=0; i<N; ++i)
       Bins[i].push(*data_ptr[i]/Weight);
   }
   void push_back(_float_accumulator* o) {
@@ -184,22 +184,22 @@ public:
 
 class MeasurableEigenvalues : public MeasurableMultiFunction {
   std::vector<_float_accumulator*> data_ptr;
-  unsigned int N;
+  unsigned long N;
 
 public:
-  MeasurableEigenvalues(const std::string &tag,unsigned int nn) : MeasurableMultiFunction(tag,nn), N(nn), data_ptr(nn*nn) {}
+  MeasurableEigenvalues(const std::string &tag,unsigned long nn) : MeasurableMultiFunction(tag,nn), N(nn), data_ptr(nn*nn) {}
 
   void push(const _float_accumulator &Weight) {
 
     std::vector<_doublereal> data_copy(N*N);
     std::vector<_doublereal> vals(N);
 
-    for(unsigned int i=0; i<data_copy.size(); ++i) {
+    for(unsigned long i=0; i<data_copy.size(); ++i) {
       data_copy[i]=*data_ptr[i]/Weight;
     }
 
-    for(unsigned int i=0; i<N; ++i)
-      for(unsigned int j=0; j<N; ++j) {
+    for(unsigned long i=0; i<N; ++i)
+      for(unsigned long j=0; j<N; ++j) {
         _doublereal temp=data_copy[index(i,j)]+data_copy[index(j,i)];
         data_copy[index(i,j)]=data_copy[index(j,i)]=0.5*temp;
       }
@@ -207,15 +207,15 @@ public:
 
     eig(N,'N',&data_copy[0],&vals[0]);
 
-    for(unsigned int i=0; i<N; ++i)
+    for(unsigned long i=0; i<N; ++i)
       Bins[i].push(vals[i]);
   }
 
-  unsigned int index(unsigned int i,unsigned int j) const {
+  unsigned long index(unsigned long i,unsigned long j) const {
     return i+N*j;
   }
 
-  _float_accumulator* &set(unsigned int i,unsigned int j) {
+  _float_accumulator* &set(unsigned long i,unsigned long j) {
     return data_ptr[index(i,j)];
   }
 
@@ -236,8 +236,8 @@ void InsertDensityMatrixEigenvalues(const std::string &tag,std::vector<Boson> &P
   MeasurableEigenvalues *MEig=new MeasurableEigenvalues(tag,Psi.size());
 
   // Inserts the density matrix
-  for(unsigned int i=0; i<Psi.size(); ++i) {
-    for(unsigned int j=0; j<Psi.size(); ++j) {
+  for(unsigned long i=0; i<Psi.size(); ++i) {
+    for(unsigned long j=0; j<Psi.size(); ++j) {
       if(i!=j) {
         const IndexedProductElement ci(C,&Psi[i]);
         const IndexedProductElement aj(A,&Psi[j]);
@@ -266,8 +266,8 @@ void InsertDensityMatrixEigenSystem(const std::string &tag,std::vector<SGF::Boso
   MeasurableEigenSystem *MEig=new MeasurableEigenSystem(tag,Psi.size());
 
   // Inserts the density matrix
-  for(unsigned int i=0; i<Psi.size(); ++i) {
-    for(unsigned int j=0; j<Psi.size(); ++j) {
+  for(unsigned long i=0; i<Psi.size(); ++i) {
+    for(unsigned long j=0; j<Psi.size(); ++j) {
       if(i!=j) {
         const IndexedProductElement ci(C,&Psi[i]);
         const IndexedProductElement aj(A,&Psi[j]);
@@ -297,8 +297,8 @@ void InsertDensityMatrix(const std::string &tag,std::vector<SGF::Boson> &Psi,Mea
 
   MeasurableVector *MVec=new MeasurableVector("Density Matrix",Psi.size()*Psi.size());
   // Inserts the density matrix
-  for(unsigned int i=0; i<Psi.size(); ++i) {
-    for(unsigned int j=0; j<Psi.size(); ++j) {
+  for(unsigned long i=0; i<Psi.size(); ++i) {
+    for(unsigned long j=0; j<Psi.size(); ++j) {
       if(i!=j) {
         const IndexedProductElement ci(C,&Psi[i]);
         const IndexedProductElement aj(A,&Psi[j]);
@@ -325,7 +325,7 @@ void InsertDensityMatrix(const std::string &tag,std::vector<SGF::Boson> &Psi,Mea
 void InsertLocalDensity(const std::string &tag,std::vector<SGF::Boson> &Psi,Measurable &MeasuredOperators) {
   MeasurableVector *MVec=new MeasurableVector(tag,Psi.size());
   // Inserts the density matrix
-  for(unsigned int i=0; i<Psi.size(); ++i) {
+  for(unsigned long i=0; i<Psi.size(); ++i) {
     const IndexedProductElement ni(CA,&Psi[i]);
     std::stringstream ss;
     ss<<"n"<<std::setw(6)<<i<<" ";
