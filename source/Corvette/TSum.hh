@@ -74,11 +74,12 @@ class TSum {
       MatrixElement oldme=_sums[index-1];
 
       if(newme!=oldme) {
-        while(index) {
+        while(index>1) {
           _sums[index-1] =  newme;
-          newme += _sums[index-2*(index&1)];
+          newme += _sums[(index^1)-1];
           index/=2;
         }
+        _sums[0]=newme;
       }
 
 
