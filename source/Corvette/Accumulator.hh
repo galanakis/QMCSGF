@@ -23,7 +23,7 @@ namespace SGF {
 
 */
 
-template<const int MomentOrder,class T>
+template<const unsigned int MomentOrder,class T>
 class Accumulator {
   T _sum[MomentOrder];
   _integer_counter _count;
@@ -47,7 +47,7 @@ public:
     for(int i=0; i<MomentOrder; ++i) _sum[i]=T(0);
   }
   inline const _integer_counter &count() const {return _count;}
-  inline T operator()(int i) const {return _sum[i]/_sum[0];}
+  inline T operator()(unsigned int i) const {return _sum[i]/_sum[0];}
   inline int nmoments() const {return MomentOrder;}
 };
 

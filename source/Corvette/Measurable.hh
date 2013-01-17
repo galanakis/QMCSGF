@@ -145,6 +145,8 @@ class MeasurableDensityMatrix : public ExtraMeasurables {
   size_type N;
   std::string tag;
   std::vector<double> data;
+  double _number;
+  BinnedAccumulator<long double> _numberbin;
 
   _float_accumulator me_ca(size_type i,size_type j) const {
     return sqrt( (Psi0[i].nR()+1)*Psi0[j].nR() );
@@ -155,20 +157,25 @@ class MeasurableDensityMatrix : public ExtraMeasurables {
   }
 
 public:
-  MeasurableDensityMatrix(const std::string &tag,std::vector<Boson> &Psi) : ExtraMeasurables(tag) {
+  MeasurableDensityMatrix(const std::string &tag,std::vector<Boson> &Psi) : ExtraMeasurables(tag), _numberbin() {
     Psi0=&Psi[0];
     N=Psi.size();
     size_type ndata=N*(N+1)/2;
     data.resize(ndata,0);
     BinsElements.resize(ndata);
+    _number=0;
   }
 
   void measure(_float_accumulator Weight,const KeyType &key) {
 
     if(key.size()==0) {
+      double count=0;
       for(unsigned long i=0; i<N; ++i) {
-        data[index(i,i)]+=Psi0[i].nR()*Weight;
+        unsigned long ind = index(i,i);
+        data[ind]+=Psi0[i].nR()*Weight;
+        count+=Psi0[i].nR();
       }
+      _number+=count*Weight;
     } else if(key.size()==2) {
 
       if(key[0].second==1 && key[1].second==-1) {
@@ -189,6 +196,7 @@ public:
 
   void reset() {
     std::fill(data.begin(),data.end(),0);
+    _number=0;
   }
 
 
@@ -210,12 +218,16 @@ public:
     for(unsigned long i=0; i<data.size(); ++i)
       BinsElements[i].push(data[i]/Weight);
 
+    _numberbin.push(_number/Weight);
+
   }
 
 
 
   std::ostream& print(std::ostream& o) const  {
 
+    o<<"\n";
+    o<<"  Number: "<<_numberbin<<std::endl;
     o<<"\n";
     o<<"  "<<_tag<<":";
     o<<"\n";

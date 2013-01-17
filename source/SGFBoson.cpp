@@ -18,7 +18,7 @@ void Simulator(const SGF::Parameters &p) {
   unsigned long WarmIterations=p.WarmIterations;
   unsigned long MeasTime=p.MeasTime;
   unsigned long MeasIterations=p.MeasIterations;
-  unsigned long NBins=20;
+  unsigned long NBins=p.NBins;
 
   std::string Label=p.label();
 
