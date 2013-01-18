@@ -278,7 +278,7 @@ class Measurable  {
     }
   };
 
-  typedef BrokenLines::BosonDeltaMapType KeyType;
+  typedef BosonDeltaMapType KeyType;
   typedef std::multimap<KeyType,TermBuffer> multimap_type;
   typedef std::pair<multimap_type::iterator,multimap_type::iterator> equal_range_type;
 
@@ -333,7 +333,7 @@ class Measurable  {
   }
 
 public:
-  Measurable(OperatorStringType &OS) : BrokenLineTracer(OS.GetListBrokenLines(),OS), _Kinetic("Non-diagonal energy",&buffer_kinetic), _Potential("Diagonal energy",&buffer_potential), _TotalEnergy("Total energy") {
+  Measurable(OperatorStringType &OS) : BrokenLineTracer(OS), _Kinetic("Non-diagonal energy",&buffer_kinetic), _Potential("Diagonal energy",&buffer_potential), _TotalEnergy("Total energy") {
     reset();
     _buffers.push_back(&buffer_BoltzmannWeight);
     _buffers.push_back(&buffer_kinetic);
@@ -349,7 +349,7 @@ public:
 
   // Looks up a term and returns an address to its buffer
   _float_accumulator *new_buffer_pointer(const HamiltonianTerm &term) {
-    _float_accumulator *ptr=&insert_term(BrokenLines::map(term.product()),term.product())->second.buffer;
+    _float_accumulator *ptr=&insert_term(GetTermHash(term.product()),term.product())->second.buffer;
     _buffers.push_back(ptr);
     return ptr;
   }

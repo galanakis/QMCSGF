@@ -1,6 +1,7 @@
 #ifndef __UNORDEREDSET__
 #define __UNORDEREDSET__
 
+#include <algorithm>
 
 namespace SGF {
 
@@ -70,6 +71,12 @@ public:
 
     }
 
+  }
+
+  inline void sort() {
+    std::sort(begin(),end());
+    for(iterator it=begin(); it!=end(); ++it)
+      map[*it]=it;
   }
 
 

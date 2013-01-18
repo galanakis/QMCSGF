@@ -109,19 +109,6 @@ public:
 
   }
 
-  //
-  // Input: a vector of boson pointers
-  // Output: a set of the boson pointers where the lines are broken
-  //
-  static  boson_set_t GetListBrokenLines(const boson_vector_t &o) {
-    boson_set_t broken;
-    for(boson_vector_t::const_iterator it=o.begin(); it!=o.end(); ++it) {
-      if((*it)->delta() != 0)
-        broken.insert(*it);
-    }
-    return broken;
-  }
-
 
   //
   // Input: two lists of terms, one called row and another called column
@@ -485,10 +472,6 @@ private:
     return term-&Potential[0];
   }
 
-
-
-public:
-
   // It changes _tsum[2][] and tree_cache.
   // Implementing this as a template results in a small but noticeable performance improvement
   template<int rl>
@@ -586,12 +569,6 @@ public:
     return Energies[rl];
   }
 
-
-  std::set<Boson*> GetListBrokenLines() const {
-    return Orphans::GetListBrokenLines(_indices);
-  }
-
-
   inline MatrixElement G(int offset=0) const {
     return GF(NBrokenLines()+offset);   // The value of the Green Operator given the total broken lines and the offset.
   }
@@ -685,6 +662,7 @@ public:
 
   }
 
+  friend class BrokenLines;
 
 };
 
@@ -701,59 +679,66 @@ public:
 */
 
 
+typedef std::vector<std::pair<Boson*,int> > BosonDeltaMapType;
+
+// This one is ok to be slow since it is called only in the initializer
+inline BosonDeltaMapType GetTermHash(const std::vector<IndexedProductElement> &p) {
+  std::map<Boson*,int> indices;
+  for(std::vector<IndexedProductElement>::const_iterator it=p.begin(); it!=p.end(); ++it) {
+    int delta=-it->delta();
+    if(delta!=0) indices[it->particle_id()]=delta;
+  }
+
+  BosonDeltaMapType vmap;
+  vmap.reserve(indices.size());
+  std::map<Boson*,int>::const_iterator it;
+  for(it=indices.begin(); it!=indices.end(); ++it)
+    vmap.push_back(*it);
+
+  return vmap;
+}
+
+
 class BrokenLines : public Probabilities::UpdatableObject {
-  std::set<Boson*> _broken_lines;
+  UnorderedSet _broken_lines;
+  Boson* Psi0;
 public:
 
-  typedef std::vector<std::pair<Boson*,int> > BosonDeltaMapType;
-  BrokenLines(const std::set<Boson*> &o,Probabilities &c) :  Probabilities::UpdatableObject(c), _broken_lines(o) {}
 
-  inline void update(const std::vector<IndexedProductElement> &p) {
-    for(std::vector<IndexedProductElement>::const_iterator it=p.begin(); it!=p.end(); ++it) {
-      Boson *pind=it->particle_id();
-      if(pind->delta()!=0)
-        _broken_lines.insert(pind);
-      else
-        _broken_lines.erase(pind);
+  BrokenLines(Probabilities &c) :  Probabilities::UpdatableObject(c),_broken_lines(c._indices.size()) {
+    Psi0=c._indices[0];
+    for(boson_vector_t::const_iterator it=c._indices.begin(); it!=c._indices.end(); ++it) {
+      if((*it)->delta() != 0)
+        _broken_lines.insert(*it-Psi0);
     }
   }
 
   inline void update(const HamiltonianTerm* term,int,int) {
-    update(term->product());
+    for(std::vector<IndexedProductElement>::const_iterator it=term->product().begin(); it!=term->product().end(); ++it) {
+      Boson *pind=it->particle_id();
+      if(pind->delta()!=0)
+        _broken_lines.insert(pind-Psi0);
+      else
+        _broken_lines.erase(pind-Psi0);
+    }
   }
 
   // This one must be very fast
-  inline BosonDeltaMapType map() const {
+  inline BosonDeltaMapType map() {
     BosonDeltaMapType vmap;
+    _broken_lines.sort();
     vmap.reserve(_broken_lines.size());
-    std::set<Boson*>::const_iterator it;
-    for(it=_broken_lines.begin(); it!=_broken_lines.end(); ++it) {
-      int delta=(*it)->delta();
-      if(delta!=0) vmap.push_back(std::pair<Boson*,int>(*it,delta));
+    for(UnorderedSet::iterator it=_broken_lines.begin(); it!=_broken_lines.end(); ++it) {
+      int delta=Psi0[*it].delta();
+      if(delta!=0) vmap.push_back(std::pair<Boson*,int>(Psi0+*it,delta));
     }
     return vmap;
   }
 
-  inline const BosonDeltaMapType operator()() const {
+  inline const BosonDeltaMapType operator()() {
     return map();
   }
 
-  // This one is ok to be slow since it is called only in the initializer
-  static inline BosonDeltaMapType map(const std::vector<IndexedProductElement> &p) {
-    std::map<Boson*,int> indices;
-    for(std::vector<IndexedProductElement>::const_iterator it=p.begin(); it!=p.end(); ++it) {
-      int delta=-it->delta();
-      if(delta!=0) indices[it->particle_id()]=delta;
-    }
-
-    BosonDeltaMapType vmap;
-    vmap.reserve(indices.size());
-    std::map<Boson*,int>::const_iterator it;
-    for(it=indices.begin(); it!=indices.end(); ++it)
-      vmap.push_back(*it);
-
-    return vmap;
-  }
 
 };
 
@@ -765,6 +750,7 @@ public:
 
 */
 
+/*
 class TermCount : public Probabilities::UpdatableObject {
 
   const HamiltonianTerm * Kinetic0;
@@ -787,7 +773,7 @@ public:
   }
 
 };
-
+*/
 
 }
 
