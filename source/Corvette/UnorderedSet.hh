@@ -39,6 +39,15 @@ public:
 
   }
 
+
+  void clear() {
+    for(iterator it=begin(); it!=end(); ++it) {
+      map[*it]=0;
+    }
+    data_end=data_begin;
+
+  }
+
   ~UnorderedSet() {
     delete [] data_begin;
     delete [] map;

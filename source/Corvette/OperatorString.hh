@@ -40,9 +40,6 @@ namespace SGF {
 
 enum {LATER,EARLIER};
 
-inline double xcoth(double x) {
-  return (x==0) ? 1 : x/tanh(x);
-}
 
 class OperatorStringType : public Probabilities {
 
@@ -56,7 +53,7 @@ class OperatorStringType : public Probabilities {
   // Some running parameters
   double _Renormalization;  // We need the renormalization for the measurements
   double _DeltaRenormalization; // Holds the difference between left minus right normalition.
-  double WC[2],SumWD,DeltaWD,WSum,WDiff;
+  double WCLEFT,WCRIGHT,SumWD,DeltaWD,WSum,WDiff;
 
   _float_accumulator _diagonal_energy; // Keeps track of the diagonal energy
 
@@ -108,48 +105,6 @@ class OperatorStringType : public Probabilities {
   }
 
   /*
-  	It calculates <GT>/<G> is direction=LEFT and <TG>/<G> is direction is right
-  	Here the direction is the direction of motion of the Green operator.
-  	If the operator moves to the left operators are added to their right
-  	and vice versa.
-  */
-  template<int rl>
-  inline double WeightCreation() const {
-    return weight<!rl>()/G();
-  }
-
-
-
-  /*
-  	This returns the sum WeightDestruction(LEFT)+WeightDestruction(RIGHT)
-  	which is equal to dV/(1-exp(-dV dt))-dV/(1-exp(dV dt)) = dV Coth[dt dV/2]
-  */
-  inline double SumWeightDestuction() const {
-
-    if(CDList.empty())
-      return 0;
-    else {
-      double dV=DeltaV();
-      double dt=DeltaTau();
-      return 2*xcoth(dV*dt/2)/dt;
-
-    }
-  }
-
-  /*
-  	This returns the difference WeightDestruction(LEFT)+WeightDestruction(RIGHT
-  	which is equal to dV/(1-exp(-dV dt))+dV/(1-exp(dV dt)) = dV
-  */
-  inline double DeltaWeightDestuction() const {
-    return CDList.empty() ? 0 : DeltaV();
-  }
-
-  inline double Renormalization() const {
-    return _Renormalization;
-  }
-
-
-  /*
   	Executes a single directed update and returns its length.
   	In this method direction is the direction of motion of the Green operator.
 
@@ -158,8 +113,8 @@ class OperatorStringType : public Probabilities {
   	dV = VL-VR
   	dt = tL-tR
 
-  	Creation Weight LEFT			WC[LEFT]  = <GT>/G()
-  	Creation Weight RIGHT		WC[RIGHT] = <TG>/G()
+  	Creation Weight LEFT			WCLEFT  = <GT>/G()
+  	Creation Weight RIGHT		WCRIGHT = <TG>/G()
   	Destruction Weight LEFT		WD[LEFT]  = dV/(1-exp(-dV dt))
   	Destruction Weight RIGHT 	WD[RIGHT] = -dV/(1-exp(dV dt))
 
@@ -176,13 +131,13 @@ class OperatorStringType : public Probabilities {
   	WD[direction] = (SumWD - Sign[direction]*DeltaWD)/2;
 
   	The total creation destruction weight per direction is
-     WT[LEFT]	   =	WC[LEFT]  +WD[LEFT]
-     WT[RIGHT]	=	WC[RIGHT] +WD[RIGHT]
+     WT[LEFT]	   =	WCLEFT  +WD[LEFT]
+     WT[RIGHT]	=	WCRIGHT +WD[RIGHT]
 
   	and corresponds to Eq. 35 and 36.
   	Similarly I can define
-  	WSum	=WT[LEFT]+WT[RIGHT]		=	WC[LEFT]+WC[RIGHT]+SumWD;
-  	WDiff	=WT[RIGHT]+WT[RIGHT]	=	WC[LEFT]-WC[RIGHT]+DeltaWD;
+  	WSum	=WT[LEFT]+WT[RIGHT]		=	WCLEFT+WCRIGHT+SumWD;
+  	WDiff	=WT[RIGHT]+WT[RIGHT]	=	WCLEFT-WCRIGHT+DeltaWD;
 
   	Again we can parametrize WD[LEFT or RIGHT] by these sum and difference
   	WT[direction] = (WSum - Sign[direction]*WDiff)/2;
@@ -223,13 +178,107 @@ class OperatorStringType : public Probabilities {
 
   	When the string is initialized it is empty and by symmetry <GT>=<TG>
   	Therefore the initialization is
-  	_Renormalization=(1-_Alpha)*(WC[LEFT]+WC[RIGHT])
+  	_Renormalization=(1-_Alpha)*(WCLEFT+WCRIGHT)
   	_DeltaRenormalization=0;
 
 
   */
 
+
+  /*
+    It calculates <GT>/<G> is direction=LEFT and <TG>/<G> is direction is right
+    Here the direction is the direction of motion of the Green operator.
+    If the operator moves to the left operators are added to their right
+    and vice versa.
+
+  template<int rl>
+  inline double WeightCreation() const {
+    return weight<!rl>()/G();
+  }
+  */
+
+
+  /*
+    This returns the sum WeightDestruction(LEFT)+WeightDestruction(RIGHT)
+    which is equal to dV/(1-exp(-dV dt))-dV/(1-exp(dV dt)) = dV Coth[dt dV/2]
+
+  inline double SumWeightDestuction() const {
+
+    if(CDList.empty())
+      return 0;
+    else {
+      double dV=DeltaV();
+      double dt=DeltaTau();
+      return 2*xcoth(dV*dt/2)/dt;
+
+    }
+  }
+
+  */
+  /*
+    This returns the difference WeightDestruction(LEFT)+WeightDestruction(RIGHT
+    which is equal to dV/(1-exp(-dV dt))+dV/(1-exp(dV dt)) = dV
+
+  inline double DeltaWeightDestuction() const {
+    return CDList.empty() ? 0 : DeltaV();
+  }
+
+  */
+
+
+  inline void EvalueRenormalizations() {
+    _Renormalization=(1-_Alpha)*WSum+_Alpha*fabs(WDiff);
+    _DeltaRenormalization=WCLEFT-WCRIGHT+DeltaWD;
+
+  }
+
+  inline void EvaluateRunningPars() {
+    double g=G();
+    WCLEFT=weight<RIGHT>()/g;
+    WCRIGHT=weight<LEFT>()/g;
+
+    if(CDList.empty()) {
+      SumWD= 0;
+      DeltaWD=0;
+    } else {
+      double a=DeltaTau()/2;
+      DeltaWD = DeltaV();
+      SumWD= (DeltaWD*a==0) ? 1/a : DeltaWD/tanh(DeltaWD*a);
+    }
+
+    WSum=WCLEFT+WCRIGHT+SumWD;
+    WDiff=WCLEFT-WCRIGHT+DeltaWD;
+  }
+
+// Destroy the operator in the front of the Green operator
+  template<int rl>
+  void destroy() {
+    update<rl,REMOVE>(CDList.top<rl>().Term);
+    _diagonal_energy -= delta_diagonal<rl>();
+    CDList.pop<rl>();
+  }
+
+// Create an operator to the right of the Green operator
+// Note that the order of "update", "push" and _diagonal_energy increment matters
+  void create_RIGHT() {
+    const HamiltonianTerm *term=choose<RIGHT>();
+    CircularTime tau=newtime();
+    update<RIGHT,ADD>(term);
+    CDList.push<RIGHT>(Operator(tau,term,Energy<RIGHT>()));
+    _diagonal_energy += delta_diagonal<RIGHT>();
+  }
+
+// Create an operator to the left of the Green operator
+  void create_LEFT() {
+    const HamiltonianTerm *term=choose<LEFT>();
+    CircularTime tau=newtime();
+    CDList.push<LEFT>(Operator(tau,term,Energy<LEFT>()));
+    _diagonal_energy += delta_diagonal<LEFT>();
+    update<LEFT,ADD>(term);
+  }
+
 public:
+
 
   OperatorStringType(SGFBase &base) :  Probabilities(base), CDList(base.OperatorCDL), _Beta(base.Beta), _Alpha(base.Alpha) {
 
@@ -244,81 +293,34 @@ public:
   }
 
 
-  inline void EvalueRenormalizations() {
-    _Renormalization=(1-_Alpha)*WSum+_Alpha*fabs(WDiff);
-    _DeltaRenormalization=WC[LEFT]-WC[RIGHT]+DeltaWeightDestuction();
-
-  }
-
-  inline void EvaluateRunningPars() {
-    WC[LEFT]=WeightCreation<LEFT>();
-    WC[RIGHT]=WeightCreation<RIGHT>();
-    SumWD=SumWeightDestuction();
-    DeltaWD=DeltaWeightDestuction();
-    WSum=WC[LEFT]+WC[RIGHT]+SumWD;
-    WDiff=WC[LEFT]-WC[RIGHT]+DeltaWD;
-  }
-
-  inline unsigned int length() const {
+  unsigned long length() const {
     return CDList.length();
   }
 
-  // Calculates the diagonal energy fast using the updated variable.
-  inline double DiagonalEnergy() const {
+// Calculates the diagonal energy fast using the updated variable.
+  double DiagonalEnergy() const {
     return ER_Dtau()+_diagonal_energy;
   }
 
-  // Returns the Kinetic energy from the length of the string
-  inline double KineticEnergy() const {
+// Returns the Kinetic energy from the length of the string
+  double KineticEnergy() const {
     return -static_cast<_float_accumulator>(length())/Beta();
   }
 
-  inline double alpha() const {
+  double alpha() const {
     return _Alpha;
   }
 
-  inline double Beta() const {
+  double Beta() const {
     return _Beta;
   }
 
-  // The weight for the measurements as shown in Eq. 62 of the paper
-  inline double BoltzmannWeight() const {
-    return 1.0/Renormalization()/G();
+// The weight for the measurements as shown in Eq. 62 of the paper
+  double BoltzmannWeight() const {
+    return 1.0/_Renormalization/G();
   }
 
-
-  // Destroy the operator in the front of the Green operator
-  template<int rl>
-  inline void destroy() {
-    update<rl,REMOVE>(CDList.top<rl>().Term);
-    _diagonal_energy -= delta_diagonal<rl>();
-    CDList.pop<rl>();
-    EvaluateRunningPars();
-  }
-
-  // Create an operator to the right of the Green operator
-  // Note that the order of "update", "push" and _diagonal_energy increment matters
-  inline void create_RIGHT() {
-    const HamiltonianTerm *term=choose<RIGHT>();
-    CircularTime tau=newtime();
-    update<RIGHT,ADD>(term);
-    CDList.push<RIGHT>(Operator(tau,term,Energy<RIGHT>()));
-    _diagonal_energy += delta_diagonal<RIGHT>();
-    EvaluateRunningPars();
-  }
-
-  // Create an operator to the left of the Green operator
-  inline void create_LEFT() {
-    const HamiltonianTerm *term=choose<LEFT>();
-    CircularTime tau=newtime();
-    CDList.push<LEFT>(Operator(tau,term,Energy<LEFT>()));
-    _diagonal_energy += delta_diagonal<LEFT>();
-    update<LEFT,ADD>(term);
-    EvaluateRunningPars();
-  }
-
-
-  inline bool ChooseDirectionRight() const {
+  bool ChooseDirectionRight() const {
 
 #ifdef DEBUG
     if(_Renormalization==0) {
@@ -330,39 +332,39 @@ public:
     return _DeltaRenormalization < _Renormalization*(1-2*RNG::Uniform());
   }
 
-  inline bool ChooseCreateRight() const {
+  bool ChooseCreateRight() const {
 
 #ifdef DEBUG
-    if(WC[RIGHT]==0) {
+    if(WCRIGHT==0) {
       std::cerr<<std::endl<<"Error in OperatorString::ChooseCreateRight()"<<std::endl<<"The total probabilities are both zero, no meaningful choice can be made."<<std::endl;
       exit(31);
     }
 #endif
 
-    return (WC[RIGHT]+(SumWD-DeltaWD)/2)*RNG::Uniform()<WC[RIGHT];
+    return (WCRIGHT+(SumWD-DeltaWD)/2)*RNG::Uniform()<WCRIGHT;
   }
 
-  inline bool ChooseCreateLeft() const {
+  bool ChooseCreateLeft() const {
 
 #ifdef DEBUG
-    if(WC[LEFT]==0) {
+    if(WCLEFT==0) {
       std::cerr<<std::endl<<"Error in OperatorString::ChooseCreateLeft()"<<std::endl<<"The total probabilities are both zero, no meaningful choice can be made."<<std::endl;
       exit(32);
     }
 #endif
 
-    return (WC[LEFT ]+(SumWD+DeltaWD)/2)*RNG::Uniform()<WC[LEFT ];
+    return (WCLEFT +(SumWD+DeltaWD)/2)*RNG::Uniform()<WCLEFT;
   }
 
-  inline bool KeepGoingRight() const {
+  bool KeepGoingRight() const {
     return RNG::Uniform()*(WSum+WDiff) < _Alpha*(WSum-fabs(WDiff));
   }
 
-  inline bool KeepGoingLeft() const {
+  bool KeepGoingLeft() const {
     return RNG::Uniform()*(WSum-WDiff) < _Alpha*(WSum-fabs(WDiff));
   }
 
-  inline unsigned int directed_update() {
+  unsigned int directed_update() {
 
     unsigned int UpdateLength=0;
 
@@ -373,6 +375,8 @@ public:
         else
           destroy<RIGHT>();
 
+        EvaluateRunningPars();
+
         ++UpdateLength;
 
       } while(KeepGoingRight());
@@ -382,6 +386,8 @@ public:
           create_RIGHT();
         else
           destroy<LEFT>();
+
+        EvaluateRunningPars();
 
         ++UpdateLength;
 

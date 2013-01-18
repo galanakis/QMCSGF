@@ -4,6 +4,8 @@
 #include "RandomNumberGenerator.hh"
 #include "Conventions.hh"
 #include <vector>
+#include "UnorderedSet.hh"
+
 
 namespace SGF {
 
@@ -50,7 +52,7 @@ t.reset();              // clear everything.
 
 
 
-class TSum {
+class TSumBase {
   typedef std::vector<MatrixElement>::size_type index_type;
 
   std::vector<MatrixElement> _sums;
@@ -91,8 +93,8 @@ class TSum {
 
 public:
 
-  TSum() : _sums(), _elements(0), _norm(0), _guard(0) {}
-  ~TSum() {
+  TSumBase() : _sums(), _elements(0), _norm(0), _guard(0) {}
+  ~TSumBase() {
     delete [] _guard;
     delete [] _buffer;
   }
@@ -155,6 +157,50 @@ public:
 
 };
 
+
+class TSumHC {
+  UnorderedSet list;
+  _float_accumulator _norm;
+  std::vector<MatrixElement>  _elements;
+  typedef unsigned long index_type;
+
+public:
+  TSumHC() : _norm(0), list(10000) {}
+  inline void resize(index_type NTerms) {
+    _elements.resize(NTerms);
+  }
+  const _float_accumulator &norm() const {return _norm;}
+  inline index_type choose() {
+    return list.element(RNG::Uniform()*list.size());
+  }
+
+  inline const MatrixElement &element(index_type index) const {return _elements[index];}
+
+  inline void update(index_type index,MatrixElement me) {
+    if(me!=_elements[index]) {
+      _norm+=me-_elements[index];
+      _elements[index]=me;
+      if(me==0) {
+        list.erase(index);
+      } else {
+        list.insert(index);
+      }
+    }
+  }
+
+  /* Makes all elements zero */
+  inline void reset() {
+    _norm=0;
+    for(index_type i=0; i<_elements.size(); ++i)
+      _elements[i]=0;
+    list.clear();
+  }
+
+
+};
+
+
+typedef TSumBase TSum;
 
 }
 
