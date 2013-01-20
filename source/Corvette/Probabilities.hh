@@ -62,8 +62,8 @@ public:
     boson_vector_t indices;
     boson_set_t indexset;
     for (Hamiltonian::size_type i = 0; i < T.size(); ++i)
-      for (HamiltonianTerm::size_type j = 0; j < T[i].product().size(); ++j)
-        indexset.insert(T[i].product()[j].particle_id());
+      for (HamiltonianTerm::const_iterator jt = T[i].begin(); jt != T[i].end(); ++jt)
+        indexset.insert( jt->particle_id());
 
     indices.insert(indices.begin(), indexset.begin(), indexset.end());
 
@@ -122,8 +122,8 @@ public:
     // First, categorize the Tcol terms by index.
     std::map<Boson*,std::set<Hamiltonian::size_type> > map_to_set;
     for(Hamiltonian::size_type i=0; i<Tcol.size(); ++i)
-      for(Hamiltonian::size_type j=0; j<Tcol[i].product().size(); ++j)
-        map_to_set[Tcol[i].product()[j].particle_id()].insert(i);
+      for(HamiltonianTerm::const_iterator jt=Tcol[i].begin(); jt!=Tcol[i].end(); ++jt)
+        map_to_set[jt->particle_id()].insert(i);
 
     adjacency.clear();
     adjacency.resize(Trow.size());
@@ -132,10 +132,9 @@ public:
        Then, copy the set elements to a vector. */
     for(Hamiltonian::size_type i=0; i<Trow.size(); ++i) {
       std::set<Hamiltonian::size_type> merged;
-      for(Hamiltonian::size_type j=0; j<Trow[i].product().size(); ++j) {
-        if(Trow[i].product()[j].delta()!=0) {
-          Boson* pid=Trow[i].product()[j].particle_id();
-          std::set<Hamiltonian::size_type> &s=map_to_set[pid];
+      for(HamiltonianTerm::const_iterator jt=Trow[i].begin(); jt!=Trow[i].end(); ++jt) {
+        if(jt->delta()!=0) {
+          std::set<Hamiltonian::size_type> &s=map_to_set[jt->particle_id()];
           merged.insert(s.begin(),s.end());
         }
       }
@@ -352,8 +351,8 @@ public:
     if(term==WormInit)
       LockedTerms=!LockedTerms;
 
-    for(unsigned int i=0; i<term->product().size(); ++i) {
-      unsigned int ind=term->product()[i].particle_id()-Psi0;
+    for(HamiltonianTerm::const_iterator it=term->begin(); it!=term->end(); ++it) {
+      unsigned int ind=it->particle_id()-Psi0;
       for(unsigned int u=0; u<2; ++u) {
         if(Extra[2*ind+u].me<rl>()==0)
           available[rl].erase(2*ind+u);
@@ -714,7 +713,7 @@ public:
   }
 
   inline void update(const HamiltonianTerm* term,int,int) {
-    for(std::vector<IndexedProductElement>::const_iterator it=term->product().begin(); it!=term->product().end(); ++it) {
+    for(HamiltonianTerm::const_iterator it=term->begin(); it!=term->end(); ++it) {
       Boson *pind=it->particle_id();
       if(pind->delta()!=0)
         _broken_lines.insert(pind-Psi0);

@@ -11,8 +11,8 @@ namespace SGF {
 template<typename IndexedProductElementClass,int direction>
 MatrixElement MultiplyMe(const typename std::vector<IndexedProductElementClass> &p) {
   unsigned int result=1;
-  for(typename std::vector<IndexedProductElementClass>::size_type i=0; i<p.size(); ++i)
-    result*=p[i].template amplitude<direction>();
+  for(typename std::vector<IndexedProductElementClass>::const_iterator ip=p.begin(); ip<p.end(); ++ip)
+    result*=ip->template amplitude<direction>();
   return sqrt(result);
 }
 
@@ -41,14 +41,12 @@ MatrixElement MultiplyMe(const typename std::vector<IndexedProductElementClass> 
 template<typename MatrixElementClass,typename IndexedProductElementClass>
 class AtomicTerm {
   MatrixElementClass _coefficient;
-  std::vector<IndexedProductElementClass> _product;
+  typedef typename std::vector<IndexedProductElementClass> IndexProductElementVector;
+  IndexProductElementVector _product;
 public:
   AtomicTerm() : _coefficient(1) {} // The constructor really depends on the interface
 
-  AtomicTerm(const MatrixElementClass &c,const IndexedProductElementClass &p) : _coefficient(c) {
-    _product.reserve(1);
-    _product.push_back(p);
-  }
+  AtomicTerm(const MatrixElementClass &c,const IndexedProductElementClass &p) : _coefficient(c), _product(1,p) {}
 
   AtomicTerm(const MatrixElementClass &c,const IndexedProductElementClass &p1,const IndexedProductElementClass &p2) : _coefficient(c) {
     _product.reserve(2);
@@ -56,32 +54,27 @@ public:
     _product.push_back(p2);
   }
 
-  AtomicTerm(MatrixElementClass c,const std::vector<IndexedProductElementClass> &p) : _coefficient(c), _product(p) {}
+  AtomicTerm(MatrixElementClass c,const IndexProductElementVector &p) : _coefficient(c), _product(p) {}
 
-  AtomicTerm(const std::vector<IndexedProductElementClass> &p) : _coefficient(MatrixElementClass(1.0)), _product(p) {}
+  AtomicTerm(const IndexProductElementVector &p) : _coefficient(MatrixElementClass(1.0)), _product(p) {}
 
   AtomicTerm(const AtomicTerm &o) : _coefficient(o._coefficient), _product(o._product) {}
 
-  typedef typename std::vector<IndexedProductElementClass>::const_iterator iterator;
-  typedef typename std::vector<IndexedProductElementClass>::size_type size_type;
+  typedef typename IndexProductElementVector::const_iterator const_iterator;
+
+  const_iterator begin() const {return _product.begin();}
+  const_iterator end() const {return _product.end();}
 
   inline MatrixElementClass &coefficient() {return _coefficient;};
   inline const MatrixElementClass &coefficient() const {return _coefficient;};
-  inline const std::vector<IndexedProductElementClass>& product() const {return _product;}
-
-  inline bool diagonal() const {
-    int result=0;
-    for(size_type i=0; i<_product.size(); ++i)
-      result+=abs(_product[i].delta());
-    return result==0;
-  }
+  inline const IndexProductElementVector& product() const {return _product;}
 
   /* offset after adding/removing the present term */
   template<int action>
   inline int offset() const {
     int result=0;
-    for(size_type i=0; i<_product.size(); ++i)
-      result+=_product[i].template offset<action>();
+    for(const_iterator ip=_product.begin(); ip!=_product.end(); ++ip)
+      result+=ip->template offset<action>();
     return result;
   }
 
@@ -94,8 +87,8 @@ public:
   template<int direction>
   inline unsigned int amplitude() const {
     unsigned int result=1;
-    for(size_type i=0; i<_product.size(); ++i)
-      result*=_product[i].template amplitude<direction>();
+    for(const_iterator ip=_product.begin(); ip!=_product.end(); ++ip)
+      result*=ip->template amplitude<direction>();
     return result;
   }
 
@@ -108,21 +101,21 @@ public:
 
   template<int direction,int action>
   inline void update_psi() const {
-    for(size_type i=0; i<_product.size(); ++i)
-      _product[i].template update<direction,action>();
+    for(const_iterator ip=_product.begin(); ip!=_product.end(); ++ip)
+      ip->template update<direction,action>();
   }
 
   inline int maxoffset() const {
     int result=0;
-    for(size_type i=0; i<_product.size(); ++i)
-      result+=_product[i].maxoffset();
+    for(const_iterator ip=_product.begin(); ip!=_product.end(); ++ip)
+      result+=ip->maxoffset();
     return result;
   }
 
   inline int minoffset() const {
     int result=0;
-    for(size_type i=0; i<_product.size(); ++i)
-      result+=_product[i].minoffset();
+    for(const_iterator ip=_product.begin(); ip!=_product.end(); ++ip)
+      result+=ip->minoffset();
     return result;
   }
 

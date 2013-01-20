@@ -238,36 +238,42 @@ struct BoseHubbard : public Model {
 
     Population=m["Population"].IsInt() ? m["Population"].GetInt() : m["Filling"].GetDouble()*NSites;
 
-
-    InitDistribution.resize(NSites);
-    for(int p=0; p<Population; ++p) {
-      unsigned int i=p%NSites;
-      InitDistribution[i]++;
-    }
+    InitDistribution.resize(NSites,0);
 
     if(Nmax==0 && m.HasMember("InitDistribution") && m["InitDistribution"].GetString()==std::string("Gaussian")) {
       std::vector<double> g=lattice->NonInteractingGS();
-      double norm=0;
-      unsigned int index0=0;
-      double max=0;
+      std::vector<double> gint(NSites+1,0);
       for(unsigned int i=0; i<g.size(); ++i) {
-        norm+=g[i];
-        if(g[i]>max) {
-          max=g[i];
-          index0=i;
+        gint[i+1]=gint[i]+g[i];
+      }
+      unsigned int P=Population;
+      while(P>0) {
+        double rnd;
+        do {
+          rnd=double(rand())/(RAND_MAX);
+        } while(rnd==1.0);
+
+        double r=rnd*gint[NSites];
+
+        //std::cout << rnd <<"\t"<<gint[NSites]<<"\t"<<NSites<<std::endl;
+
+        unsigned int i=0;
+        while(r>=gint[i+1]) {
+          ++i;
         }
-      }
-      unsigned int count=0;
-      for(unsigned int i=0; i<g.size(); ++i) {
-        unsigned int LocalPopulation=floor(Population*g[i]/norm);
-        count+=LocalPopulation;
-        InitDistribution[i]+=LocalPopulation;
-      }
-      if(count<Population) {
-        InitDistribution[index0]+=Population-count;
+
+        ++InitDistribution[i];
+        --P;
+
       }
 
+    } else {
+      for(int p=0; p<Population; ++p) {
+        unsigned int i=p%NSites;
+        InitDistribution[i]++;
+      }
     }
+
 
   }
 

@@ -224,19 +224,8 @@ class IndexedProductElement {
 
   }
 
-
-  inline static int Amplitude1(uint caprod,occupancy_t n) {
-    uint amplitude=1;
-    while(caprod>1) {
-      amplitude*=n+(caprod&1);
-      n += Sign[caprod&1];
-      caprod>>=1;
-    }
-    return amplitude;
-  }
-
   ProductCode code;  // This is the binary representation of a product of c/a operators and the only data in the class
-  Boson* particle;
+  Boson * particle;
 
 public:
   IndexedProductElement(const IndexedProductElement &o) : code(o.code), particle(o.particle) {}
