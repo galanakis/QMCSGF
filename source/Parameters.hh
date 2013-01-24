@@ -324,6 +324,32 @@ struct Parameters {
 
   }
 
+  void MakeMeasurables(SGFBase &Container,Measurable &MeasuredOperators) const {
+    InsertOperator("Potential Energy",Container.V,MeasuredOperators);
+    InsertOperator("Kinetic Energy",Container.T,MeasuredOperators);
+
+    if(HasMeasurable("Number")) {
+      InsertOperator("Particle Number",Orphans::GenerateNumberOperator(Container.Psi),MeasuredOperators);
+    }
+
+    if(HasMeasurable("LocalDensity")) {
+      InsertLocalDensity("Local Density",Container.Psi, MeasuredOperators);
+    }
+
+    if(HasMeasurable("DensityMatrixEigenSystem")) {
+      InsertDensityMatrixEigenSystem("Density Matrix EigenSystem",Container.Psi, MeasuredOperators);
+    }
+
+    if(HasMeasurable("DensityMatrix"))
+      InsertFunnyDensityMatrix("Density Matrix",Container.Psi, MeasuredOperators);
+
+    if(HasMeasurable("DensityMatrixSlow")) {
+      InsertDensityMatrix("Density Matrix",Container.Psi, MeasuredOperators);
+    }
+
+
+  }
+
   std::ostream &print(std::ostream &o) const {
     int w=25;
     std::string indent="  ";

@@ -283,8 +283,6 @@ class Measurable  {
   typedef std::pair<multimap_type::iterator,multimap_type::iterator> equal_range_type;
 
 //  const OperatorStringType &OperatorString; // Holds a reference for the operator string being measured
-  BrokenLines BrokenLineTracer;  // It traces the list of broken lines
-
 
   _float_accumulator buffer_BoltzmannWeight;
   _float_accumulator buffer_kinetic;
@@ -333,7 +331,7 @@ class Measurable  {
   }
 
 public:
-  Measurable(OperatorStringType &OS) : BrokenLineTracer(OS), _Kinetic("Non-diagonal energy",&buffer_kinetic), _Potential("Diagonal energy",&buffer_potential), _TotalEnergy("Total energy") {
+  Measurable() : _Kinetic("Non-diagonal energy",&buffer_kinetic), _Potential("Diagonal energy",&buffer_potential), _TotalEnergy("Total energy") {
     reset();
     _buffers.push_back(&buffer_BoltzmannWeight);
     _buffers.push_back(&buffer_kinetic);
@@ -365,11 +363,9 @@ public:
   }
 
 
-  inline void measure(const OperatorStringType &OperatorString) {
+  inline void measure(const OperatorStringType &OperatorString,const KeyType &key) {
 
     const _float_accumulator Weight=OperatorString.BoltzmannWeight();
-
-    const KeyType &key=BrokenLineTracer();
 
     equal_range_type equal_range=_multimap.equal_range(key);
     for(multimap_type::iterator it=equal_range.first; it!=equal_range.second; ++it) {

@@ -1,3 +1,6 @@
+#ifndef __EXTRAMEASURABLES__
+#define __EXTRAMEASURABLES__
+
 #include "Measurable.hh"
 #include <sstream>
 #include <iomanip>
@@ -342,5 +345,5 @@ void InsertLocalDensity(const std::string &tag,std::vector<SGF::Boson> &Psi,Meas
 }
 
 
-
+#endif
 

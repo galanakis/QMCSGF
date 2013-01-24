@@ -76,6 +76,9 @@ public:
     NumMeasUpdates=0;
     NumDirectedMeasUpdates=0;
 
+    SGF::BrokenLines BrokenLineTracer(OpString);  // It traces the list of broken lines
+
+
 
     for (unsigned int i=0; i<NumBins; ++i) {
 
@@ -86,7 +89,7 @@ public:
         do {
           NumMeasUpdates+=OpString.directed_update();   // Perform an update.
           ++NumDirectedMeasUpdates;
-          MeasuredOp.measure(OpString);          // Perform measurements.
+          MeasuredOp.measure(OpString,BrokenLineTracer());          // Perform measurements.
           BrokenHistorgram[OpString.NBrokenLines()]+=1;
 
         } while(OpString.NBrokenLines()!=0);

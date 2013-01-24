@@ -35,29 +35,9 @@ void Simulator(const SGF::Parameters &p) {
 
   // This defines the measurable objects some of which delay updates even if not measured.
   // This is why I declare the measurable operators after the thermalization.
-  Measurable MeasuredOperators(OperatorString);
+  Measurable MeasuredOperators;
 
-  InsertOperator("Potential Energy",Container.V,MeasuredOperators);
-  InsertOperator("Kinetic Energy",Container.T,MeasuredOperators);
-
-  if(p.HasMeasurable("Number")) {
-    InsertOperator("Particle Number",Orphans::GenerateNumberOperator(Container.Psi),MeasuredOperators);
-  }
-
-  if(p.HasMeasurable("LocalDensity")) {
-    InsertLocalDensity("Local Density",Container.Psi, MeasuredOperators);
-  }
-
-  if(p.HasMeasurable("DensityMatrixEigenSystem")) {
-    InsertDensityMatrixEigenSystem("Density Matrix EigenSystem",Container.Psi, MeasuredOperators);
-  }
-
-  if(p.HasMeasurable("DensityMatrix"))
-    InsertFunnyDensityMatrix("Density Matrix",Container.Psi, MeasuredOperators);
-
-  if(p.HasMeasurable("DensityMatrixSlow")) {
-    InsertDensityMatrix("Density Matrix",Container.Psi, MeasuredOperators);
-  }
+  p.MakeMeasurables(Container,MeasuredOperators);
 
   //We start measurement iterations
   simul.Measure(OperatorString,MeasuredOperators,NBins,MeasIterations,MeasTime);
