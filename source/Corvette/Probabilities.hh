@@ -668,6 +668,344 @@ public:
 
 
 
+class CanonicalProbabilities {
+public:
+  class UpdatableObject {
+  public:
+    UpdatableObject(CanonicalProbabilities &o) {
+      o.insert_update(this);
+    }
+    virtual inline void update(const HamiltonianTerm*,int,int) = 0;
+  };
+
+protected:
+  std::vector<UpdatableObject*> UpdatableObjects;
+
+  boson_vector_t _indices;                // A list of all the bosons
+  int _NBWL;                              // The number of all broken world lines
+  GreenOperator<long double> &GF;         // Defines the Green operator function
+
+  const Hamiltonian &Potential;           // Local reference of the potential operators
+  const AdjacencyList pot_adjacency;      // For each term it holds a list of other kinetic terms with one common site
+
+  const unsigned int RebuildPeriod;       // Number of updates before a rebuild.
+  _integer_counter NUpdates;              // Number of updates since last rebuild. This is only used to fix accumulating floating point errors for the energies
+  _float_accumulator Energies[2];         // energy of right and left state. It is an accumulator
+  std::vector<MatrixElement> EnergyME[2]; // All the potential energies
+
+  const Hamiltonian &Kinetic;             // Local copy of the kinetic operators
+  const AdjacencyList kin_adjacency;      // For each term it holds a list of other kinetic terms with one common site
+  std::vector<TreeType*> tree_cache;      // remembers the offset of each operator
+  ForestType forest;                      // Contains two trees one for each direction
+
+
+  inline boson_vector_t::size_type BosonHash(const Boson *p) const {
+    return p-_indices[0];
+  }
+
+  inline Hamiltonian::size_type KinHash(const HamiltonianTerm* term) const {
+    return term-&Kinetic[0];
+  }
+  inline const HamiltonianTerm* KinTerm(Hamiltonian::size_type iterm) const {
+    return &Kinetic[iterm];
+  }
+
+  inline const HamiltonianTerm* PotTerm(Hamiltonian::size_type iterm) const {
+    return &Potential[iterm];
+  }
+  inline Hamiltonian::size_type PotHash(const HamiltonianTerm* term) const {
+    return term-&Potential[0];
+  }
+
+  // It changes _tsum[2][] and tree_cache.
+  // Implementing this as a template results in a small but noticeable performance improvement
+  template<int rl>
+  inline void update_trees(const term_vector_t &kin) {
+    for(term_vector_t::const_iterator nbr=kin.begin(); nbr!=kin.end(); ++nbr) {
+      Hamiltonian::size_type fndex= KinHash(*nbr);
+      TreeType *i_tree = tree_cache[fndex];
+      TreeType *f_tree = forest(*nbr);
+      MatrixElement fme = (*nbr)->me<rl>();
+      f_tree->tsum[ rl].update(fndex,fme);
+      if(i_tree!=f_tree) {
+        MatrixElement jme = i_tree->tsum[!rl].element(fndex);
+        i_tree->tsum[ rl].update(fndex,0);
+        i_tree->tsum[!rl].update(fndex,0);
+        f_tree->tsum[!rl].update(fndex,jme);
+        tree_cache[fndex] = f_tree;
+      }
+    }
+  }
+
+  // It updates the Energies[2], EnergyME[2][].
+  template<int rl>
+  inline void update_energies(const term_vector_t &pot) {
+    for(term_vector_t::const_iterator nbr=pot.begin(); nbr!=pot.end(); ++nbr) {
+      MatrixElement me=(*nbr)->me<rl>();
+      std::vector<MatrixElement>::size_type i=PotHash(*nbr);
+      Energies[rl]+=me-EnergyME[rl][i];
+      EnergyME[rl][i]=me;
+    }
+    if((++NUpdates % RebuildPeriod)==0)
+      rebuild_energies();
+
+  }
+
+  inline void rebuild_energies() {
+    NUpdates=0;
+    Energies[LEFT]=0;
+    Energies[RIGHT]=0;
+    for(Hamiltonian::size_type i=0; i<Potential.size(); ++i) {
+      Energies[LEFT ]+=EnergyME[LEFT ][i]=PotTerm(i)->me<LEFT>();
+      Energies[RIGHT]+=EnergyME[RIGHT][i]=PotTerm(i)->me<RIGHT>();
+    }
+
+  }
+
+  void insert_update(UpdatableObject *p) {
+    UpdatableObjects.push_back(p);
+  }
+
+
+public:
+
+  CanonicalProbabilities(SGFBase &base) :
+
+    UpdatableObjects(),
+    _indices(Orphans::GetConfiguration(base.T)),
+    _NBWL(Orphans::CountBrokenLines(_indices)),
+    GF(base.g),
+    Potential(base.V),
+    pot_adjacency(Orphans::GetAdjacencyList(base.T,base.V)),
+    RebuildPeriod(1000000),
+    NUpdates(0),
+    Kinetic(base.T),
+    kin_adjacency(Orphans::GetAdjacencyList(base.T,base.T)),
+    forest(base.T.size(),Orphans::GetOffsets(base.T))
+
+  {
+
+    EnergyME[0].resize(base.V.size());
+    EnergyME[1].resize(base.V.size());
+    rebuild_energies();
+
+    tree_cache.resize(base.T.size());
+
+    for(Hamiltonian::size_type i=0; i<base.T.size(); ++i) {
+      TreeType *tree = forest(&base.T[i]);
+      tree_cache[i] = tree;
+      tree->tsum[RIGHT].update(i,base.T[i].me<RIGHT>());
+      tree->tsum[LEFT].update(i,base.T[i].me<LEFT>());
+    }
+
+  }
+
+  ~CanonicalProbabilities() {}
+
+  template<int rl>
+  inline const _float_accumulator &Energy() const {
+    return Energies[rl];
+  }
+
+  inline MatrixElement G(int offset=0) const {
+    return GF(NBrokenLines()+offset);   // The value of the Green Operator given the total broken lines and the offset.
+  }
+
+  template<int rl>
+  inline double weight(OffsetMap::size_type i) const {
+    return G(forest.offset(i))*forest(i)->tsum[rl].norm();
+  }
+
+  template<int rl>
+  inline double weight() const {
+    _float_accumulator s=0.0;
+    for( OffsetMap::size_type i=0; i<forest.size(); ++i)
+      s+=weight<rl>(i);
+    return s;
+  }
+
+  /* Choose the offset first. */
+  template<int rl>
+  const HamiltonianTerm* choose_canonical() const {
+
+    double R=RNG::Uniform()*weight<rl>();
+    OffsetMap::size_type i=0;
+    while((R-=weight<rl>(i))>=0)
+      ++i;
+
+    return KinTerm(forest(i)->tsum[rl].choose());
+
+  }
+
+  inline const int &NBrokenLines() const {
+    return _NBWL;
+  }
+
+  /*
+
+     If the ensemble is GrandCanonical (ensemble!=0)
+     AND if there is no extra term (ensemble->WormInit!=0)
+     AND if there are no broken lines (NBrokenLines()==0)
+     then pick a regular term with a fixed probability.
+
+  */
+
+  template<int rl>
+  const HamiltonianTerm* choose() const {
+
+    double R=RNG::Uniform()*weight<rl>();
+    OffsetMap::size_type i=0;
+    while((R-=weight<rl>(i))>=0)
+      ++i;
+    return KinTerm(forest(i)->tsum[rl].choose());
+
+
+  }
+
+  template<int rl,int arflag>
+  inline void update(const HamiltonianTerm* term) {
+
+
+    term->update_psi<rl,arflag>();
+
+    for(std::vector<UpdatableObject*>::size_type i=0; i<UpdatableObjects.size(); ++i)
+      UpdatableObjects[i]->update(term,rl,arflag);
+
+    /* Updating the number of broken lines.
+      if the update is before the configuration change then
+      _NBWL+=term->offset(arflag);
+      otherwise it is
+      _NBWL-=term->offset(!arflag); */
+
+    _NBWL-=term->offset<!arflag>();
+
+    update_trees<rl>(kin_adjacency[KinHash(term)]);
+    update_energies<rl>(pot_adjacency[KinHash(term)]);
+
+  }
+
+  friend class BrokenLines;
+
+};
+
+
+
+class GrandProbabilities : public CanonicalProbabilities {
+
+  Hamiltonian Extra;                            // The list of extra terms
+  AdjacencyList extra_kin_adjacency;            // Adjacency list between the extra terms and the kinetic terms
+  AdjacencyList extra_pot_adjacency;            // Adjacency list between the extra terms and the potential terms
+  UnorderedSet available[2];                    // contains a list of the permitted terms (non zero matrix element) in each direction
+  bool LockedTerms;                             // false if there is already an extra term.
+  const HamiltonianTerm* WormInit;              // It contains a pointer to the extra term in the opertor string or zero if there is none
+
+public:
+
+
+  GrandProbabilities(SGFBase &base) : CanonicalProbabilities(base), WormInit(0), LockedTerms(false) {
+    //
+    // The extra terms appear in pairs with the same index.
+    //
+    for(boson_vector_t::size_type i=0; i<_indices.size(); ++i) {
+      Extra.push_back(HamiltonianTerm(1.0,IndexedProductElement(C,_indices[i])));
+      Extra.push_back(HamiltonianTerm(1.0,IndexedProductElement(A,_indices[i])));
+    }
+
+
+    extra_kin_adjacency=Orphans::GetAdjacencyList(Extra,base.T);
+    extra_pot_adjacency=Orphans::GetAdjacencyList(Extra,base.V);
+
+    available[LEFT].initialize(Extra.size());
+    available[RIGHT].initialize(Extra.size());
+    for(Hamiltonian::size_type i=0; i<Extra.size(); ++i) {
+      update<LEFT>(i);
+      update<RIGHT>(i);
+    }
+
+  }
+
+  template<int rl>
+  void update(unsigned int i) {
+    if(Extra[i].me<rl>()==0)
+      available[rl].erase(i);
+    else
+      available[rl].insert(i);
+  }
+
+  // Returns a random pointer to an extra term
+  template<int rl>
+  const HamiltonianTerm* choose_extra() {
+    return WormInit=&Extra[available[rl].element(RNG::UniformInteger(available[rl].size()))];
+  }
+  // Returns a reference to the vector containing the regular kinetic terms that will be affected
+  const term_vector_t &kin_adjacency_extra(const HamiltonianTerm* term) const {
+    return extra_kin_adjacency[term-&Extra[0]];
+  }
+  // Same for the potential terms
+  const term_vector_t &pot_adjacency_extra(const HamiltonianTerm* term) const {
+    return extra_pot_adjacency[term-&Extra[0]];
+  }
+
+
+  template<int rl>
+  const HamiltonianTerm* choose() {
+
+    double Weight=weight<rl>();
+
+    if( Weight==0 || (!LockedTerms && NBrokenLines()==0 && RNG::Uniform()<ExtraTermProbability) )
+      return choose_extra<rl>();
+    else {
+      double R=RNG::Uniform()*Weight;
+      OffsetMap::size_type i=0;
+      while((R-=weight<rl>(i))>=0)
+        ++i;
+      return KinTerm(forest(i)->tsum[rl].choose());
+    }
+
+
+  }
+
+  template<int rl,int arflag>
+  inline void update(const HamiltonianTerm* term) {
+
+
+    term->update_psi<rl,arflag>();
+
+    for(std::vector<UpdatableObject*>::size_type i=0; i<UpdatableObjects.size(); ++i)
+      UpdatableObjects[i]->update(term,rl,arflag);
+
+    /* Updating the number of broken lines.
+      if the update is before the configuration change then
+      _NBWL+=term->offset(arflag);
+      otherwise it is
+      _NBWL-=term->offset(!arflag); */
+
+    _NBWL-=term->offset<!arflag>();
+
+    // If there is no reference to the GrandCanonicalContainer, we work in the canonical ensemble
+    if( WormInit!=term ) {
+      update_trees<rl>(kin_adjacency[KinHash(term)]);
+      update_energies<rl>(pot_adjacency[KinHash(term)]);
+    } else {
+      update_trees<rl>(kin_adjacency_extra(term));
+      update_energies<rl>(pot_adjacency_extra(term));
+    }
+
+    if(term==WormInit)
+      LockedTerms=!LockedTerms;
+
+    for(HamiltonianTerm::const_iterator it=term->begin(); it!=term->end(); ++it) {
+      unsigned int ind=BosonHash(it->particle_id());
+      for(unsigned int u=0; u<2; ++u)
+        update<rl>(2*ind+u);
+    }
+
+  }
+
+
+};
+
+
 
 /*
   class BrokenLines
@@ -698,13 +1036,13 @@ inline BosonDeltaMapType GetTermHash(const std::vector<IndexedProductElement> &p
 }
 
 
-class BrokenLines : public Probabilities::UpdatableObject {
+class BrokenLines : public CanonicalProbabilities::UpdatableObject {
   UnorderedSet _broken_lines;
   Boson* Psi0;
 public:
 
 
-  BrokenLines(Probabilities &c) :  Probabilities::UpdatableObject(c),_broken_lines(c._indices.size()) {
+  BrokenLines(CanonicalProbabilities &c) :  CanonicalProbabilities::UpdatableObject(c),_broken_lines(c._indices.size()) {
     Psi0=c._indices[0];
     for(boson_vector_t::const_iterator it=c._indices.begin(); it!=c._indices.end(); ++it) {
       if((*it)->delta() != 0)

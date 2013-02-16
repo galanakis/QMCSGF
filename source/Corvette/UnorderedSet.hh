@@ -6,7 +6,9 @@
 namespace SGF {
 
 class UnorderedSet {
-  typedef unsigned int size_type;
+
+protected:
+  typedef unsigned long size_type;
 
   size_type _capacity;
   size_type *data_begin, *data_end;

@@ -363,6 +363,7 @@ public:
   }
 
 
+  template<class OperatorStringType>
   inline void measure(const OperatorStringType &OperatorString,const KeyType &key) {
 
     const _float_accumulator Weight=OperatorString.BoltzmannWeight();

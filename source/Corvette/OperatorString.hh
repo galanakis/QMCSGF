@@ -15,13 +15,13 @@ namespace SGF {
 
 
 /*
-  class OperatorStringType
+  class OperatorStringBase
   defines a list appropriate to use as an kinetic term string.
   It is a CircDList (circular double linked list) for kinetic
   operators. Each operator is a HamiltonianTerm (product of
   creation/annihilation operators) and a time in the imaginary
   axis (CircularTime). The time of the Green operator (Root of
-  the list) is an additional member of the OperatorStringType.
+  the list) is an additional member of the OperatorStringBase.
 
   Notable methods:
 
@@ -40,8 +40,8 @@ namespace SGF {
 
 enum {LATER,EARLIER};
 
-
-class OperatorStringType : public Probabilities {
+template<typename T>
+class OperatorStringBase : public T {
 
 
 
@@ -64,6 +64,20 @@ class OperatorStringType : public Probabilities {
   }
   inline double ER_Dtau() const {
     return CDList.empty() ? Energy<RIGHT>() : Energy<RIGHT>()*(CDList.top<LEFT>().Time-CDList.top<RIGHT>().Time).time();
+  }
+
+  template<int rl>
+  inline const _float_accumulator &Energy() const {
+    return T::template Energy<rl>();
+  }
+
+  template<int rl>
+  inline double weight() const {
+    return T::template weight<rl>();
+  }
+
+  inline MatrixElement G(int offset=0) const {
+    return T::G();
   }
 
 
@@ -253,7 +267,7 @@ class OperatorStringType : public Probabilities {
 // Destroy the operator in the front of the Green operator
   template<int rl>
   void destroy() {
-    update<rl,REMOVE>(CDList.top<rl>().Term);
+    T::template update<rl,REMOVE>(CDList.top<rl>().Term);
     _diagonal_energy -= delta_diagonal<rl>();
     CDList.pop<rl>();
   }
@@ -261,29 +275,26 @@ class OperatorStringType : public Probabilities {
 // Create an operator to the right of the Green operator
 // Note that the order of "update", "push" and _diagonal_energy increment matters
   void create_RIGHT() {
-    const HamiltonianTerm *term=choose<RIGHT>();
+    const HamiltonianTerm* term=T::template choose<RIGHT>();
     CircularTime tau=newtime();
-    update<RIGHT,ADD>(term);
+    T::template update<RIGHT,ADD>(term);
     CDList.push<RIGHT>(Operator(tau,term,Energy<RIGHT>()));
     _diagonal_energy += delta_diagonal<RIGHT>();
   }
 
 // Create an operator to the left of the Green operator
   void create_LEFT() {
-    const HamiltonianTerm *term=choose<LEFT>();
+    const HamiltonianTerm* term=T::template choose<LEFT>();
     CircularTime tau=newtime();
     CDList.push<LEFT>(Operator(tau,term,Energy<LEFT>()));
     _diagonal_energy += delta_diagonal<LEFT>();
-    update<LEFT,ADD>(term);
+    T::template update<LEFT,ADD>(term);
   }
 
 public:
 
 
-  OperatorStringType(SGFBase &base) :  Probabilities(base), CDList(base.OperatorCDL), _Beta(base.Beta), _Alpha(base.Alpha) {
-
-
-    //OperatorStringType(const Hamiltonian &T,const Hamiltonian &V,double beta,GreenOperator<long double> &g,CircDList<Operator> &cdl, double alpha) : CDList(cdl), Probabilities(T,V,g), _Beta(beta), _Alpha(alpha) {
+  OperatorStringBase(SGFBase &base) :  T(base), CDList(base.OperatorCDL), _Beta(base.Beta), _Alpha(base.Alpha) {
 
     _diagonal_energy=DiagonalEnergyIntegral();
 
@@ -402,6 +413,10 @@ public:
 
 
 };
+
+typedef OperatorStringBase<CanonicalProbabilities> CanonicalOperatorString;
+typedef OperatorStringBase<GrandProbabilities> GrandOperatorString;
+//typedef CanonicalOperatorString OperatorStringType;
 
 }
 

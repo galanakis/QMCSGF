@@ -45,7 +45,7 @@ executable="corv"
 source="source/Corvette-SGF.cpp"
 
 # Compiler selections
-icc='/opt/intel/composerxe/bin/icc -m64 -fast -fp-model precise'
+icc='/opt/intel/composerxe/bin/icc -m64 -fast -fp-model precise -std=c++0x'
 gcc='g++-mp-4.7 -O3'
 clang='clang++ -O3'
 
@@ -143,7 +143,7 @@ task :corv_example => [:rng_mt,:cmdlineprogress,:mkl] do
 	puts %x{#{cmd}}	
 end
 
-task :default => [:corv] do
+task :default => [:corv_boson] do
 end
 
 task :everything => [:corv,:corv_boson,:corv_example] do
