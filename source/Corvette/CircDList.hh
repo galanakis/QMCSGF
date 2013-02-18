@@ -54,6 +54,10 @@ public:
   inline string_size_type length() const {return que.size();}
   inline bool empty() const {return que.empty();}
   inline const T &operator[](string_size_type i) const {return que[i];}
+  inline T &operator[](string_size_type i) {return que[i];}
+
+  friend class SGFBase;
+
 };
 
 

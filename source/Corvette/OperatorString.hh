@@ -8,6 +8,8 @@
 #include "RandomNumberGenerator.hh"
 #include "SGFBase.hh"
 
+#include <iomanip>
+
 namespace SGF {
 
 
@@ -301,8 +303,52 @@ public:
     EvaluateRunningPars();
     EvalueRenormalizations();
 
+    //print_internal();
+
   }
 
+
+  void print_internal() {
+
+    T::print_probabilities();
+    std::cout<<"Ostring Data"<<std::endl;
+    std::cout<<_Beta<<std::endl;
+    std::cout<<_Alpha<<std::endl;
+    // Some running parameters
+    std::cout<< _Renormalization<<std::endl;  // We need the renormalization for the measurements
+    std::cout<< _DeltaRenormalization<<std::endl; // Holds the difference between left minus right normalition.
+    std::cout<< WCLEFT <<std::endl;
+    std::cout<<WCRIGHT<<std::endl;
+    std::cout<<SumWD<<std::endl;
+    std::cout<<DeltaWD<<std::endl;
+    std::cout<<WSum<<std::endl;
+    std::cout<<WDiff<<std::endl;
+
+    std::cout<<_diagonal_energy<<std::endl; // Keeps track of the diagonal energy
+
+    std::cout<<"Operator String (size= "<<length()<<")"<<std::endl;
+
+    Operator *o;
+
+    unsigned int precision=17;
+
+    for(unsigned long i=0; i<length(); ++i) {
+
+      o=&CDList[i];
+
+      std::cout<<std::right<<"    ["<<std::setw(6)<<T::KinHash(o->Term)<<", "<<std::fixed<<std::setprecision(precision)<<std::setw(precision+5)<<std::left<<o->Time.time()<<", "<<std::setw(21)<<o->Energy<<"],"<<std::endl;
+
+    }
+
+
+
+  }
+
+  ~OperatorStringBase() {
+
+    //print_internal();
+
+  }
 
   unsigned long length() const {
     return CDList.length();

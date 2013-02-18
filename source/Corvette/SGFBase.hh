@@ -6,6 +6,9 @@
 #include "CircDList.hh"
 #include "GreenOperator.hh"
 #include "Conventions.hh"
+#include <iostream>
+#include <fstream>
+#include <iomanip>
 
 namespace SGF {
 
@@ -42,6 +45,46 @@ struct SGFBase {
   double Alpha;
   double Beta;
   ensemble_t Ensemble;
+
+  void write(const std::string &fname) {
+
+    const unsigned int precision=17;
+
+    std::ofstream output;
+    output.open(fname.c_str());
+
+    output<<"{"<<std::endl;
+    output<<"  \"configuration\": ["<<std::endl;
+    std::vector<Boson>::size_type i;
+    for(i=0; i<Psi.size()-1; ++i) {
+      output<<"    "<<Psi[i].nR()<<","<<std::endl;
+    }
+    output<<"    "<<Psi[i].nR()<<std::endl;
+
+    output<<"  ],"<<std::endl;
+
+    output<<"  \"operators\": ["<<std::endl;
+
+    Operator *o;
+
+    for(i=0; i+1<OperatorCDL.que.size(); ++i) {
+
+      o=&OperatorCDL.que[i];
+
+      output<<std::right<<"    ["<<std::setw(6)<<o->Term-&T[0]<<", "<<std::fixed<<std::setprecision(precision)<<std::setw(precision+5)<<std::left<<o->Time.time()<<", "<<std::setw(21)<<o->Energy<<"],"<<std::endl;
+
+    }
+
+    o=&OperatorCDL.que[i];
+
+    output<<std::right<<"    ["<<std::setw(6)<<o->Term-&T[0]<<", "<<std::fixed<<std::setprecision(precision)<<std::setw(precision+5)<<std::left<<o->Time.time()<<", "<<std::setw(21)<<o->Energy<<"]"<<std::endl;
+
+    output<<"  ]"<<std::endl;
+
+    output<<"}"<<std::endl;
+
+
+  }
 
 };
 

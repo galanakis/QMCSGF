@@ -43,7 +43,7 @@ public:
   SGFBase Container;
   Measurable MeasuredOperators;
 
-
+  std::string outputConfiguration;
 
 
   Simulation(const SGF::Parameters &p) {
@@ -72,6 +72,8 @@ public:
 
     p.MakeContainer(Container);
     p.MakeMeasurables(Container,MeasuredOperators);
+
+    outputConfiguration=p.outputConfiguration();
 
   }
 
@@ -217,7 +219,13 @@ public:
     for(int i=0; i<MeasuredOperators.size(); ++i)
       o<<MeasuredOperators.Quantity(i)<<std::endl;
 
+
+    if(outputConfiguration!="")
+      Container.write(outputConfiguration);
+
+
   }
+
 };
 
 
