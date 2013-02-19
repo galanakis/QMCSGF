@@ -54,6 +54,7 @@ struct SGFBase {
     output.open(fname.c_str());
 
     output<<"{"<<std::endl;
+    output<<"  \"nsites\": "<<Psi.size()<<","<<std::endl;
     output<<"  \"configuration\": ["<<std::endl;
     std::vector<Boson>::size_type i;
     for(i=0; i<Psi.size()-1; ++i) {
@@ -62,6 +63,8 @@ struct SGFBase {
     output<<"    "<<Psi[i].nR()<<std::endl;
 
     output<<"  ],"<<std::endl;
+
+    output<<"  \"nterms\": "<<T.size()<<","<<std::endl;
 
     output<<"  \"operators\": ["<<std::endl;
 

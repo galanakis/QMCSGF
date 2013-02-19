@@ -66,14 +66,14 @@ public:
     NumDirectedMeasUpdates=0;
     NumBins=p.NBins;
 
-    SimulName=p.label();
+    SimulName=p.modelID;
 
     BrokenHistorgram.resize(MAXNUMBROKENLINES);
 
     p.MakeContainer(Container);
     p.MakeMeasurables(Container,MeasuredOperators);
 
-    outputConfiguration=p.outputConfiguration();
+    outputConfiguration=p.outputConfiguration;
 
   }
 

@@ -42,7 +42,6 @@ public:
   virtual std::ostream &print(std::ostream &o,const std::string &) const = 0;
   virtual void MakeContainer(SGFBase &Container) const =0;
   virtual unsigned int nsites() const =0;
-  virtual const std::string &outputConfiguration() const =0;
 };
 
 struct BoseHubbard : public Model {
@@ -59,57 +58,8 @@ struct BoseHubbard : public Model {
 
   std::vector<unsigned int> InitDistribution;
 
-  std::string input_configuration;
-  std::string output_configuration;
-
-
   unsigned int nsites() const {
     return lattice->size();
-  }
-
-
-  const std::string &outputConfiguration() const {
-    return output_configuration;
-  }
-
-  void read_configuration(SGFBase &Container) const {
-
-    rapidjson::Document d;
-    std::string json=readInputFile(input_configuration.c_str());
-
-    if(json=="")
-      return;
-
-    d.Parse<0>(json.c_str());
-
-
-
-    const rapidjson::Value &psi=d["configuration"];
-
-    const rapidjson::Value &terms=d["operators"];
-
-    unsigned long nsites=psi.Size();
-    unsigned long nterms=terms.Size();
-
-    for(unsigned long i=0; i<nsites; ++i) {
-      Container.Psi[i].nR()=Container.Psi[i].nL()=psi[i].GetInt();
-    }
-
-    enum {_Term,_Time,_Energy};
-
-    for(unsigned long i=0; i<nterms; ++i) {
-
-      const rapidjson::Value &oo=terms[i];
-
-      unsigned long iterm=oo[_Term].GetInt();
-      CircularTime Time(oo[_Time].GetDouble());
-      double Energy(oo[_Energy].GetDouble());
-
-      Container.OperatorCDL.push<LEFT>(Operator(Time,&Container.T[iterm],Energy));
-
-
-    }
-
   }
 
 
@@ -164,11 +114,6 @@ struct BoseHubbard : public Model {
       }
 
     }
-
-    if(input_configuration!="") {
-      read_configuration(Container);
-    }
-
 
   }
 
@@ -329,28 +274,6 @@ struct BoseHubbard : public Model {
       }
     }
 
-    input_configuration="";
-
-    if(m.HasMember("InitOperatorString") && m["InitOperatorString"].IsString()) {
-
-      input_configuration=m["InitOperatorString"].GetString();
-
-
-    }
-
-    output_configuration="";
-
-    if(m.HasMember("OutputOperatorString") && m["OutputOperatorString"].IsString()) {
-
-      output_configuration=m["OutputOperatorString"].GetString();
-
-
-    }
-
-
-
-
-
   }
 
 };
@@ -374,17 +297,56 @@ struct Parameters {
   unsigned long MeasTime;
   unsigned long MeasIterations;
 
-  std::string configuration_input;
+  std::string inputConfiguration;
+  std::string outputConfiguration;
 
   std::vector<std::string> Measurables;
 
   Model *model;
 
-  std::string model_id;
+  std::string modelID;
 
-  std::string label() const {
-    return model_id;
+  void read_configuration(SGFBase &Container) const {
+
+    rapidjson::Document d;
+    std::string json=readInputFile(inputConfiguration.c_str());
+
+    if(json=="")
+      return;
+
+    d.Parse<0>(json.c_str());
+
+
+
+    const rapidjson::Value &psi=d["configuration"];
+
+    const rapidjson::Value &terms=d["operators"];
+
+    unsigned long nsites=psi.Size();
+    unsigned long nterms=terms.Size();
+
+    for(unsigned long i=0; i<nsites; ++i) {
+      Container.Psi[i].nR()=Container.Psi[i].nL()=psi[i].GetInt();
+    }
+
+    enum {_Term,_Time,_Energy};
+
+    for(unsigned long i=0; i<nterms; ++i) {
+
+      const rapidjson::Value &oo=terms[i];
+
+      unsigned long iterm=oo[_Term].GetInt();
+      CircularTime Time(oo[_Time].GetDouble());
+      double Energy(oo[_Energy].GetDouble());
+
+      Container.OperatorCDL.push<LEFT>(Operator(Time,&Container.T[iterm],Energy));
+
+
+    }
+
   }
+
+
 
   bool HasMeasurable(const std::string &s) const {
     bool result=false;
@@ -400,10 +362,8 @@ struct Parameters {
     model->MakeContainer(Container);
     Container.g.initialize(model->nsites(),GreenOperatorLines);
 
-  }
+    read_configuration(Container);
 
-  const std::string outputConfiguration() const {
-    return model->outputConfiguration();
   }
 
   void MakeMeasurables(SGFBase &Container,Measurable &MeasuredOperators) const {
@@ -443,10 +403,6 @@ struct Parameters {
     o<<indent<<std::setw(w)<<std::left<<"GreenOperatorLines:"<<GreenOperatorLines<<std::endl;
     o<<indent<<std::setw(w)<<std::left<<"Seed:"<<Seed<<std::endl;
     o<<indent<<std::setw(w)<<std::left<<"NBins:"<<NBins<<std::endl;
-    //o<<indent<<std::setw(w)<<std::left<<"WarmTime:"<<WarmTime<<std::endl;
-    //o<<indent<<std::setw(w)<<std::left<<"WarmIterations:"<<WarmIterations<<std::endl;
-    //o<<indent<<std::setw(w)<<std::left<<"MeasTime:"<<MeasTime<<std::endl;
-    //o<<indent<<std::setw(w)<<std::left<<"MeasIterations:"<<MeasIterations<<std::endl;
 
     return o;
   }
@@ -491,6 +447,16 @@ struct Parameters {
     }
 
 
+    inputConfiguration="";
+    if(sgf.HasMember("InitOperatorString") && sgf["InitOperatorString"].IsString())
+      inputConfiguration=sgf["InitOperatorString"].GetString();
+
+    outputConfiguration="";
+    if(sgf.HasMember("OutputOperatorString") && sgf["OutputOperatorString"].IsString())
+      outputConfiguration=sgf["OutputOperatorString"].GetString();
+
+
+
     /*
        Model specific stuff.
        Those are relevant to the Hubbard model on a chain/square/cubic lattice
@@ -502,7 +468,7 @@ struct Parameters {
     // The only model we know :-)
     assert(m["Label"].GetString()==std::string("BoseHubbard"));
 
-    model_id=m["Label"].GetString();
+    modelID=m["Label"].GetString();
 
     BoseHubbard *model_ptr=new BoseHubbard(d["Model"]);
 

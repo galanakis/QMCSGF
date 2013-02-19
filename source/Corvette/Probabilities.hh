@@ -278,30 +278,6 @@ public:
 };
 
 
-//
-// It is used to convert pointers to indices.
-//
-class TermHash {
-
-  const HamiltonianTerm* Origin;
-  typedef Hamiltonian::size_type size_type;
-
-public:
-  TermHash(const Hamiltonian &H) : Origin(&H[0]) {}
-  size_type Hash(const HamiltonianTerm* p) const {
-    return p-Origin;
-  }
-  const HamiltonianTerm *Term(const size_type i) const {
-    return Origin+i;
-  }
-
-};
-
-
-
-const double ExtraTermProbability=0.05;
-
-
 class CanonicalProbabilities {
 public:
   class UpdatableObject {
@@ -485,19 +461,6 @@ public:
     return s;
   }
 
-  /* Choose the offset first. */
-  template<int rl>
-  const HamiltonianTerm* choose_canonical() const {
-
-    double R=RNG::Uniform()*weight<rl>();
-    OffsetMap::size_type i=0;
-    while((R-=weight<rl>(i))>=0)
-      ++i;
-
-    return KinTerm(forest(i)->tsum[rl].choose());
-
-  }
-
   inline const int &NBrokenLines() const {
     return _NBWL;
   }
@@ -547,8 +510,9 @@ public:
 
     update_config<rl,arflag>(term);
 
-    update_trees<rl>(kin_adjacency[KinHash(term)]);
-    update_energies<rl>(pot_adjacency[KinHash(term)]);
+    unsigned long iterm=KinHash(term);
+    update_trees<rl>(kin_adjacency[iterm]);
+    update_energies<rl>(pot_adjacency[iterm]);
 
   }
 
@@ -557,6 +521,7 @@ public:
 };
 
 
+const double ExtraTermProbability=0.05;
 
 class GrandProbabilities : public CanonicalProbabilities {
 
@@ -585,34 +550,19 @@ public:
     available[LEFT].initialize(Extra.size());
     available[RIGHT].initialize(Extra.size());
     for(Hamiltonian::size_type i=0; i<Extra.size(); ++i) {
-      update<LEFT>(i);
-      update<RIGHT>(i);
+      update_extra<LEFT>(i);
+      update_extra<RIGHT>(i);
     }
 
   }
 
   template<int rl>
-  void update(unsigned int i) {
+  void update_extra(unsigned int i) {
     if(Extra[i].me<rl>()==0)
       available[rl].erase(i);
     else
       available[rl].insert(i);
   }
-
-  // Returns a random pointer to an extra term
-  template<int rl>
-  const HamiltonianTerm* choose_extra() {
-    return WormInit=&Extra[available[rl].element(RNG::UniformInteger(available[rl].size()))];
-  }
-  // Returns a reference to the vector containing the regular kinetic terms that will be affected
-  const term_vector_t &kin_adjacency_extra(const HamiltonianTerm* term) const {
-    return extra_kin_adjacency[term-&Extra[0]];
-  }
-  // Same for the potential terms
-  const term_vector_t &pot_adjacency_extra(const HamiltonianTerm* term) const {
-    return extra_pot_adjacency[term-&Extra[0]];
-  }
-
 
   template<int rl>
   const HamiltonianTerm* choose() {
@@ -620,7 +570,7 @@ public:
     double Weight=weight<rl>();
 
     if( Weight==0 || (!LockedTerms && NBrokenLines()==0 && RNG::Uniform()<ExtraTermProbability) )
-      return choose_extra<rl>();
+      return WormInit=&Extra[available[rl].element(RNG::UniformInteger(available[rl].size()))];
     else {
       double R=RNG::Uniform()*Weight;
       OffsetMap::size_type i=0;
@@ -639,20 +589,19 @@ public:
 
     // If there is no reference to the GrandCanonicalContainer, we work in the canonical ensemble
     if( WormInit!=term ) {
-      update_trees<rl>(kin_adjacency[KinHash(term)]);
-      update_energies<rl>(pot_adjacency[KinHash(term)]);
+      unsigned long iterm=KinHash(term);
+      update_trees<rl>(kin_adjacency[iterm]);
+      update_energies<rl>(pot_adjacency[iterm]);
     } else {
-      update_trees<rl>(kin_adjacency_extra(term));
-      update_energies<rl>(pot_adjacency_extra(term));
-    }
-
-    if(term==WormInit)
+      update_trees<rl>(extra_kin_adjacency[term-&Extra[0]]);
+      update_energies<rl>(extra_pot_adjacency[term-&Extra[0]]);
       LockedTerms=!LockedTerms;
+    }
 
     for(HamiltonianTerm::const_iterator it=term->begin(); it!=term->end(); ++it) {
       unsigned int ind=BosonHash(it->particle_id());
       for(unsigned int u=0; u<2; ++u)
-        update<rl>(2*ind+u);
+        update_extra<rl>(2*ind+u);
     }
 
   }
