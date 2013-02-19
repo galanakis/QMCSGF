@@ -279,6 +279,210 @@ struct BoseHubbard : public Model {
 };
 
 
+struct SSL2D : public Model {
+
+  double J1,J2,J3,J4;         // Hoping parameters
+  double Delta;               // Anisotropy
+  double Beta;                // Temperature
+  ensemble_t ensemble;        // Allow the magnetization to fluctuate or not
+  double Hz;                  // magnetic field.
+  boundary_t boundary;        // periodic or open boundary conditions;
+  unsigned int Lx,Ly;
+  unsigned int NSites;
+  unsigned int Population;
+
+  std::vector< std::vector< unsigned int > > map;
+
+  unsigned int nsites() const {return NSites;}
+
+
+  SSL2D(const rapidjson::Value &m) {
+
+    J1=m["J1"].GetDouble();
+    J2=m["J2"].GetDouble();
+    J3=m["J3"].IsNumber() ? m["J3"].GetDouble() : 0;
+    J4=m["J4"].IsNumber() ? m["J4"].GetDouble() : 0;
+
+
+    Delta=m["Delta"].GetDouble();
+
+    Lx=m["Lx"].GetInt();
+    Ly=m["Ly"].GetInt();
+
+    // Only one of "Beta" or "Temperature" should be present, but not both.
+    assert(m["Beta"].IsNumber() ^ m["Temperature"].IsNumber());
+    Beta= m.HasMember("Beta") ? m["Beta"].GetDouble() : 1.0/m["Temperature"].GetDouble();
+
+    // The ensemble can only be Canonical or GrandCanonical;
+    assert(m["Ensemble"].GetString()==std::string("Canonical") || m["Ensemble"].GetString()==std::string("GrandCanonical"));
+    ensemble = m["Ensemble"].GetString()==std::string("Canonical") ? Canonical : GrandCanonical;
+
+    // If the ensemble is Canonical there should be a chemical potential
+    Hz=m["Hz"].IsNumber() ? m["Hz"].GetDouble() : 0;
+
+    std::map<std::string,boundary_t> bcmap;
+    bcmap["open"]=open;
+    bcmap["periodic"]=periodic;
+
+    std::string bcstring=m["Boundary"].GetString();
+    assert(bcstring==std::string("open") || bcstring==std::string("periodic"));
+    boundary= bcmap[bcstring];
+
+    Population=m["Population"].GetDouble();
+
+    NSites=Lx*Ly;
+
+    map.resize(Lx);
+
+    for(unsigned int x=0; x<Lx; ++x)
+      map[x].resize(Ly,nsites());
+
+    unsigned int count=0;
+
+    for(unsigned int y=0; y<Ly; ++y)
+      for(unsigned int x=0; x<Lx; ++x)
+        map[x][y]=count++;
+
+
+    if(Population>NSites) {
+      std::cerr<<"The magnetization is larger than the capacity of the system!"<<std::endl;
+      exit(33);
+    }
+
+    if( (Population==0 || Population==NSites) && ensemble==Canonical) {
+      std::cerr<<"Maximum/Minimum magnetization in the canonical ensemble. Unique configuration and meaningless to proceed."<<std::endl;
+      exit(33);
+    }
+
+
+
+  }
+
+  std::ostream &print(std::ostream &o,const std::string &indent) const {
+    int w=25;
+    o<<indent<<std::setw(w)<<std::left<<"Model:"<<"HeisenbergSSL\n";
+    o<<indent<<std::setw(w)<<std::left<<"Lx:"<<Lx<<"\n";
+    o<<indent<<std::setw(w)<<std::left<<"Ly:"<<Ly<<"\n";
+    o<<indent<<std::setw(w)<<std::left<<"NSites:"<<NSites<<"\n";
+    o<<indent<<std::setw(w)<<std::left<<"Population:"<<Population<<"\n";
+    o<<indent<<std::setw(w)<<std::left<<"Magnetization:"<<double(Population)-0.5*NSites<<"\n";
+    o<<indent<<std::setw(w)<<std::left<<"Beta:"<<std::setprecision(10)<<Beta<<"\n";
+    o<<indent<<std::setw(w)<<std::left<<"Temperature:"<<std::setprecision(10)<<1.0/Beta<<"\n";
+    o<<indent<<std::setw(w)<<std::left<<"J1:"<<J1<<"\n";
+    o<<indent<<std::setw(w)<<std::left<<"J2:"<<J2<<"\n";
+    o<<indent<<std::setw(w)<<std::left<<"J3:"<<J3<<"\n";
+    o<<indent<<std::setw(w)<<std::left<<"J4:"<<J4<<"\n";
+    o<<indent<<std::setw(w)<<std::left<<"Delta:"<<Delta<<"\n";
+    o<<indent<<std::setw(w)<<std::left<<"Ensemble:"<<ensemble<<"\n";
+    if(ensemble==GrandCanonical)
+      o<<indent<<std::setw(w)<<std::left<<"Hz:"<<Hz<<"\n";
+
+    o<<indent<<std::setw(w)<<std::left<<"Boundary:"<<boundary<<"\n";
+    o<<std::endl;
+    return o;
+  }
+
+  void insert_hoping(double t,unsigned int i,unsigned int j,std::vector<Boson> &psi,Hamiltonian &T,Hamiltonian &V) const {
+
+    if(i!=nsites() && j!=nsites()) {
+
+      const IndexedProductElement ni(CA,&psi[i]);
+      const IndexedProductElement nj(CA,&psi[j]);
+
+      const IndexedProductElement ci(C, &psi[i]);
+      const IndexedProductElement cj(C, &psi[j]);
+      const IndexedProductElement ai(A, &psi[i]);
+      const IndexedProductElement aj(A, &psi[j]);
+
+      double Hoppingt=0.5*Delta*t;
+
+      AppendHamiltonianTerm(T,HamiltonianTerm(Hoppingt,ci,aj));
+      AppendHamiltonianTerm(T,HamiltonianTerm(Hoppingt,cj,ai));
+
+      AppendHamiltonianTerm(V,HamiltonianTerm(t,ni,nj));
+    }
+  }
+
+  unsigned int getSite(unsigned int x,unsigned int y) const {
+
+    if(boundary==periodic) {
+      return map[x%Lx][y%Ly];
+    } else {
+      if(x<Lx && y<Ly) {
+        return map[x][y];
+      } else {
+        return nsites();
+      }
+    }
+
+  }
+
+  void MakeContainer(SGFBase &Container) const {
+
+    Hamiltonian &T=Container.T;
+    Hamiltonian &V=Container.V;
+    std::vector<Boson> &psi=Container.Psi;
+
+    Container.Beta=Beta;
+
+    psi.resize(NSites);
+
+    std::vector<unsigned int> InitDistribution(NSites,0);
+
+    for(int p=0; p<Population; ++p) {
+      InitDistribution[p]++;
+    }
+
+    for(unsigned int i=0; i<NSites; ++i) {
+      psi[i].nmax() = 1;
+      psi[i].nL() = InitDistribution[i];
+      psi[i].nR() = InitDistribution[i];
+    }
+
+    // The nearest neighbor links
+    if(J2!=0) {
+      for(unsigned int x=0; x<Lx; ++x)
+        for(unsigned int y=0; y<Ly; ++y) {
+          insert_hoping(J2,getSite(x,y),getSite(x+1,y),psi,T,V);
+          insert_hoping(J2,getSite(x,y),getSite(x,y+1),psi,T,V);
+        }
+    }
+
+    // The diagonal links
+    if(J1!=0) {
+      for(unsigned int x=0; x<Lx; x+=2)
+        for(unsigned int y=0; y<Ly; y+=2) {
+          insert_hoping(J1,getSite(x+1,y),getSite(x,y+1),psi,T,V);
+          insert_hoping(J1,getSite(x+1,y+1),getSite(x+2,y+2),psi,T,V);
+        }
+    }
+
+    if(J3!=0) {
+      for(unsigned int x=0; x<Lx; x+=2)
+        for(unsigned int y=0; y<Ly; y+=2) {
+          insert_hoping(J3,getSite(x+1,y),getSite(x+2,y+1),psi,T,V);
+          insert_hoping(J3,getSite(x+1,y+1),getSite(x+2,y),psi,T,V);
+        }
+    }
+
+    if(J4!=0) {
+      for(unsigned int x=0; x<Lx; x+=2)
+        for(unsigned int y=0; y<Ly; y+=2) {
+          insert_hoping(J4,getSite(x,y),getSite(x+2,y),psi,T,V);
+          insert_hoping(J4,getSite(x+2,y),getSite(x+2,y+2),psi,T,V);
+        }
+    }
+
+    if(ensemble==GrandCanonical && Hz!=0) {
+      for(unsigned long i=0; i<nsites(); ++i) {
+        const IndexedProductElement ni(CA,&psi[i]);
+        AppendHamiltonianTerm(V,HamiltonianTerm(-Hz,ni));
+      }
+    }
+  }
+};
+
+
 
 //
 // This class parses the input string and
@@ -465,16 +669,20 @@ struct Parameters {
     assert(d["Model"].IsObject());
     const rapidjson::Value &m=d["Model"];
 
-    // The only model we know :-)
-    assert(m["Label"].GetString()==std::string("BoseHubbard"));
-
     modelID=m["Label"].GetString();
 
-    BoseHubbard *model_ptr=new BoseHubbard(d["Model"]);
+    if(modelID==std::string("BoseHubbard")) {
+      model=new BoseHubbard(d["Model"]);
+    } else if(modelID==std::string("HeisenbergSSL")) {
+      model=new SSL2D(d["Model"]);
+    } else {
+      std::cout<<"Unknown Model"<<std::endl;
+      exit(33);
+    }
 
-    model=model_ptr;
 
   }
+
 
   ~Parameters() {
     delete model;

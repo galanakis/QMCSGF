@@ -1,0 +1,35 @@
+{
+   "Model":{
+      "Label":"HeisenbergSSL",
+      "Temperature":1.02,
+      "Lx":10,
+      "Ly":10,
+      "Boundary": "periodic",
+      "Ensemble":"Canonical",
+      "Population":51,
+      "J1" : 2.0,
+      "J2" : 0,
+      "J3" : 0,
+      "J4" : 0,
+      "Hz" : 0,
+      "U"  : 0,
+      "Delta" : 1.0
+    },
+   "Measure":[
+      "Magnetization",
+      "KineticJ1",
+      "KineticJ2",
+      "KineticJ3",
+      "Potential"
+   ],
+   "SGF": {
+      "GreenOperatorLines":4,
+      "Alpha":0.95,
+      "Seed":34715,
+      "Bins":20,
+      "WarmTime":40000,
+      "WarmIterations":100000000,
+      "MeasTime":40000,
+      "MeasIterations":100000000
+   }
+}
