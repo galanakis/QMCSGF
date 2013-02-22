@@ -419,11 +419,13 @@ struct SSL2D : public Model {
 
   void MakeContainer(SGFBase &Container) const {
 
+    Container.Beta=Beta;
+    Container.Ensemble=ensemble;
+
     Hamiltonian &T=Container.T;
     Hamiltonian &V=Container.V;
     std::vector<Boson> &psi=Container.Psi;
 
-    Container.Beta=Beta;
 
     psi.resize(NSites);
 
