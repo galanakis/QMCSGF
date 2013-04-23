@@ -1,8 +1,6 @@
 #
 # Compilation options
-# There are two main source files:
-# - Corvette-SGF.cpp, uses Val's ancient interface
-# - Boson-SGF.cpp, is the new version
+# There is one source, Boson-SGF.cpp.
 #
 # For both of them there are the following compilation options
 # - Random Number Generator can be 
@@ -40,9 +38,6 @@ end
 
 mkllib=""
 mklinclude=""
-
-executable="corv"
-source="source/Corvette-SGF.cpp"
 
 # Compiler selections
 icc='/opt/intel/composerxe/bin/icc -m64 -fast -fp-model precise -std=c++0x'
@@ -114,13 +109,6 @@ end
 task :std => [:rng_mt,:cmdlineprogress,:debug] do
 end
 
-task :corv => [:rng_mt,:cmdlineprogress] do
-	executable="corv"
-	source="source/Corvette-SGF.cpp"
-	puts cmd="#{compiler} #{source} #{flags} #{include} #{libs} -o #{executable}"
-	puts %x{#{cmd}}	
-end
-
 task :corv_boson => [:rng_mt,:cmdlineprogress,:mkl] do
 	executable="corv_boson"
 	source="source/SGFBoson.cpp"
@@ -135,17 +123,5 @@ task :mf_boson => [:mkl] do
 	puts %x{#{cmd}}
 end
 
-
-task :corv_example => [:rng_mt,:cmdlineprogress,:mkl] do
-	executable="corv_example"
-	source="source/SGFBosonExample.cpp"
-	puts cmd="#{compiler} #{source} #{flags} #{include} #{libs} -o #{executable}"
-	puts %x{#{cmd}}	
-end
-
 task :default => [:corv_boson] do
 end
-
-task :everything => [:corv,:corv_boson,:corv_example] do
-end
-
