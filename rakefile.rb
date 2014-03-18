@@ -17,23 +17,14 @@
 def get_mkl_line
 
 # Get the location of ICC
-mklroot=File.dirname(%x{which icc}.strip)
-output=nil
-if mklroot[/not found/]==nil
-	while(not File.directory?(mklroot+'/mkl'))
-		mklroot=File.dirname(mklroot)
-	end
-	mklroot+='/mkl'
-	mkllib=nil
-	# Is it a mac?
-	mkllib="#{mklroot}/lib/libmkl_intel_lp64.a #{mklroot}/lib/libmkl_sequential.a #{mklroot}/lib/libmkl_core.a -lpthread -lm" if RUBY_PLATFORM.downcase.include?("darwin")
-	# if this a linux?
-	mkllib="-openmp -Wl,--start-group  #{mklroot}/lib/intel64/libmkl_intel_lp64.a #{mklroot}/lib/intel64/libmkl_intel_thread.a #{mklroot}/lib/intel64/libmkl_core.a -Wl,--end-group -lpthread -lm" if RUBY_PLATFORM.downcase.include?("linux")
-	mklinclude="-I#{mklroot}/include"
-	return [mkllib,mklinclude]
-else
-	return nil
-end
+mklroot=ENV['MKLROOT']
+# Is it a mac?
+mkllib="#{mklroot}/lib/libmkl_intel_lp64.a #{mklroot}/lib/libmkl_sequential.a #{mklroot}/lib/libmkl_core.a -lpthread -lm" if RUBY_PLATFORM.downcase.include?("darwin")
+# if this a linux?
+mkllib="-openmp -Wl,--start-group  #{mklroot}/lib/intel64/libmkl_intel_lp64.a #{mklroot}/lib/intel64/libmkl_intel_thread.a #{mklroot}/lib/intel64/libmkl_core.a -Wl,--end-group -lpthread -lm" if RUBY_PLATFORM.downcase.include?("linux")
+mklinclude="-I#{mklroot}/include"
+return [mkllib,mklinclude]
+
 end
 
 mkllib=""

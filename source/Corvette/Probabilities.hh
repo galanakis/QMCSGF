@@ -45,7 +45,7 @@ public:
     // Scan all kinetic terms to find all the lengths
     std::set<int> set_offsets;
     for (Hamiltonian::size_type i = 0; i < T.size(); ++i)
-      for (int offset = T[i].minoffset(); offset <= T[i].maxoffset(); offset += 2)
+      for (int offset = -T[i].absdelta(); offset <= T[i].absdelta(); offset += 2)
         set_offsets.insert(offset);
 
     offsets.clear();
@@ -178,7 +178,76 @@ public:
 
 };
 
+/*
 
+// This is supposed to be a fast implementation
+// But it is not fast.
+
+class OffsetMap {
+
+  static int Sign(int x) {return x>0?1:-1;}
+  static int Min(int x,int y) {return (x>y)? y : x;}
+
+    int Ne; // Number of even offsets, don't make it unsigned.
+    int No; // Number of odd  offsets, don't make it unsigned.
+
+public:
+
+  typedef unsigned int size_type;
+
+  unsigned int size() const {return Ne+No;}
+
+  int offset(int i) const {
+    int N=Min(Ne,No);
+    int x=2*i-Ne-No+1;
+    return (Sign(x)*(abs(abs(x)-2*N)-2*N)+3*x)/4;
+  }
+
+  int hash(int o) const {
+    return (Ne+abs((o+Ne)/2)-abs((Ne-o)/2)+
+        No+abs((o+No)/2)-abs((No-o)/2))/2;
+  }
+
+  // OffsetMap(int offset) will return a consecutive integer
+  inline unsigned int operator()(int offset) const {
+    return hash(offset);
+  }
+  // OffsetMap[int i] will return the i^th smallest offset
+  inline int operator[](int i) const {
+    return offset(i);
+  }
+
+
+  OffsetMap(int even,int odd) : Ne(even), No(odd) {
+
+    if(!validate()) {
+      std::cout<<"OffsetMap: failed to validate hash with input ("<<Ne<<","<<No<<")."<<std::endl;
+      exit(323);
+    }
+
+  }
+
+  OffsetMap(const int_vector_t &o) : Ne(0), No(0) {
+    int count[2]={0,0};
+    int_vector_t::const_iterator sit;
+    for(sit=o.begin(); sit!=o.end(); ++sit)
+      count[(*sit)%2]++;
+    Ne=count[0];
+    No=count[1];
+  }
+
+  bool validate() const {
+    int M=Ne+No;
+    for(int i=0;i<M;++i)
+      if(i!=hash(offset(i)))
+        return false;
+
+    return true;
+  }
+
+};
+
+*/
 /*
   class OffsetMap
   Helper class. It defines a map that can convert offsets into consecutive
@@ -226,20 +295,20 @@ public:
 };
 
 
-// This structure stores one tree in every direction
-struct TreeType {
-  TSum tsum[2];
-  inline void resize(Hamiltonian::size_type nterms) {
-    tsum[0].resize(nterms);
-    tsum[1].resize(nterms);
-  }
-  inline void reset() {
-    tsum[0].reset();
-    tsum[1].reset();
-  }
+    // This structure stores one tree in every direction
+  struct TreeType {
+    TSum tsum[2];
+    inline void resize(Hamiltonian::size_type nterms) {
+      tsum[0].resize(nterms);
+      tsum[1].resize(nterms);
+    }
+    inline void reset() {
+      tsum[0].reset();
+      tsum[1].reset();
+    }
 
 
-};
+  };
 
 //
 // This Functor overloads the operator()() and it returns

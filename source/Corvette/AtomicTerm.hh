@@ -105,18 +105,11 @@ public:
       ip->template update<direction,action>();
   }
 
-  inline int maxoffset() const {
+  inline int absdelta() const {
     int result=0;
     for(const_iterator ip=_product.begin(); ip!=_product.end(); ++ip)
-      result+=ip->maxoffset();
-    return result;
-  }
-
-  inline int minoffset() const {
-    int result=0;
-    for(const_iterator ip=_product.begin(); ip!=_product.end(); ++ip)
-      result+=ip->minoffset();
-    return result;
+      result+=Abs(ip->delta());
+    return result;        
   }
 
 };
