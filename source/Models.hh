@@ -3,6 +3,9 @@
 
 
 #include <vector>
+#include <list>
+#include <map>
+#include <set>
 #include <sstream>
 #include <iomanip>
 #include <cmath>
@@ -37,6 +40,26 @@ public:
   virtual ~Lattice() {};
 
 };
+
+template<typename T,unsigned int N>
+struct Vector {
+  T v[N];
+  Vector(const Vector &o) {
+    for(unsigned int i=0;i<N;++i)
+      v[i]=o.v[i];
+  }
+  T operator[](unsigned int i) {return v[i];}
+};
+
+template<typename T,unsigned int N>
+std::ostream & yaml_print_site(std::ostream &o,const Vector<T,N> &s) {
+  o<<"[ ";
+  for(int i=0;i<N-1;++i)
+    o<<std::right<<std::setw(3)<<s[i]<<",";
+  o<<std::right<<std::setw(3)<<s[N-1]<<" ]";
+  return o;
+}
+
 
 struct Site1D {
   unsigned int x;
@@ -411,6 +434,174 @@ public:
 
 
 };
+
+
+const long double GoldenRatio=1.61803398874989484820458683437L;
+
+
+class Penrose : public Lattice {
+
+  struct Polar {
+    long double r;
+    long double phi;
+    Polar(long double _r,long double _phi) : r(_r), phi(_phi) {}
+  };
+
+  struct Site {
+    long double x;
+    long double y;
+  public:
+    Site(const Site &o) : x(o.x), y(o.y) {}
+    Site(const Polar &p) : x(p.r*cos(p.phi)), y(p.r*sin(p.phi)) {}
+    Site(long double _x,long double _y) : x(_x), y(_y) {}
+
+    Site operator+(const Site &o) const {return Site(x+o.x,y+o.y);}
+    Site operator-(const Site &o) const {return Site(x-o.x,y-o.y);}
+    Site operator/(long double r) const {return Site(x/r,y/r);}
+
+  };
+
+  
+  struct triangle {
+    bool color;
+    Site A,B,C;
+    triangle(const triangle &o) : color(o.color), A(o.A), B(o.B), C(o.C) {}
+    triangle(bool _color,Site _A,Site _B,Site _C) : color(_color), A(_A), B(_B), C(_C) {}
+
+  };
+
+
+
+  static std::list<triangle> subdivide(const std::list<triangle> &triangles) {
+    std::list<triangle> result;
+    for(std::list<triangle>::const_iterator it=triangles.begin(); it!=triangles.end(); ++it) {
+      Site A=it->A;
+      Site B=it->B;
+      Site C=it->C;
+      // Subdivide the red triangle
+      if(it->color==0) {
+        Site P=it->A+(it->B-it->A)/GoldenRatio;
+        result.push_back(triangle(0,C,P,B));
+        result.push_back(triangle(1,P,C,A));
+      }
+      // subdivide the blue triangle
+      else {
+        Site Q=B+(A-B)/GoldenRatio;
+        Site R=B+(C-B)/GoldenRatio;
+        result.push_back(triangle(1,R,C,A));
+        result.push_back(triangle(1,Q,R,B));
+        result.push_back(triangle(0,R,Q,A));
+      }
+    }
+
+    return result;
+
+  }
+
+  unsigned int numdivisions;
+  std::vector<Site> Coordinates;
+  friend std::ostream& operator<< (std::ostream& stream, const Site &s);
+  friend std::ostream& operator<< (std::ostream& stream, const triangle &s);
+  friend bool operator<(const Site &a,const Site &b);
+
+  unsigned long SiteHash(const Site &o) const {
+    unsigned long X=100000*o.x;
+    unsigned long Y=100000*o.y;
+    return X*100000+Y;
+  }
+
+public:
+  Penrose(unsigned int subdivisions) : numdivisions(subdivisions) {
+
+    label=std::string("Penrose");
+
+    std::list<triangle> triangles;
+    // Create wheel of red triangles around the origin
+    for(int i=0;i<10;++i) {
+      int s=(i%2==0)? 1 : -1;
+      Site B(Polar(1,(2*i+s)*M_PI/10));
+      Site C(Polar(1,(2*i-s)*M_PI/10));
+      triangles.push_back(triangle(0,Site(0,0),B,C));
+    }
+
+    for(int i=0;i<subdivisions;++i)
+      triangles=subdivide(triangles);
+
+
+    std::map<unsigned long,unsigned int> CoordinateMap;
+
+    unsigned int index=0;
+    for(std::list<triangle>::const_iterator it=triangles.begin(); it!=triangles.end(); ++it) {
+      Site A=it->A;
+      Site B=it->B;
+      Site C=it->C;
+      if(CoordinateMap.count(SiteHash(A))==0) {
+        CoordinateMap[SiteHash(A)]=index;
+        Coordinates.push_back(A);
+        ++index;
+      }     
+      if(CoordinateMap.count(SiteHash(B))==0) {
+        CoordinateMap[SiteHash(B)]=index;
+        Coordinates.push_back(B);
+        ++index;
+      }     
+      if(CoordinateMap.count(SiteHash(C))==0) {
+        CoordinateMap[SiteHash(C)]=index;
+        Coordinates.push_back(C);
+        ++index;
+      }     
+
+    }
+
+    std::set<LinkData> edges;
+
+    for(std::list<triangle>::const_iterator it=triangles.begin(); it!=triangles.end(); ++it) {
+      unsigned int iA=CoordinateMap[SiteHash(it->A)];
+      unsigned int iB=CoordinateMap[SiteHash(it->B)];
+      unsigned int iC=CoordinateMap[SiteHash(it->C)];
+
+      edges.insert(LinkData(iA,iB));
+      edges.insert(LinkData(iA,iC));
+
+    }
+
+    for(std::set<LinkData>::const_iterator it=edges.begin(); it!=edges.end(); ++it) {
+      _links.push_back(*it);
+    }
+
+
+    unsigned int nsites=Coordinates.size();
+
+    _sitedata.resize(nsites);
+    _gaussian.resize(nsites);
+
+  }
+
+
+  std::ostream & yaml_print(std::ostream &o,const std::string &indent) const {
+      o<<"\n";
+      o<<indent<<"Lattice:\n\n";
+      o<<indent<<"  Type: "<<label<<"\n";
+      o<<indent<<"  Size: "<<size()<<"\n";
+      o<<indent<<"  Divisions: "<<numdivisions<<"\n";
+      return o;
+  }
+
+};
+
+std::ostream& operator<< (std::ostream& stream, const Penrose::Site &s) {
+  return stream<<"("<<s.x<<","<<s.y<<")";
+}
+
+std::ostream& operator<< (std::ostream& stream, const Penrose::triangle &s) {
+  return stream<<"["<<s.color<<","<<s.A<<","<<s.B<<","<<s.C<<"]";
+}
+
+bool operator<(const Penrose::Site &a,const Penrose::Site &b) {
+  return (a.x==b.x)? (a.x<b.x) : (a.y<b.y);
+
+}
+
 
 
 }

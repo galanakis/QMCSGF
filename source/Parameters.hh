@@ -54,7 +54,6 @@ struct BoseHubbard : public Model {
   double mu;
   Lattice *lattice;
   int Nmax;
-  boundary_t boundary;
 
   std::vector<unsigned int> InitDistribution;
 
@@ -116,7 +115,7 @@ struct BoseHubbard : public Model {
     o<<indent<<std::setw(w)<<std::left<<"Ensemble:"<<ensemble<<"\n";
     o<<indent<<std::setw(w)<<std::left<<"Mu:"<<mu<<"\n";
     o<<indent<<std::setw(w)<<std::left<<"Nmax:"<<Nmax<<"\n";
-    o<<indent<<std::setw(w)<<std::left<<"Boundary:"<<boundary<<"\n";
+    //o<<indent<<std::setw(w)<<std::left<<"Boundary:"<<boundary<<"\n";
     lattice->yaml_print(o,"  ");
     o<<std::endl;
     return o;
@@ -124,6 +123,12 @@ struct BoseHubbard : public Model {
   ~BoseHubbard() {
     delete lattice;
   }
+
+
+  Lattice *getLattice(const rapidjson::Value &m) {
+    
+  }
+
 
   BoseHubbard(const rapidjson::Value &m) {
 
@@ -156,69 +161,78 @@ struct BoseHubbard : public Model {
       CoulombU=0;
     }
 
+
     /*
        Geometry specific assignments
     */
-    assert(m["Lattice"].GetString()==std::string("Square"));
+    assert(m["Lattice"].GetString()==std::string("Square") || m["Lattice"].GetString()==std::string("Penrose"));
 
-    std::map<std::string,boundary_t> bcmap;
-    bcmap["open"]=open;
-    bcmap["periodic"]=periodic;
-    bcmap["trap"]=trap;
+    if(m["Lattice"].GetString()==std::string("Square")) {
+
+      std::map<std::string,boundary_t> bcmap;
+      bcmap["open"]=open;
+      bcmap["periodic"]=periodic;
+      bcmap["trap"]=trap;
 
 
+      boundary_t boundary;
+      std::string bcstring=m["Boundary"].GetString();
+      assert(bcstring==std::string("open") || bcstring==std::string("periodic") || bcstring==std::string("trap"));
+      boundary= bcmap[bcstring];
 
-    std::string bcstring=m["Boundary"].GetString();
-    assert(bcstring==std::string("open") || bcstring==std::string("periodic") || bcstring==std::string("trap"));
-    boundary= bcmap[bcstring];
-
-    assert(m["Dimensions"].IsArray());
-    unsigned int dimensions=m["Dimensions"].Size();
-    assert(dimensions<=3 && dimensions>0);
-    std::vector<unsigned int> LSizes(dimensions);
-    for(int i=0; i<dimensions; ++i)
-      LSizes[i]=m["Dimensions"][i].GetInt();
-
-    std::vector<double> W(dimensions,0);
-    if(m.HasMember("ParabolicTrapHeight")) {
-      assert(m["ParabolicTrapHeight"].IsArray() && m["ParabolicTrapHeight"].Size()==dimensions);
+      assert(m["Dimensions"].IsArray());
+      unsigned int dimensions=m["Dimensions"].Size();
+      assert(dimensions<=3 && dimensions>0);
+      std::vector<unsigned int> LSizes(dimensions);
       for(int i=0; i<dimensions; ++i)
-        W[i]=m["ParabolicTrapHeight"][i].GetDouble();
+        LSizes[i]=m["Dimensions"][i].GetInt();
+
+      std::vector<double> W(dimensions,0);
+      if(m.HasMember("ParabolicTrapHeight")) {
+        assert(m["ParabolicTrapHeight"].IsArray() && m["ParabolicTrapHeight"].Size()==dimensions);
+        for(int i=0; i<dimensions; ++i)
+          W[i]=m["ParabolicTrapHeight"][i].GetDouble();
+      }
+
+      if(boundary==trap) {
+        switch(dimensions) {
+        case 1: {
+          lattice=new Chain(LSizes[0],open,W[0]);
+          break;
+        }
+        case 2: {
+          lattice=new Ellipsis(LSizes[0],LSizes[1],W[0],W[1]);
+          break;
+        }
+        case 3: {
+          lattice=new Ellipsoid(LSizes[0],LSizes[1],LSizes[2],W[0],W[1],W[2]);
+          break;
+        }
+        }
+      } else {
+        switch(dimensions) {
+        case 1: {
+          lattice=new Chain(LSizes[0],boundary,W[0]);
+          break;
+        }
+        case 2: {
+          lattice=new Square(LSizes[0],boundary,LSizes[1],boundary,W[0],W[1]);
+          break;
+        }
+        case 3: {
+          lattice=new Cubic(LSizes[0],boundary,LSizes[1],boundary,LSizes[2],boundary,W[0],W[1],W[2]);
+          break;
+        }
+        }
+      }
+    } 
+    else if(m["Lattice"].GetString()==std::string("Penrose")) {
+      assert(m["Divisions"].IsInt());
+      int divisions=m["Divisions"].GetInt();
+
+      lattice=new Penrose(divisions);
+
     }
-
-    if(boundary==trap) {
-      switch(dimensions) {
-      case 1: {
-        lattice=new Chain(LSizes[0],open,W[0]);
-        break;
-      }
-      case 2: {
-        lattice=new Ellipsis(LSizes[0],LSizes[1],W[0],W[1]);
-        break;
-      }
-      case 3: {
-        lattice=new Ellipsoid(LSizes[0],LSizes[1],LSizes[2],W[0],W[1],W[2]);
-        break;
-      }
-      }
-    } else {
-      switch(dimensions) {
-      case 1: {
-        lattice=new Chain(LSizes[0],boundary,W[0]);
-        break;
-      }
-      case 2: {
-        lattice=new Square(LSizes[0],boundary,LSizes[1],boundary,W[0],W[1]);
-        break;
-      }
-      case 3: {
-        lattice=new Cubic(LSizes[0],boundary,LSizes[1],boundary,LSizes[2],boundary,W[0],W[1],W[2]);
-        break;
-      }
-      }
-    }
-
-
 
     unsigned int NSites=lattice->size();
 
