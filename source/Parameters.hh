@@ -84,8 +84,7 @@ struct BoseHubbard : public Model {
     }
 
     for(unsigned int i=0; i<NSites; ++i) {
-      const IndexedProductElement atom(CCAA,&Container.Psi[i]);
-      AppendHamiltonianTerm(Container.V,HamiltonianTerm(CoulombU/2.0,atom));
+      SGFBase::AppendHamiltonianTerm(Container.V,SGFBase::CreateHamiltonianTerm(CoulombU/2.0,CCAA,&Container.Psi[i]));
     }
 
 
@@ -94,25 +93,14 @@ struct BoseHubbard : public Model {
     for(LinkDataList::const_iterator it=links.begin(); it!=links.end(); ++it) {
       unsigned int i=it->first;
       unsigned int j=it->second;
-      const IndexedProductElement ci(C,&Container.Psi[i]);
-      const IndexedProductElement cj(C,&Container.Psi[j]);
-      const IndexedProductElement ai(A,&Container.Psi[i]);
-      const IndexedProductElement aj(A,&Container.Psi[j]);
-
-      AppendHamiltonianTerm(Container.T,HamiltonianTerm(Hoppingt,ci,aj));
-      AppendHamiltonianTerm(Container.T,HamiltonianTerm(Hoppingt,cj,ai));
-
+      SGFBase::AppendHamiltonianTerm(Container.T,SGFBase::CreateHamiltonianTerm(Hoppingt,C,&Container.Psi[i],A,&Container.Psi[j]));
+      SGFBase::AppendHamiltonianTerm(Container.T,SGFBase::CreateHamiltonianTerm(Hoppingt,C,&Container.Psi[j],A,&Container.Psi[i]));
     }
 
     std::vector<double> potential=lattice->sitedata();
 
     for(unsigned int i=0; i<Container.Psi.size(); ++i) {
-      double TotalV=mu+potential[i];
-      if(TotalV!=0) {
-        const IndexedProductElement ni(CA,&Container.Psi[i]);
-        AppendHamiltonianTerm(Container.V,HamiltonianTerm(TotalV,ni));
-      }
-
+      SGFBase::AppendHamiltonianTerm(Container.V,SGFBase::CreateHamiltonianTerm(mu+potential[i],CA,&Container.Psi[i]));
     }
 
   }
@@ -386,20 +374,12 @@ struct SSL2D : public Model {
 
     if(i!=nsites() && j!=nsites()) {
 
-      const IndexedProductElement ni(CA,&psi[i]);
-      const IndexedProductElement nj(CA,&psi[j]);
-
-      const IndexedProductElement ci(C, &psi[i]);
-      const IndexedProductElement cj(C, &psi[j]);
-      const IndexedProductElement ai(A, &psi[i]);
-      const IndexedProductElement aj(A, &psi[j]);
-
       double Hoppingt=0.5*Delta*t;
 
-      AppendHamiltonianTerm(T,HamiltonianTerm(Hoppingt,ci,aj));
-      AppendHamiltonianTerm(T,HamiltonianTerm(Hoppingt,cj,ai));
+      SGFBase::AppendHamiltonianTerm(T,SGFBase::CreateHamiltonianTerm(Hoppingt,C, &psi[i],A, &psi[j]));
+      SGFBase::AppendHamiltonianTerm(T,SGFBase::CreateHamiltonianTerm(Hoppingt,C, &psi[j],A, &psi[i]));
 
-      AppendHamiltonianTerm(V,HamiltonianTerm(t,ni,nj));
+      SGFBase::AppendHamiltonianTerm(V,SGFBase::CreateHamiltonianTerm(t,CA,&psi[i],CA,&psi[j]));
     }
   }
 
@@ -477,8 +457,7 @@ struct SSL2D : public Model {
 
     if(ensemble==GrandCanonical && Hz!=0) {
       for(unsigned long i=0; i<nsites(); ++i) {
-        const IndexedProductElement ni(CA,&psi[i]);
-        AppendHamiltonianTerm(V,HamiltonianTerm(-Hz,ni));
+        SGFBase::AppendHamiltonianTerm(V,SGFBase::CreateHamiltonianTerm(-Hz,CA,&psi[i]));
       }
     }
   }
@@ -577,7 +556,7 @@ struct Parameters {
     InsertOperator("Kinetic Energy",Container.T,MeasuredOperators);
 
     if(HasMeasurable("Number")) {
-      InsertOperator("Particle Number",Orphans::GenerateNumberOperator(Container.Psi),MeasuredOperators);
+      InsertOperator("Particle Number",SGFBase::GenerateNumberOperator(Container.Psi),MeasuredOperators);
     }
 
     if(HasMeasurable("LocalDensity")) {

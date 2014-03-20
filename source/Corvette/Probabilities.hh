@@ -7,247 +7,10 @@
 #include "SGFBase.hh"
 #include "UnorderedSet.hh"
 
-#include <vector>
-#include <list>
-#include <map>
-#include <set>
-#include <queue>
 
 namespace SGF {
 
 
-/*
-
-  This class contains some utilities that I don't know where to put.
-  They are all static functions with a specific input
-  and a specific output
-
-*/
-
-typedef std::vector<int> int_vector_t;
-typedef std::vector<Boson*> boson_vector_t;
-typedef std::set<Boson*> boson_set_t;
-typedef std::vector<const HamiltonianTerm *> term_vector_t;
-typedef term_vector_t::const_iterator adjacency_iterator;
-typedef std::pair<adjacency_iterator,adjacency_iterator> range_type;
-typedef std::vector<term_vector_t > AdjacencyList;
-
-
-class Orphans {
-public:
-
-  //
-  // Input: a list of kinetic terms
-  // Output: a softed list containing all the possible offsets
-  //
-  static int_vector_t GetOffsets(const Hamiltonian & T) {
-    int_vector_t offsets;
-    // Scan all kinetic terms to find all the lengths
-    std::set<int> set_offsets;
-    for (Hamiltonian::size_type i = 0; i < T.size(); ++i)
-      for (int offset = -T[i].absdelta(); offset <= T[i].absdelta(); offset += 2)
-        set_offsets.insert(offset);
-
-    offsets.clear();
-    offsets.insert(offsets.begin(), set_offsets.begin(), set_offsets.end());
-
-    return offsets;
-  }
-
-  //
-  // Input: a list of kinetic terms
-  // Output: a softed list containing all the possible bosons
-  //
-  static boson_vector_t GetConfiguration(const Hamiltonian & T) {
-    boson_vector_t indices;
-    boson_set_t indexset;
-    for (Hamiltonian::size_type i = 0; i < T.size(); ++i)
-      for (HamiltonianTerm::const_iterator jt = T[i].begin(); jt != T[i].end(); ++jt)
-        indexset.insert( jt->particle_id());
-
-    indices.insert(indices.begin(), indexset.begin(), indexset.end());
-
-    return indices;
-
-  }
-
-  //
-  // Input: a softed list containing all the possible bosons
-  // Output: a list of the "extra" kinetic terms needed for the Grand canonical ensemble
-  //
-  static Hamiltonian GetExtraTerms(const boson_vector_t &psi) {
-    Hamiltonian result;
-    for(boson_vector_t::size_type i=0; i<psi.size(); ++i) {
-      result.push_back(HamiltonianTerm(1.0,IndexedProductElement(A,psi[i])));
-      result.push_back(HamiltonianTerm(1.0,IndexedProductElement(C,psi[i])));
-    }
-
-    return result;
-
-  }
-
-  //
-  // Input: a list of all the kinetic terms
-  // Output: a list of the "extra" kinetic terms needed for the Grand canonical ensemble
-  //
-  static Hamiltonian GetExtraTerms(const Hamiltonian &T) {
-
-    return GetExtraTerms(GetConfiguration(T));
-
-  }
-
-
-  //
-  // Input: a vector of boson pointers
-  // Output: the number of broken lines in this vector
-  //
-  static unsigned int CountBrokenLines(const boson_vector_t &o) {
-    int result=0;
-    for(boson_vector_t::size_type i=0; i<o.size(); ++i)
-      result+=Abs(o[i]->delta());
-    return result;
-
-  }
-
-
-  //
-  // Input: two lists of terms, one called row and another called column
-  // Output: a vector of size Trow, which contains the indices of the operators
-  //         in Tcol which share a common boson
-  //
-  static AdjacencyList GetAdjacencyList(const Hamiltonian &Trow,const Hamiltonian &Tcol)  {
-
-    AdjacencyList adjacency; // The adjacency list is stored here
-
-    // First, categorize the Tcol terms by index.
-    std::map<Boson*,std::set<Hamiltonian::size_type> > map_to_set;
-    for(Hamiltonian::size_type i=0; i<Tcol.size(); ++i)
-      for(HamiltonianTerm::const_iterator jt=Tcol[i].begin(); jt!=Tcol[i].end(); ++jt)
-        map_to_set[jt->particle_id()].insert(i);
-
-    adjacency.clear();
-    adjacency.resize(Trow.size());
-
-    /* For each term in Trow, merge the sets corresponding to it's indices
-       Then, copy the set elements to a vector. */
-    for(Hamiltonian::size_type i=0; i<Trow.size(); ++i) {
-      std::set<Hamiltonian::size_type> merged;
-      for(HamiltonianTerm::const_iterator jt=Trow[i].begin(); jt!=Trow[i].end(); ++jt) {
-        if(jt->delta()!=0) {
-          std::set<Hamiltonian::size_type> &s=map_to_set[jt->particle_id()];
-          merged.insert(s.begin(),s.end());
-        }
-      }
-
-      adjacency[i].reserve(merged.size());
-      for(std::set<Hamiltonian::size_type>::const_iterator sit=merged.begin(); sit!=merged.end(); ++sit)
-        adjacency[i].push_back(&Tcol[*sit]);
-
-    }
-
-    return adjacency;
-
-  }
-
-
-
-
-  //
-  // It generates the number operator
-  //
-  static Hamiltonian GenerateNumberOperator(std::vector<Boson> &psi) {
-    Hamiltonian result;
-    for(boson_vector_t::size_type i=0; i<psi.size(); ++i)
-      result.push_back(HamiltonianTerm(1.0,IndexedProductElement(CA,&psi[i])));
-    return result;
-  }
-
-  //
-  // It generates the density matrix rho
-  //
-  static Hamiltonian GenerateDensityMatrix(std::vector<Boson> &psi) {
-    Hamiltonian result;
-    for(boson_vector_t::size_type i=0; i<psi.size(); ++i) {
-      for(boson_vector_t::size_type j=0; j<psi.size(); ++j) {
-        result.push_back(HamiltonianTerm(1.0,IndexedProductElement(C,&psi[i]),IndexedProductElement(A,&psi[j])));
-      }
-    }
-    return result;
-  }
-
-
-};
-
-/*
-
-// This is supposed to be a fast implementation
-// But it is not fast.
-
-class OffsetMap {
-
-  static int Sign(int x) {return x>0?1:-1;}
-  static int Min(int x,int y) {return (x>y)? y : x;}
-
-    int Ne; // Number of even offsets, don't make it unsigned.
-    int No; // Number of odd  offsets, don't make it unsigned.
-
-public:
-
-  typedef unsigned int size_type;
-
-  unsigned int size() const {return Ne+No;}
-
-  int offset(int i) const {
-    int N=Min(Ne,No);
-    int x=2*i-Ne-No+1;
-    return (Sign(x)*(abs(abs(x)-2*N)-2*N)+3*x)/4;
-  }
-
-  int hash(int o) const {
-    return (Ne+abs((o+Ne)/2)-abs((Ne-o)/2)+
-        No+abs((o+No)/2)-abs((No-o)/2))/2;
-  }
-
-  // OffsetMap(int offset) will return a consecutive integer
-  inline unsigned int operator()(int offset) const {
-    return hash(offset);
-  }
-  // OffsetMap[int i] will return the i^th smallest offset
-  inline int operator[](int i) const {
-    return offset(i);
-  }
-
-
-  OffsetMap(int even,int odd) : Ne(even), No(odd) {
-
-    if(!validate()) {
-      std::cout<<"OffsetMap: failed to validate hash with input ("<<Ne<<","<<No<<")."<<std::endl;
-      exit(323);
-    }
-
-  }
-
-  OffsetMap(const int_vector_t &o) : Ne(0), No(0) {
-    int count[2]={0,0};
-    int_vector_t::const_iterator sit;
-    for(sit=o.begin(); sit!=o.end(); ++sit)
-      count[(*sit)%2]++;
-    Ne=count[0];
-    No=count[1];
-  }
-
-  bool validate() const {
-    int M=Ne+No;
-    for(int i=0;i<M;++i)
-      if(i!=hash(offset(i)))
-        return false;
-
-    return true;
-  }
-
-};
-
-*/
 /*
   class OffsetMap
   Helper class. It defines a map that can convert offsets into consecutive
@@ -394,7 +157,7 @@ protected:
 
     std::cout<<"NumIndices= "<<_indices.size()<<std::endl;
     for(unsigned long i=0; i<_indices.size(); ++i)
-      std::cout<<"  "<<_indices[i].nL()<<"\t"<<_indices[i].nR()<<"\t"<<_indices[i].nmax()<<std::endl;
+      std::cout<<"  "<<_indices[i].nL()<<"\t"<<_indices[i].nR()<<"\t"<<std::endl;
 
     std::cout<<"EnergyL= "<<Energies[LEFT]<<"\tEnergyR= "<<Energies[RIGHT]<<std::endl;
     std::cout<<"All Energies "<<EnergyME[LEFT].size()<<"\t"<<EnergyME[RIGHT].size()<<std::endl;
@@ -482,12 +245,12 @@ public:
     _NBWL(CountBrokenLines(_indices)),
     GF(base.g),
     Potential(base.V),
-    pot_adjacency(Orphans::GetAdjacencyList(base.T,base.V)),
+    pot_adjacency(SGFBase::GetAdjacencyList(base.T,base.V)),
     RebuildPeriod(1000000),
     NUpdates(0),
     Kinetic(base.T),
-    kin_adjacency(Orphans::GetAdjacencyList(base.T,base.T)),
-    forest(base.T.size(),Orphans::GetOffsets(base.T))
+    kin_adjacency(SGFBase::GetAdjacencyList(base.T,base.T)),
+    forest(base.T.size(),SGFBase::GetOffsets(base.T))
 
   {
 
@@ -609,12 +372,12 @@ public:
     // The extra terms appear in pairs with the same index.
     //
     for(boson_vector_t::size_type i=0; i<_indices.size(); ++i) {
-      Extra.push_back(HamiltonianTerm(1.0,IndexedProductElement(C,&_indices[i])));
-      Extra.push_back(HamiltonianTerm(1.0,IndexedProductElement(A,&_indices[i])));
+      Extra.push_back(SGFBase::CreateHamiltonianTerm(1.0,C,&_indices[i]));
+      Extra.push_back(SGFBase::CreateHamiltonianTerm(1.0,A,&_indices[i]));
     }
 
-    extra_kin_adjacency=Orphans::GetAdjacencyList(Extra,base.T);
-    extra_pot_adjacency=Orphans::GetAdjacencyList(Extra,base.V);
+    extra_kin_adjacency=SGFBase::GetAdjacencyList(Extra,base.T);
+    extra_pot_adjacency=SGFBase::GetAdjacencyList(Extra,base.V);
 
     available[LEFT].initialize(Extra.size());
     available[RIGHT].initialize(Extra.size());
@@ -753,38 +516,6 @@ public:
 
 };
 
-/*
-  class TermCount
-
-  measures how many times each operator gets inserted minus the times
-  it is removed from the right of the GreenOperator.
-
-*/
-
-/*
-class TermCount : public Probabilities::UpdatableObject {
-
-  const HamiltonianTerm * Kinetic0;
-  typedef std::vector<long> count_type;
-  typedef count_type::iterator iterator;
-  count_type _count;
-
-public:
-  TermCount(const Hamiltonian &T,Probabilities &o) : Probabilities::UpdatableObject(o), Kinetic0(&T[0]), _count(T.size()) {
-    reset();
-  }
-
-  inline void update(const HamiltonianTerm* term,int rl,int ar) {
-    if(rl==RIGHT) _count[term-Kinetic0]+=Sign[ar];
-  }
-
-  inline void reset() {
-    for(iterator ptr=_count.begin(); ptr!=_count.end(); ++ptr)
-      *ptr=0;
-  }
-
-};
-*/
 
 }
 

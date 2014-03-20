@@ -270,14 +270,6 @@ public:
 
 inline bool operator==(const IndexedProductElement &a,const IndexedProductElement &b) { return a.code_id() == b.code_id() && a.particle_id() == b.particle_id(); }
 
-typedef AtomicTerm<MatrixElement,IndexedProductElement> HamiltonianTerm;
-// Define the type of the Kinetic and Potential Part of the Hamiltonian
-typedef std::vector<HamiltonianTerm> Hamiltonian;
-
-inline void AppendHamiltonianTerm(Hamiltonian &H,const HamiltonianTerm &term) {
-  if(term.coefficient()!=0)
-    H.push_back(term);
-}
 
 
 }
