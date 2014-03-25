@@ -8,6 +8,7 @@
 #include <set>
 #include <sstream>
 #include <iomanip>
+#include <iostream>
 #include <cmath>
 
 namespace SGF {
@@ -471,6 +472,16 @@ class Penrose : public Lattice {
   };
 
 
+  long double scale() const {
+    return pow(1/GoldenRatio,numdivisions);
+  }
+
+  Site chop(const Site &s) const {
+    Site result(s);
+    result.x = fabs(s.x)<0.1*scale() ? 0 : s.x;
+    result.y = fabs(s.y)<0.1*scale() ? 0 : s.y;
+    return result;  
+  }
 
   static std::list<triangle> subdivide(const std::list<triangle> &triangles) {
     std::list<triangle> result;
@@ -480,7 +491,7 @@ class Penrose : public Lattice {
       Site C=it->C;
       // Subdivide the red triangle
       if(it->color==0) {
-        Site P=it->A+(it->B-it->A)/GoldenRatio;
+        Site P=A+(B-A)/GoldenRatio;
         result.push_back(triangle(0,C,P,B));
         result.push_back(triangle(1,P,C,A));
       }
@@ -578,12 +589,40 @@ public:
   }
 
 
+  // Tremmendous effort to simply align the decimal points.
+  std::ostream & yaml_print_site(std::ostream &o,const Site &s) const {
+    if(s.x>=0) {
+      o<<" "<<std::setprecision(12)<<std::left<<std::setw(16)<<s.x;
+    }
+    else {
+      o<<std::setprecision(12)<<std::left<<std::setw(17)<<s.x;
+    }
+
+    if(s.y>=0) {
+      o<<" "<<std::setprecision(12)<<std::left<<std::setw(16)<<s.y<<" ]";
+    }
+    else {
+      o<<std::setprecision(12)<<std::left<<std::setw(17)<<s.y<<" ]";
+    }
+    return o;
+  }
+
+
   std::ostream & yaml_print(std::ostream &o,const std::string &indent) const {
       o<<"\n";
       o<<indent<<"Lattice:\n\n";
       o<<indent<<"  Type: "<<label<<"\n";
       o<<indent<<"  Size: "<<size()<<"\n";
       o<<indent<<"  Divisions: "<<numdivisions<<"\n";
+
+      o<<"\n";
+      o<<indent<<"  Sites:\n";
+      for(typename std::vector<Site>::const_iterator it=Coordinates.begin(); it!=Coordinates.end(); ++it) {
+        o<<indent<<"    - ";
+        yaml_print_site(o,chop(*it));
+        o<<"\n";
+      }
+
       return o;
   }
 

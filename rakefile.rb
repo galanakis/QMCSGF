@@ -31,9 +31,9 @@ mkllib=""
 mklinclude=""
 
 # Compiler selections
-icc='/opt/intel/composerxe/bin/icc -m64 -fast -fp-model precise -std=c++0x'
-gcc='g++-mp-4.7 -O3'
-clang='clang++ -O3'
+icc='/opt/intel/composerxe/bin/icc -m64 -fast -fp-model precise -std=c++11'
+gcc='g++-mp-4.9 -O3 -std=c++11'
+clang='clang++ -O3 -std=c++11'
 
 flags=""
 libs=""
