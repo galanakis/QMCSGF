@@ -11,8 +11,34 @@ extern int Rank;
 #endif
 
 
+#if defined(CPPRNG_MT)
 
-#if defined(RNG_MT)
+// Mersenne Twister
+#include <random>
+class CPPRNGMT {
+  static std::mt19937 rand;
+public:
+  inline static void Initialize(int s) {
+//    cout<<"Using the Mersenne Twister random number generator."<<std::endl;
+#ifdef USEMPI
+    s=s*(Rank+1);
+//    std::cout<<"Initialize processor "<<Rank<<" with seed "<<s<<std::endl;
+#endif
+    rand.seed(s);
+
+    std::cout<<"Seed:          "<<s<<std::endl;
+    std::cout<<"Minimum value: "<<rand.min()<<std::endl;
+    std::cout<<"Maximum value: "<<rand.max()<<std::endl;
+
+  }
+  inline static double Uniform() {return double(rand())/rand.max();}
+  inline static double NZUniform() {return (double(rand()) + 0.5 ) * (1.0/rand.max());}
+};
+
+std::mt19937 CPPRNGMT::rand;
+typedef CPPRNGMT RNGBase;
+
+#elif defined(RNG_MT)
 
 // Mersenne Twister
 #include "MersenneTwister.h"
@@ -97,7 +123,7 @@ typedef RNGLC RNGBase;
 class RNG : public RNGBase {
 
 // This variables are used by Exponential(double)
-  static double Lg1,Lg2,Lg3,Lg4,Lg5,Lg6,Lg7;
+  static const double Lg1,Lg2,Lg3,Lg4,Lg5,Lg6,Lg7;
   inline static double ExponentialHelper(double r,double L);
 public:
 // Initialize the random number generator with a non zero seed.
@@ -181,13 +207,13 @@ public:
 */
 
 
-double RNG::Lg1 = 6.666666666666735130e-01;
-double RNG::Lg2 = 3.999999999940941908e-01;
-double RNG::Lg3 = 2.857142874366239149e-01;
-double RNG::Lg4 = 2.222219843214978396e-01;
-double RNG::Lg5 = 1.818357216161805012e-01;
-double RNG::Lg6 = 1.531383769920937332e-01;
-double RNG::Lg7 = 1.479819860511658591e-01;
+const double RNG::Lg1 = 6.666666666666735130e-01;
+const double RNG::Lg2 = 3.999999999940941908e-01;
+const double RNG::Lg3 = 2.857142874366239149e-01;
+const double RNG::Lg4 = 2.222219843214978396e-01;
+const double RNG::Lg5 = 1.818357216161805012e-01;
+const double RNG::Lg6 = 1.531383769920937332e-01;
+const double RNG::Lg7 = 1.479819860511658591e-01;
 
 
 /*

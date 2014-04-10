@@ -40,36 +40,30 @@ namespace SGF {
 
 
 
-enum {LATER,EARLIER};
+enum {LATER, EARLIER};
 
 template<typename T>
 class OperatorStringBase : public T {
 
 
 
-  CircDList<Operator> &CDList;
+  CircDList<Operator>& CDList;
 
   double _Beta;             // Inverse temperature.
   double _Alpha;            // directionality parameter
 
   // Some running parameters
   double _Renormalization;  // We need the renormalization for the measurements
-  double _DeltaRenormalization; // Holds the difference between left minus right normalition.
-  double WCLEFT,WCRIGHT,SumWD,DeltaWD,WSum,WDiff;
+  double WCLEFT, WCRIGHT, SumWD, DeltaWD, WSum, WDiff;
 
   _float_accumulator _diagonal_energy; // Keeps track of the diagonal energy
 
-  // This is crazy
-  template<int direction>
-  inline _float_accumulator delta_diagonal() const {
-    return (CDList.length()>=2) ? CDList.top<direction>(direction).Energy*(CDList.top<direction>(!direction).Time-CDList.top<direction>(direction).Time).time() : 0;
-  }
   inline double ER_Dtau() const {
-    return CDList.empty() ? Energy<RIGHT>() : Energy<RIGHT>()*(CDList.top<LEFT>().Time-CDList.top<RIGHT>().Time).time();
+    return CDList.empty() ? Energy<RIGHT>() : Energy<RIGHT>() * (CDList.top<LEFT>().Time - CDList.top<RIGHT>().Time).time();
   }
 
   template<int rl>
-  inline const _float_accumulator &Energy() const {
+  inline const _float_accumulator& Energy() const {
     return T::template Energy<rl>();
   }
 
@@ -78,227 +72,206 @@ class OperatorStringBase : public T {
     return T::template weight<rl>();
   }
 
-  inline MatrixElement G(int offset=0) const {
+  inline MatrixElement G(int offset = 0) const {
     return T::G();
   }
 
 
   inline _float_accumulator DiagonalEnergyIntegral() const {
-    _float_accumulator result=0;
-    for(unsigned int i=0; i+1<CDList.length(); ++i) {
-      result+=CDList[i+1].Energy*(CDList[i].Time-CDList[i+1].Time).time();
+    _float_accumulator result = 0;
+    for (unsigned int i = 0; i + 1 < CDList.length(); ++i) {
+      result += CDList[i + 1].Energy * (CDList[i].Time - CDList[i + 1].Time).time();
     }
     return result;
   }
 
   // Calculates the diagonal energy by doing the time integral explicitly.
-  inline double GetDiagonalEnergy() const {
-    return ER_Dtau()+DiagonalEnergyIntegral();
+  inline double GetDiagonalEnergy1() const {
+    return ER_Dtau() + DiagonalEnergyIntegral();
   }
 
   inline double DeltaV() const {
-    return Energy<LEFT>()-Energy<RIGHT>();  // The difference between the energies
+    return Energy<LEFT>() - Energy<RIGHT>(); // The difference between the energies
   }
-  inline double DeltaTau() const {
-    return Beta()*(CDList.top<LEFT>().Time-CDList.top<RIGHT>().Time).time();
-  }
-
-  inline CircularTime newtime() const {
-    if(CDList.empty())
-      return 1;
-    else {
-      CircularTime TL=CDList.top<LEFT>().Time;
-      CircularTime TR=CDList.top<RIGHT>().Time;
-
-      double dt=(TL-TR).time();
-      double L=dt*Beta()*DeltaV();
-
-      return TR+dt*RNG::NZExponential(L);
-
-
-    }
-
-  }
-
-  /*
-  	Executes a single directed update and returns its length.
-  	In this method direction is the direction of motion of the Green operator.
-
-  	Lets define
-
-  	dV = VL-VR
-  	dt = tL-tR
-
-  	Creation Weight LEFT			WCLEFT  = <GT>/G()
-  	Creation Weight RIGHT		WCRIGHT = <TG>/G()
-  	Destruction Weight LEFT		WD[LEFT]  = dV/(1-exp(-dV dt))
-  	Destruction Weight RIGHT 	WD[RIGHT] = -dV/(1-exp(dV dt))
-
-  	And from this
-  	SumWD 	= WD[LEFT] + WD[RIGHT]	= dV Coth[dt dV/2]
-  	DeltaWD	= WD[LEFT] - WD[RIGHT]	=	dV
-  	Note here that the destruction weights will be zero for an empty string.
-
-  	We can parametrize
-  	WD[LEFT]	= (SumWD + DeltaWD)/2;
-  	WD[RIGHT]	= (SumWD - DeltaWD)/2;
-
-  	If we define Sign[LEFT] = -1 and Sign[RIGHT]=1 we can write
-  	WD[direction] = (SumWD - Sign[direction]*DeltaWD)/2;
-
-  	The total creation destruction weight per direction is
-     WT[LEFT]	   =	WCLEFT  +WD[LEFT]
-     WT[RIGHT]	=	WCRIGHT +WD[RIGHT]
-
-  	and corresponds to Eq. 35 and 36.
-  	Similarly I can define
-  	WSum	=WT[LEFT]+WT[RIGHT]		=	WCLEFT+WCRIGHT+SumWD;
-  	WDiff	=WT[RIGHT]+WT[RIGHT]	=	WCLEFT-WCRIGHT+DeltaWD;
-
-  	Again we can parametrize WD[LEFT or RIGHT] by these sum and difference
-  	WT[direction] = (WSum - Sign[direction]*WDiff)/2;
-
-  	The loop probability from Eq. 42 is
-  	PLoop[direction] = alpha min(1,WT[direction]/WT[opposite direction])
-  	                 = alpha min(WT[LEFT],WT[RIGHT])/WT[opposite direction])
-  	                 = alpha min(WSum-WDiff,WSum+WDiff)/(WSum-Sign[opposite direction]*WDiff)
-  		              = alpha (WSum-fabs(WDiff))/(WSum+Sign[direction]*WDiff)
-
-   	where in the last line I used Sign[opposite direction]=-Sign[direction] and min(a+b,a-b)=a+|b|
-
-  	The normalization per direction is (see Eq. 44)
-  	Q[direction]= WT[direction] (1-alpha min(1,WR[opposite direction]/WT[direction]))
-  	 				= WT[direction]-alpha min(WT[LEFT],WR[RIGHT])
-  					= (WSum-Sign[direction]*WDiff)/2 - alpha min(WSum-WDiff,WSum+WDiff)/2
-  					= (  WSum-Sign[direction]*WDiff-alpha (WSum-abs(WDiff)) )/2
-
-  	From this we can calculate
-  	Renormalization 			= Q[LEFT]+Q[RIGHT] = (1-alpha) WSum + alpha abs(WDiff)
-  	DeltaRenormalization 	= Q[LEFT]-Q[RIGHT] = WDiff
-
-  	and again we can write
-  	Q[LEFT] 	= (Renormalization+DeltaRenormalization)/2
-  	Q[RIGHT]  = (Renormalization-DeltaRenormalization)/2
-
-  	Let r be a random number uniformly distributed in [0,1[ to decide if the direction is RIGHT
-  	(Q[LEFT]+Q[RIGHT])*r<Q[RIGHT]
-
-   	This can be written as
-  	2*Renormalization*r<Renormalization-DeltaRenormalization
-  	or
-  	DeltaRenormalization<Renormalization*(1-2*r)
-
-  	The Boltzmann weight is 1/Renormalization and because we need to call
-  	it often for measurements we store Renormalization it in a variable
-  	and update it after each operator insertion removal.
-
-  	When the string is initialized it is empty and by symmetry <GT>=<TG>
-  	Therefore the initialization is
-  	_Renormalization=(1-_Alpha)*(WCLEFT+WCRIGHT)
-  	_DeltaRenormalization=0;
-
-
-  */
-
-
-  /*
-    It calculates <GT>/<G> is direction=LEFT and <TG>/<G> is direction is right
-    Here the direction is the direction of motion of the Green operator.
-    If the operator moves to the left operators are added to their right
-    and vice versa.
 
   template<int rl>
-  inline double WeightCreation() const {
-    return weight<!rl>()/G();
+  const CircularTime& Tau() const {
+    return CDList.top<rl>().Time;
   }
-  */
+
+  template<int rl>
+  const HamiltonianTerm* Term() const {
+    return CDList.top<rl>().Term;
+  }
+
+  inline double DeltaTau() const {
+    return Beta() * (Tau<LEFT>() - Tau<RIGHT>()).time();
+  }
 
 
-  /*
-    This returns the sum WeightDestruction(LEFT)+WeightDestruction(RIGHT)
-    which is equal to dV/(1-exp(-dV dt))-dV/(1-exp(dV dt)) = dV Coth[dt dV/2]
-
-  inline double SumWeightDestuction() const {
-
-    if(CDList.empty())
-      return 0;
+  inline CircularTime newtime() const {
+    if (CDList.empty())
+      return 1;
     else {
-      double dV=DeltaV();
-      double dt=DeltaTau();
-      return 2*xcoth(dV*dt/2)/dt;
+      CircularTime TL = Tau<LEFT>();
+      CircularTime TR = Tau<RIGHT>();
+
+      double dt = (TL - TR).time();
+      double L = dt * Beta() * DeltaV();
+
+      return TR + dt * RNG::NZExponential(L);
+
 
     }
+
   }
 
-  */
   /*
-    This returns the difference WeightDestruction(LEFT)+WeightDestruction(RIGHT
-    which is equal to dV/(1-exp(-dV dt))+dV/(1-exp(dV dt)) = dV
+    Executes a single directed update and returns its length.
+    In this method direction is the direction of motion of the Green operator.
 
-  inline double DeltaWeightDestuction() const {
-    return CDList.empty() ? 0 : DeltaV();
-  }
+    Lets define
+
+    dV = VL-VR
+    dt = tL-tR
+
+    Creation Weight LEFT        WCLEFT  = <GT>/G()
+    Creation Weight RIGHT       WCRIGHT = <TG>/G()
+    Destruction Weight LEFT   WD[LEFT]  = dV/(1-exp(-dV dt))
+    Destruction Weight RIGHT  WD[RIGHT] = -dV/(1-exp(dV dt))
+
+    And from this
+    SumWD   = WD[LEFT] + WD[RIGHT]  = dV Coth[dt dV/2]
+    DeltaWD = WD[LEFT] - WD[RIGHT]  = dV
+    Note here that the destruction weights will be zero for an empty string.
+
+    We can parametrize
+    WD[LEFT]  = (SumWD + DeltaWD)/2;
+    WD[RIGHT] = (SumWD - DeltaWD)/2;
+
+    If we define Sign[LEFT] = -1 and Sign[RIGHT]=1 we can write
+    WD[direction] = (SumWD - Sign[direction]*DeltaWD)/2;
+
+    The total creation destruction weight per direction is
+     WT[LEFT]  =  WCLEFT + WD[LEFT]
+     WT[RIGHT] = WCRIGHT + WD[RIGHT]
+
+    and corresponds to Eq. 35 and 36.
+    Similarly I can define
+    WSum  =WT[LEFT] + WT[RIGHT]  = WCLEFT + WCRIGHT + SumWD;
+    WDiff =WT[RIGHT]- WT[RIGHT]  = WCLEFT - WCRIGHT + DeltaWD;
+
+    Again we can parametrize WD[LEFT or RIGHT] by their sum and difference
+    WT[direction] = (WSum - Sign[direction]*WDiff)/2;
+
+    The loop probability from Eq. 42 is
+    PLoop[direction] = alpha min(1,WT[direction]/WT[opposite direction])
+                     = alpha min(WT[LEFT],WT[RIGHT])/WT[opposite direction])
+                     = alpha min(WSum-WDiff,WSum+WDiff)/(WSum-Sign[opposite direction]*WDiff)
+                     = alpha (WSum-fabs(WDiff))/(WSum+Sign[direction]*WDiff)
+
+    where in the last line I used Sign[opposite direction]=-Sign[direction] and min(a+b,a-b)=a+|b|
+
+    The normalization per direction is (see Eq. 44)
+    Q[direction]= WT[direction] (1-alpha min(1,WR[opposite direction]/WT[direction]))
+                = WT[direction]-alpha min(WT[LEFT],WR[RIGHT])
+                = (WSum-Sign[direction]*WDiff)/2 - alpha min(WSum-WDiff,WSum+WDiff)/2
+                = ( WSum-Sign[direction]*WDiff-alpha (WSum-abs(WDiff)) )/2
+
+    From this we can calculate
+    Renormalization       = Q[LEFT]+Q[RIGHT] = (1-alpha) WSum + alpha abs(WDiff)
+    DeltaRenormalization  = Q[LEFT]-Q[RIGHT] = WDiff
+
+    and again we can write
+    Q[LEFT]   = (Renormalization+DeltaRenormalization)/2
+    Q[RIGHT]  = (Renormalization-DeltaRenormalization)/2
+
+    Let r be a random number uniformly distributed in [0,1[ to decide if the direction is RIGHT
+    (Q[LEFT]+Q[RIGHT])*r<Q[RIGHT]
+
+    This can be written as
+    2*Renormalization*r<Renormalization-DeltaRenormalization
+    or
+    DeltaRenormalization<Renormalization*(1-2*r)
+
+    The Boltzmann weight is 1/Renormalization and because we need to call
+    it often for measurements we store Renormalization it in a variable
+    and update it after each operator insertion removal.
+
+    When the string is initialized it is empty and by symmetry <GT>=<TG>
+    Therefore the initialization is
+    _Renormalization=(1-_Alpha)*(WCLEFT+WCRIGHT)
+    WDiff=0;
+
 
   */
 
 
   inline void EvalueRenormalizations() {
-    _Renormalization=(1-_Alpha)*WSum+_Alpha*fabs(WDiff);
-    _DeltaRenormalization=WCLEFT-WCRIGHT+DeltaWD;
-
+    _Renormalization = (1 - _Alpha) * WSum + _Alpha * fabs(WDiff);
   }
 
   inline void EvaluateRunningPars() {
-    double g=G();
-    WCLEFT=weight<RIGHT>()/g;
-    WCRIGHT=weight<LEFT>()/g;
+    double g = G();
+    WCLEFT  = weight<RIGHT>() / g;
+    WCRIGHT = weight<LEFT>()  / g;
 
-    if(CDList.empty()) {
-      SumWD= 0;
-      DeltaWD=0;
+    DeltaWD = DeltaV();
+
+    if (CDList.empty()) {
+      SumWD = 0;
     } else {
-      double a=DeltaTau()/2;
-      DeltaWD = DeltaV();
-      SumWD= (DeltaWD*a==0) ? 1/a : DeltaWD/tanh(DeltaWD*a);
+      double a = DeltaTau() / 2;
+      SumWD = (DeltaWD * a == 0) ? 1 / a : DeltaWD / tanh(DeltaWD * a);
     }
 
-    WSum=WCLEFT+WCRIGHT+SumWD;
-    WDiff=WCLEFT-WCRIGHT+DeltaWD;
+    WSum  = WCLEFT + WCRIGHT + SumWD;
+    WDiff = WCLEFT - WCRIGHT + DeltaWD;
   }
 
-// Destroy the operator in the front of the Green operator
+  template<int rl>
+  inline _float_accumulator delta_diagonal(const CircularTime& tau) const {
+
+    return CDList.empty() ? 0 : rl == RIGHT ?
+           Energy<RIGHT>() * ( tau - Tau<RIGHT>() ).time() :
+           Energy<LEFT >() * ( Tau<LEFT >() - tau ).time() ;
+
+  }
+
+  // Destroy the operator in the front of the Green operator
   template<int rl>
   void destroy() {
-    T::template update<rl,REMOVE>(CDList.top<rl>().Term);
-    _diagonal_energy -= delta_diagonal<rl>();
+    CircularTime tau = Tau<rl>();
+    T::template update<rl, REMOVE>(Term<rl>());
     CDList.pop<rl>();
+    _diagonal_energy -= delta_diagonal<rl>(tau);
   }
 
-// Create an operator to the right of the Green operator
-// Note that the order of "update", "push" and _diagonal_energy increment matters
+  // Create an operator to the right of the Green operator
+  // Note that the order of "update", "push" and _diagonal_energy increment matters
   void create_RIGHT() {
-    const HamiltonianTerm* term=T::template choose<RIGHT>();
-    CircularTime tau=newtime();
-    T::template update<RIGHT,ADD>(term);
-    CDList.push<RIGHT>(Operator(tau,term,Energy<RIGHT>()));
-    _diagonal_energy += delta_diagonal<RIGHT>();
+    const HamiltonianTerm* term = T::template choose<RIGHT>();
+    CircularTime tau = newtime();
+    _diagonal_energy += delta_diagonal<RIGHT>(tau);
+    T::template update<RIGHT, ADD>(term);
+    CDList.push<RIGHT>(Operator(tau, term, Energy<RIGHT>()));
   }
 
-// Create an operator to the left of the Green operator
+  // Create an operator to the left of the Green operator
   void create_LEFT() {
-    const HamiltonianTerm* term=T::template choose<LEFT>();
-    CircularTime tau=newtime();
-    CDList.push<LEFT>(Operator(tau,term,Energy<LEFT>()));
-    _diagonal_energy += delta_diagonal<LEFT>();
-    T::template update<LEFT,ADD>(term);
+    const HamiltonianTerm* term = T::template choose<LEFT>();
+    CircularTime tau = newtime();
+    _diagonal_energy += delta_diagonal<LEFT>(tau);
+    CDList.push<LEFT>(Operator(tau, term, Energy<LEFT>()));
+    T::template update<LEFT, ADD>(term);
   }
 
 public:
 
 
-  OperatorStringBase(SGFBase &base) :  T(base), CDList(base.OperatorCDL), _Beta(base.Beta), _Alpha(base.Alpha) {
+  OperatorStringBase(SGFBase& base) :  T(base), CDList(base.OperatorCDL), _Beta(base.Beta), _Alpha(base.Alpha) {
 
-    _diagonal_energy=DiagonalEnergyIntegral();
+    _diagonal_energy = DiagonalEnergyIntegral();
 
     EvaluateRunningPars();
     EvalueRenormalizations();
@@ -307,39 +280,44 @@ public:
 
   }
 
-
   void print_internal() {
 
-    T::print_probabilities();
-    std::cout<<"Ostring Data"<<std::endl;
-    std::cout<<_Beta<<std::endl;
-    std::cout<<_Alpha<<std::endl;
+    unsigned int precision = 17;
+    std::cout << std::setprecision(precision);
+
+    //T::print_probabilities();
+    std::cout << "Ostring Data" << std::endl;
+    std::cout << "EnergyR = " << Energy<RIGHT>() << std::endl;
+    std::cout << "EnergyL = " << Energy<LEFT>() << std::endl;
+    std::cout << "Beta    = " << _Beta << std::endl;
+    std::cout << "Alpha   = " << _Alpha << std::endl;
     // Some running parameters
-    std::cout<< _Renormalization<<std::endl;  // We need the renormalization for the measurements
-    std::cout<< _DeltaRenormalization<<std::endl; // Holds the difference between left minus right normalition.
-    std::cout<< WCLEFT <<std::endl;
-    std::cout<<WCRIGHT<<std::endl;
-    std::cout<<SumWD<<std::endl;
-    std::cout<<DeltaWD<<std::endl;
-    std::cout<<WSum<<std::endl;
-    std::cout<<WDiff<<std::endl;
+    std::cout << "Renorm  = " << _Renormalization << std::endl; // We need the renormalization for the measurements
+    std::cout << "WDiff   = " << WDiff << std::endl; // Holds the difference between left minus right normalition.
+    std::cout << "WCLEFT  = " << WCLEFT << std::endl;
+    std::cout << "WCRIGHT = " << WCRIGHT << std::endl;
+    std::cout << "SumWD   = " << SumWD << std::endl;
+    std::cout << "DeltaWD = " << DeltaWD << std::endl;
+    std::cout << "WSum    = " << WSum << std::endl;
+    std::cout << "WDiff   = " << WDiff << std::endl;
 
-    std::cout<<_diagonal_energy<<std::endl; // Keeps track of the diagonal energy
+    std::cout << "DiagEn  = " << _diagonal_energy << std::endl; // Keeps track of the diagonal energy
+    std::cout << "EvalDiag=" << DiagonalEnergyIntegral() << std::endl;
 
-    std::cout<<"Operator String (size= "<<length()<<")"<<std::endl;
+    std::cout << "Operator String (size= " << length() << ")" << std::endl;
 
-    Operator *o;
+    Operator* o;
 
-    unsigned int precision=17;
+    for (unsigned long i = 0; i < length(); ++i) {
 
-    for(unsigned long i=0; i<length(); ++i) {
+      o = &CDList[i];
 
-      o=&CDList[i];
-
-      std::cout<<std::right<<"    ["<<std::setw(6)<<T::KinHash(o->Term)<<", "<<std::fixed<<std::setprecision(precision)<<std::setw(precision+5)<<std::left<<o->Time.time()<<", "<<std::setw(21)<<o->Energy<<"],"<<std::endl;
+      std::cout << std::right << "    [" << std::setw(6) << T::KinHash(o->Term) << ", " << std::fixed << std::setprecision(precision) << std::setw(precision + 5) << std::left << o->Time.time() << ", " << std::setw(21) << o->Energy << "]," << std::endl;
 
     }
 
+
+    //assert(_diagonal_energy == DiagonalEnergyIntegral());
 
 
   }
@@ -354,14 +332,17 @@ public:
     return CDList.length();
   }
 
-// Calculates the diagonal energy fast using the updated variable.
+  // Calculates the diagonal energy fast using the updated variable.
   double DiagonalEnergy() const {
-    return ER_Dtau()+_diagonal_energy;
+
+    //assert(_diagonal_energy == DiagonalEnergyIntegral());
+
+    return ER_Dtau() + _diagonal_energy;
   }
 
-// Returns the Kinetic energy from the length of the string
+  // Returns the Kinetic energy from the length of the string
   double KineticEnergy() const {
-    return -static_cast<_float_accumulator>(length())/Beta();
+    return -static_cast<_float_accumulator>(length()) / Beta();
   }
 
   double alpha() const {
@@ -372,62 +353,62 @@ public:
     return _Beta;
   }
 
-// The weight for the measurements as shown in Eq. 62 of the paper
+  // The weight for the measurements as shown in Eq. 62 of the paper
   double BoltzmannWeight() const {
-    return 1.0/_Renormalization/G();
+    return 1.0 / _Renormalization / G();
   }
 
   bool ChooseDirectionRight() const {
 
 #ifdef DEBUG
-    if(_Renormalization==0) {
-      std::cerr<<std::endl<<"Error in OperatorString::ChooseDirectionRight()"<<std::endl<<"The renormalization is zero, no meaningful choice can be made."<<std::endl;
+    if (_Renormalization == 0) {
+      std::cerr << std::endl << "Error in OperatorString::ChooseDirectionRight()" << std::endl << "The renormalization is zero, no meaningful choice can be made." << std::endl;
       exit(30);
     }
 #endif
 
-    return _DeltaRenormalization < _Renormalization*(1-2*RNG::Uniform());
+    return WDiff < _Renormalization * (1 - 2 * RNG::Uniform());
   }
 
   bool ChooseCreateRight() const {
 
 #ifdef DEBUG
-    if(WCRIGHT==0) {
-      std::cerr<<std::endl<<"Error in OperatorString::ChooseCreateRight()"<<std::endl<<"The total probabilities are both zero, no meaningful choice can be made."<<std::endl;
+    if (WCRIGHT == 0) {
+      std::cerr << std::endl << "Error in OperatorString::ChooseCreateRight()" << std::endl << "The total probabilities are both zero, no meaningful choice can be made." << std::endl;
       exit(31);
     }
 #endif
 
-    return (WCRIGHT+(SumWD-DeltaWD)/2)*RNG::Uniform()<WCRIGHT;
+    return (2 * WCRIGHT + SumWD - DeltaWD) * RNG::Uniform() < 2 * WCRIGHT;
   }
 
   bool ChooseCreateLeft() const {
 
 #ifdef DEBUG
-    if(WCLEFT==0) {
-      std::cerr<<std::endl<<"Error in OperatorString::ChooseCreateLeft()"<<std::endl<<"The total probabilities are both zero, no meaningful choice can be made."<<std::endl;
+    if (WCLEFT == 0) {
+      std::cerr << std::endl << "Error in OperatorString::ChooseCreateLeft()" << std::endl << "The total probabilities are both zero, no meaningful choice can be made." << std::endl;
       exit(32);
     }
 #endif
 
-    return (WCLEFT +(SumWD+DeltaWD)/2)*RNG::Uniform()<WCLEFT;
+    return (2 * WCLEFT + SumWD + DeltaWD) * RNG::Uniform() < 2 * WCLEFT;
   }
 
   bool KeepGoingRight() const {
-    return RNG::Uniform()*(WSum+WDiff) < _Alpha*(WSum-fabs(WDiff));
+    return RNG::Uniform() * (WSum + WDiff) < _Alpha * (WSum - fabs(WDiff));
   }
 
   bool KeepGoingLeft() const {
-    return RNG::Uniform()*(WSum-WDiff) < _Alpha*(WSum-fabs(WDiff));
+    return RNG::Uniform() * (WSum - WDiff) < _Alpha * (WSum - fabs(WDiff));
   }
 
   unsigned int directed_update() {
 
-    unsigned int UpdateLength=0;
+    unsigned int UpdateLength = 0;
 
-    if(ChooseDirectionRight())
+    if (ChooseDirectionRight())
       do {
-        if(ChooseCreateRight())
+        if (ChooseCreateRight())
           create_LEFT();
         else
           destroy<RIGHT>();
@@ -436,10 +417,10 @@ public:
 
         ++UpdateLength;
 
-      } while(KeepGoingRight());
+      } while (KeepGoingRight());
     else
       do {
-        if(ChooseCreateLeft())
+        if (ChooseCreateLeft())
           create_RIGHT();
         else
           destroy<LEFT>();
@@ -448,7 +429,7 @@ public:
 
         ++UpdateLength;
 
-      } while(KeepGoingLeft());
+      } while (KeepGoingLeft());
 
 
     EvalueRenormalizations();

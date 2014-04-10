@@ -2,7 +2,6 @@
 #define __TSUM__
 
 #include "RandomNumberGenerator.hh"
-#include "Conventions.hh"
 #include <vector>
 #include "UnorderedSet.hh"
 
@@ -20,7 +19,7 @@ element contains a value which is interpreted as a relative probability
 At each node we don't need to store that relative probability, but
 only the total sum of the probability of the node and all its children.
 The probability can be deduced by subtracting the sum of a node
-minus the sums of its children.	When a probability is changed this change
+minus the sums of its children. When a probability is changed this change
 is propagated to the node's parents with logarithmic complexity.
 Selecting a term according to its relative probability is also done
 with logarithmic complexity algorithm. We start from the root of the
@@ -51,44 +50,58 @@ t.reset();              // clear everything.
 */
 
 
-
+template<typename _Float, typename _DoubleFloat>
 class TSumBase {
-  typedef std::vector<MatrixElement>::size_type index_type;
+  typedef std::vector<_Float> FloatArray;
+  typedef typename FloatArray::iterator Iterator;
+public:
+  typedef _Float Float;
+  typedef _DoubleFloat DoubleFloat;
+  typedef typename FloatArray::size_type IndexType;
+private:
+  FloatArray _sums;
+  Float* _elements;
+  IndexType _nsums, _base;
+  DoubleFloat _norm;
 
-  std::vector<MatrixElement> _sums;
-  MatrixElement *_elements;
-  index_type _nsums,_base;
-  _float_accumulator _norm;
+  IndexType _nterms;
+  bool* _guard;
+  IndexType* _buffer, *_buffer_entry;
 
-  index_type _nterms;
-  bool *_guard;
-  index_type *_buffer,*_buffer_entry;
-
+  /* Makes all elements zero */
+  inline void reset() {
+    _buffer_entry = _buffer;
+    _norm = 0;
+    for (IndexType i = 0; i < _nterms; ++i)
+      _guard[i] = true;
+    for (Iterator it = _sums.begin(); it != _sums.end(); ++it)
+      *it = Float(0);
+  }
 
   inline void flush() {
 
-    while(_buffer_entry>_buffer) {
+    while (_buffer_entry > _buffer) {
       --_buffer_entry;
 
-      _guard[*_buffer_entry]=true;
-      index_type index=*_buffer_entry/2+_base;
-      MatrixElement newme=_sums[2*index-1]+_sums[2*index];
-      MatrixElement oldme=_sums[index-1];
+      _guard[*_buffer_entry] = true;
+      IndexType index = *_buffer_entry / 2 + _base;
+      Float newme = _sums[2 * index - 1] + _sums[2 * index];
+      Float oldme = _sums[index - 1];
 
-      if(newme!=oldme) {
-        while(index>1) {
-          _sums[index-1] =  newme;
-          newme += _sums[(index^1)-1];
-          index/=2;
+      if (newme != oldme) {
+        while (index > 1) {
+          _sums[index - 1] =  newme;
+          newme += _sums[(index ^ 1) - 1];
+          index /= 2;
         }
-        _sums[0]=newme;
+        _sums[0] = newme;
       }
 
 
 
     }
 
-    _norm=_sums[0];
+    _norm = _sums[0];
   }
 
 public:
@@ -99,88 +112,99 @@ public:
     delete [] _buffer;
   }
 
-  /* resizes the vector */
-  inline void resize(index_type NTerms) {
-    index_type _size=1;
-    while(_size<NTerms) _size<<=1;
-    _sums.resize(2*_size-1,MatrixElement(0));
-    _nsums=_size-1;
-    _base=(1+_nsums)/2;
-    _elements=&_sums[_nsums];
-    _nterms=NTerms;
-    _guard=new bool[_nterms];
-    _buffer=new index_type[_nterms];
-    _buffer_entry=_buffer;
-    _norm=0;
+  /* resizes the vector and sets all elements to zero */
+  inline void resize(IndexType NTerms) {
+    IndexType _size = 1;
+    while (_size < NTerms) _size <<= 1;
+    _sums.resize(2 * _size - 1, Float(0));
+    _nsums = _size - 1;
+    _base = (1 + _nsums) / 2;
+    _elements = &_sums[_nsums];
+    _nterms = NTerms;
+    _guard = new bool[_nterms];
+    _buffer = new IndexType[_nterms];
+    _buffer_entry = _buffer;
+    _norm = 0;
+
+    reset();
   }
 
-  inline void update(index_type index,MatrixElement me) {
-    if(me!=_elements[index]) {
-      if(_guard[index]) {
-        *_buffer_entry=index;
+  inline void update(IndexType index, Float me) {
+    if (me != _elements[index]) {
+      if (_guard[index]) {
+        *_buffer_entry = index;
         ++_buffer_entry;
-        _guard[index]=false;
+        _guard[index] = false;
       }
-      _norm+=me-_elements[index];
-      _elements[index]=me;
+      _norm += me - _elements[index];
+      _elements[index] = me;
     }
   }
 
-  inline const MatrixElement &element(index_type index) const {return _elements[index];}
+  inline const Float &element(IndexType index) const {
+    return _elements[index];
+  }
 
-  inline index_type choose() {
+  inline IndexType choose() {
     flush();
 
-    MatrixElement w,wl;
-    index_type index=0;
-    while(index<_nsums) {
-      w =_sums[index];
-      index=2*index+1;
-      wl=_sums[index];
-      index+=!(w*RNG::Uniform()<wl);
+    Float w, wl;
+    IndexType index = 0;
+    while (index < _nsums) {
+      w = _sums[index];
+      index = 2 * index + 1;
+      wl = _sums[index];
+      index += !(w * RNG::Uniform() < wl);
     }
 
-    return index-_nsums;
+    return index - _nsums;
 
   }
 
-  const _float_accumulator &norm() const {return _norm;}
-  /* Makes all elements zero */
-  inline void reset() {
-    _buffer_entry=_buffer;
-    _norm=0;
-    for(index_type i=0; i<_nterms; ++i)
-      _guard[i]=true;
-    for(std::vector<MatrixElement>::iterator it=_sums.begin(); it!=_sums.end(); ++it)
-      *it=MatrixElement(0);
+  const DoubleFloat &norm() const {
+    return _norm;
   }
 
 };
 
-
+template<typename Float, typename DoubleFloat>
 class TSumHC {
+
   UnorderedSet list;
-  _float_accumulator _norm;
-  std::vector<MatrixElement>  _elements;
-  typedef unsigned long index_type;
+  DoubleFloat _norm;
+  std::vector<Float>  _elements;
+  typedef unsigned long IndexType;
+
+  /* Makes all elements zero */
+  inline void reset() {
+    _norm = 0;
+    for (IndexType i = 0; i < _elements.size(); ++i)
+      _elements[i] = 0;
+    list.clear();
+  }
 
 public:
   TSumHC() : _norm(0), list(10000) {}
-  inline void resize(index_type NTerms) {
+  inline void resize(IndexType NTerms) {
     _elements.resize(NTerms);
+    reset();
   }
-  const _float_accumulator &norm() const {return _norm;}
-  inline index_type choose() {
-    return list.element(RNG::Uniform()*list.size());
+  const DoubleFloat &norm() const {
+    return _norm;
+  }
+  inline IndexType choose() {
+    return list.element(RNG::Uniform() * list.size());
   }
 
-  inline const MatrixElement &element(index_type index) const {return _elements[index];}
+  inline const Float &element(IndexType index) const {
+    return _elements[index];
+  }
 
-  inline void update(index_type index,MatrixElement me) {
-    if(me!=_elements[index]) {
-      _norm+=me-_elements[index];
-      _elements[index]=me;
-      if(me==0) {
+  inline void update(IndexType index, Float me) {
+    if (me != _elements[index]) {
+      _norm += me - _elements[index];
+      _elements[index] = me;
+      if (me == 0) {
         list.erase(index);
       } else {
         list.insert(index);
@@ -188,19 +212,7 @@ public:
     }
   }
 
-  /* Makes all elements zero */
-  inline void reset() {
-    _norm=0;
-    for(index_type i=0; i<_elements.size(); ++i)
-      _elements[i]=0;
-    list.clear();
-  }
-
-
 };
-
-
-typedef TSumBase TSum;
 
 }
 
