@@ -5,6 +5,7 @@
 #include <cmath>
 #include "AtomicTerm.hh"
 #include "Conventions.hh"
+#include <string>
 
 namespace SGF {
 
@@ -186,12 +187,12 @@ class ProductElement {
 // Deltas: The population of 1's minus the population of 0's after the leading digit.
 // MaxDel: Maximum occupancy
 // MinDel: Minimum occupancy
-//                       0, 1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,  30,  31,
-typedef enum      {INVALID, I,   A,   C,  AA,  AC,  CA,  CC, AAA, AAC, ACA, ACC, CAA, CAC, CCA, CCC,AAAA,AAAC,AACA,AACC,ACAA,ACAC,ACCA,ACCC,CAAA,CAAC,CACA,CACC,CCAA,CCAC,CCCA,CCCC} ProductCode;
-const int Deltas[32]=   {0, 0,  -1,   1,  -2,   0,   0,   2,  -3,  -1,  -1,   1,  -1,   1,   1,   3,  -4,  -2,  -2,   0,  -2,   0,   0,   2,  -2,   0,   0,   2,   0,   2,   2,   4};
-const int MaxDel[32]=   {0, 0,   0,   1,   0,   1,   0,   2,   0,   1,   0,   2,   0,   1,   1,   3,   0,   1,   0,   2,   0,   1,   1,   3,   0,   1,   0,   2,   0,   2,   2,   4};
-const int MinDel[32]=   {0, 0,  -1,   0,  -2,   0,  -1,   0,  -3,  -1,  -1,   0,  -2,   0,  -1,   0,  -4,  -2,  -2,   0,  -2,   0,  -1,   0,  -3,  -1,  -1,   0,  -2,   0,  -1,   0};
-
+//                       0,  1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,  30,  31,
+typedef enum      {INVALID,  I,   A,   C,  AA,  AC,  CA,  CC, AAA, AAC, ACA, ACC, CAA, CAC, CCA, CCC,AAAA,AAAC,AACA,AACC,ACAA,ACAC,ACCA,ACCC,CAAA,CAAC,CACA,CACC,CCAA,CCAC,CCCA,CCCC} ProductCode;
+const int Deltas[32]=   {0,  0,  -1,   1,  -2,   0,   0,   2,  -3,  -1,  -1,   1,  -1,   1,   1,   3,  -4,  -2,  -2,   0,  -2,   0,   0,   2,  -2,   0,   0,   2,   0,   2,   2,   4};
+const int MaxDel[32]=   {0,  0,   0,   1,   0,   1,   0,   2,   0,   1,   0,   2,   0,   1,   1,   3,   0,   1,   0,   2,   0,   1,   1,   3,   0,   1,   0,   2,   0,   2,   2,   4};
+const int MinDel[32]=   {0,  0,  -1,   0,  -2,   0,  -1,   0,  -3,  -1,  -1,   0,  -2,   0,  -1,   0,  -4,  -2,  -2,   0,  -2,   0,  -1,   0,  -3,  -1,  -1,   0,  -2,   0,  -1,   0};
+std::string CAnames[32]= {"", "I","A", "C","AA","AC","CA","CC","AAA","AAC","ACA","ACC","CAA","CAC","CCA","CCC","AAAA","AAAC","AACA","AACC","ACAA","ACAC","ACCA","ACCC","CAAA","CAAC","CACA","CACC","CCAA","CCAC","CCCA","CCCC"};
 
 class IndexedProductElement {
 
@@ -223,6 +224,7 @@ public:
   IndexedProductElement(const ProductCode _code,Boson* const _p) : code(_code),particle(_p) {}
   Boson* const &particle_id() const {return particle;}
   inline const ProductCode &code_id() const {return code;};
+  std::string code_name() const {return CAnames[code];}
 
   template<int action>
   inline int offset() const {

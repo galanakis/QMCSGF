@@ -13,6 +13,7 @@
 #include <map>
 #include <limits>
 #include <cassert>
+#include <sstream>
 
 
 namespace SGF {
@@ -73,6 +74,7 @@ struct SGFBase {
   double Alpha;
   double Beta;
   ensemble_t Ensemble;
+  double ExtraTermProbability;
 
   //
   // Input: a list of kinetic terms
@@ -107,6 +109,16 @@ struct SGFBase {
   // It generates the density matrix rho
   //
   static Hamiltonian GenerateDensityMatrix(std::vector<Boson>& psi);
+  //
+  // From the list of bosons it generates the extra terms
+  // C^{\dagger}, C
+  //
+  static Hamiltonian GenerateExtraTerms(std::vector<Boson>& psi);
+  //
+  // Input: a vector of boson pointers
+  // Output: the number of broken lines in this vector
+  //
+  static unsigned int CountBrokenLines2(const std::vector<Boson>& o);
   //
   // Input: two lists of terms, one called row and another called column
   // Output: a vector of size Trow, which contains the indices of the operators
@@ -153,10 +165,179 @@ struct SGFBase {
   // Input: a filename
   // Output: It stores the all the data in the container
   //
-  void write(const std::string& fname);
+
+  void write(const std::string& fname) {
+
+    std::ofstream o;
+    o.open(fname.c_str());
+
+    o << "{" << std::endl;
+    o << "  \"nsites\": " << Psi.size() << "," << std::endl;
+    o << "  \"nterms\": " << T.size() << "," << std::endl;
+    json_print(o, "configuration", Psi, 1);
+    o << "," << std::endl << std::endl;
+    json_print(o, "String", OperatorCDL, 1);
+    o << std::endl;
+    o << "}" << std::endl;
+
+  }
+
+  //
+  // Input: a filename
+  // Output: It stores the all the data in the container including the Hamiltonian
+  //
+  void json_print_hamiltonian(std::ostream& o) {
+    o << "{" << std::endl;
+    json_print(o, "Kinetic", T, 1);
+    o << "," << std::endl << std::endl;
+    json_print(o, "Potential", V, 1);
+    o << "}" << std::endl;
+  }
 
 
+  std::string json_print(const HamiltonianTerm& term) {
 
+    std::stringstream ss;
+    ss << "[" << std::setw(7) << term.coefficient() << ",";
+    HamiltonianTerm::const_iterator ip = term.begin();
+    while (ip != term.end()) {
+      ss << std::setw(7) << '\"' + ip->code_name() + '\"' << "," << std::setw(6) << ip->particle_id() - &Psi[0];
+      ++ip;
+      if (ip != term.end())
+        ss << ",";
+    }
+    ss << "]";
+    return ss.str();
+  }
+
+  std::string json_print(const Operator* op) {
+    std::stringstream o;
+    const unsigned int timeprecision = std::numeric_limits<circulartime_t>::digits10 + 1;
+    unsigned int timewidth = timeprecision + 4;
+
+    const unsigned int energyprecision = std::numeric_limits<_float_accumulator>::digits10 + 1;
+    unsigned int energywidth = energyprecision + 4;
+
+    unsigned int intwidth = std::numeric_limits<Hamiltonian::size_type>::digits10;
+
+    o  << std::right << "  ["
+       << std::setw(intwidth) << op->Term - &T[0] << ", "
+       << std::setprecision(timeprecision) << std::setw(timewidth) << std::left << op->Time.time() << ", "
+       << std::setprecision(energyprecision) << std::setw(energywidth) << op->Energy
+       << "]";
+
+    return o.str();
+
+  }
+
+
+  std::ostream& json_print(std::ostream& o, std::string tag, const Hamiltonian& H, unsigned int depth) {
+
+    std::string indent(2 * depth, ' ');
+    o << indent << '\"' << tag << '\"' << ": [" << std::endl;
+    Hamiltonian::const_iterator term = H.begin();
+    while (term != H.end()) {
+      o << indent << "  " << json_print(*term);
+      ++term;
+      if (term != H.end())
+        o << ",";
+      o << std::endl;
+    }
+    o << indent << "]";
+    return o;
+
+  }
+
+  std::ostream& json_print(std::ostream& o, std::string tag, std::vector<Boson>& psi, unsigned int depth) {
+
+    std::string indent(2 * depth, ' ');
+    o << indent << '\"' + tag + '\"' << ": [" << std::endl;
+    std::vector<Boson>::const_iterator it = psi.begin();
+    while (it != psi.end()) {
+      o << indent << "  [ " << it->nR() << ", " << it->nmax() << " ]";
+      ++it;
+      if (it != psi.end())
+        o << ',';
+      o << std::endl;
+    }
+    o << indent << "]";
+    return o;
+  }
+
+  std::ostream& json_print(std::ostream& o, std::string tag, OperatorCircDlist& ostring, unsigned int depth) {
+
+    std::string indent(2 * depth, ' ');
+    o << indent << '\"' + tag + '\"' << ": [" << std::endl;
+    for (unsigned long i = 0; i < OperatorCDL.que.size(); ++i) {
+      o << indent << json_print(&ostring.que[i]);
+      if (i + 1 != ostring.que.size() )
+        o << ",";
+      o << indent << std::endl;
+    }
+
+    o << indent << "]";
+
+    return o;
+  }
+
+  void write_verbose(const std::string& fname, unsigned int depth = 0)  {
+    std::ofstream output;
+    output.open(fname.c_str());
+    write_verbose(output, depth);
+  }
+
+  void write_verbose(std::ofstream& o, unsigned int depth = 0) {
+
+    std::string indent(2 * depth, ' ');
+    const unsigned int prec = std::numeric_limits<double>::digits10 + 1;
+    o << indent << "{" << std::endl;
+    o << indent << std::setprecision(prec) << "  \"Temperature\": " << 1.0 / Beta << "," << std::endl;
+    o << std::endl;
+    json_print(o, "configuration", Psi, 1 + depth);
+    o << "," << std::endl;
+    o << std::endl;
+    json_print(o, "Kinetic", T, 1 + depth);
+    o << "," << std::endl;
+    o << std::endl;
+    json_print(o, "Potential", V, 1 + depth);
+    o << "," << std::endl;
+    o << std::endl;
+    json_print(o, "String", OperatorCDL, 1 + depth);
+    o << std::endl;
+    o << indent << "}";
+
+  }
+
+  void write_as_input(const std::string& fname)  {
+    std::ofstream output;
+    output.open(fname.c_str());
+    write_as_input(output);
+  }
+
+  void write_as_input(std::ofstream& o) {
+    o << "{" << std::endl;
+    o << "  \"Model\": ";
+    write_verbose(o, 1);
+    o << "," << std::endl;
+    o << "  \"SGF\": {" << std::endl;
+
+    const unsigned int prec = std::numeric_limits<double>::digits10;
+    o << "    \"Alpha\": " << std::setprecision(prec) << Alpha;
+    o << "," << std::endl;
+    o << "    \"Enseble\": ";
+    if (Ensemble == Canonical)
+      o << "\"Canonical\"";
+    else
+      o << "\"GrandCanonical\"";
+    o << "," << std::endl;
+    o << "    \"ExtraTermProbability\": " << std::setprecision(prec) << ExtraTermProbability;
+    o << std::endl;
+    o << "  }" << std::endl;
+
+    o << "}" << std::endl;
+
+
+  }
 
 
 };
@@ -304,60 +485,30 @@ Hamiltonian SGFBase::GenerateDensityMatrix(std::vector<Boson>& psi) {
   return result;
 }
 
-
-void SGFBase::write(const std::string& fname) {
-
-  const unsigned int timeprecision = std::numeric_limits<circulartime_t>::digits10 + 4;
-  unsigned int timewidth = timeprecision;
-
-  const unsigned int energyprecision = std::numeric_limits<_float_accumulator>::digits10 + 4;
-  unsigned int energywidth = energyprecision;
-
-  unsigned int intwidth = std::numeric_limits<Hamiltonian::size_type>::digits10;
-
-  std::ofstream output;
-  output.open(fname.c_str());
-
-  output << "{" << std::endl;
-  output << "  \"nsites\": " << Psi.size() << "," << std::endl;
-  output << "  \"configuration\": [" << std::endl;
-  std::vector<Boson>::size_type i;
-  for (i = 0; i < Psi.size() - 1; ++i) {
-    output << "    " << Psi[i].nR() << "," << std::endl;
+//
+// It generates the extra terms for the canonical ensemble
+//
+Hamiltonian SGFBase::GenerateExtraTerms(std::vector<Boson>& psi) {
+  Hamiltonian Extra;
+  for (std::vector<Boson>::size_type i = 0; i < psi.size(); ++i) {
+    Extra.push_back(SGFBase::CreateHamiltonianTerm(1.0, C, &psi[i]));
+    Extra.push_back(SGFBase::CreateHamiltonianTerm(1.0, A, &psi[i]));
   }
-  output << "    " << Psi[i].nR() << std::endl;
+  return Extra;
+}
 
-  output << "  ]," << std::endl;
-
-  output << "  \"nterms\": " << T.size() << "," << std::endl;
-
-  output << "  \"operators\": [" << std::endl;
-
-  Operator* o;
-
-  for (i = 0; i < OperatorCDL.que.size(); ++i) {
-
-    o = &OperatorCDL.que[i];
-
-    output  << std::right << "    ["
-            << std::setw(intwidth) << o->Term - &T[0] << ", "
-            << std::setprecision(timeprecision) << std::setw(timewidth) << std::left << o->Time.time() << ", "
-            << std::setprecision(energyprecision) << std::setw(energywidth) << o->Energy
-            << "]";
-
-    if (i == OperatorCDL.que.size() - 1)
-      output << ",";
-
-    output << std::endl;
-
-  }
-
-  output << "  ]" << std::endl;
-
-  output << "}" << std::endl;
-
+//
+// Input: a vector of boson pointers
+// Output: the number of broken lines in this vector
+//
+unsigned int SGFBase::CountBrokenLines2(const std::vector<Boson>& o) {
+  int result = 0;
+  for (boson_vector_t::size_type i = 0; i < o.size(); ++i)
+    result += Abs(o[i].delta());
+  return result;
 
 }
+
 
 
 

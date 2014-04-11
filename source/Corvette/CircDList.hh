@@ -56,7 +56,7 @@ public:
   inline const T &operator[](string_size_type i) const {return que[i];}
   inline T &operator[](string_size_type i) {return que[i];}
 
-  friend class SGFBase;
+  friend struct SGFBase;
 
 };
 

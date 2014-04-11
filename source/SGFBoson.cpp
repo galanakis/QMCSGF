@@ -11,55 +11,50 @@
 namespace SGF {
 
 
+struct SimCounters {
+  unsigned long Time;
+  double ActualTime;
+  unsigned long Iterations;
+  unsigned long Updates;
+  unsigned long DirectedUpdates;
+  SimCounters() : Time(0), ActualTime(0), Iterations(0), Updates(0), DirectedUpdates(0) {}
 
-// Maximum number of broken lines is only used for the BrokenLineHistogram.
-#define MAXNUMBROKENLINES 100
+  std::ostream& print(std::ostream& o, unsigned int depth) {
+    std::string indent(2 * depth, ' ');
+    reduce();
+    o << indent << "Iterations:                     " << Updates << "\n";
+    o << indent << "Time:                           " << ActualTime << std::endl;
+    o << indent << "Iterations per sec:             " << std::setprecision(2) << std::fixed << Updates / ActualTime << "\n";
+    o << indent << "Directed Updates:               " << DirectedUpdates << "\n";
+    o << indent << "Update Length:                  " << double(Updates) / DirectedUpdates << "\n";
+
+    return o;
+  }
+
+  void reduce() {
+#ifdef USEMPI
+    unsigned long send_Updates(Updates);
+    unsigned long send_DirectedUpdates(DirectedUpdates);
+    double send_ActualTime(ActualTime);
+
+    MPI_Reduce(&send_Updates,          &Updates,         1, MPI_UNSIGNED_LONG, MPI_SUM, Master, MPI_COMM_WORLD);
+    MPI_Reduce(&send_DirectedUpdates,  &DirectedUpdates, 1, MPI_UNSIGNED_LONG, MPI_SUM, Master, MPI_COMM_WORLD);
+    MPI_Reduce(&send_ActualTime,       &ActualTime,      1, MPI_DOUBLE,        MPI_SUM, Master, MPI_COMM_WORLD);
+#endif
+  }
+
+
+  inline void increment(unsigned int length) {
+    Updates += length;
+    ++DirectedUpdates;
+  }
+
+};
+
+
 
 class Simulation {
 public:
-
-  struct SimCounters {
-    unsigned long Time;
-    double ActualTime;
-    unsigned long Iterations;
-    unsigned long Updates;
-    unsigned long DirectedUpdates;
-    SimCounters() : Time(0), ActualTime(0), Iterations(0), Updates(0), DirectedUpdates(0) {}
-
-    std::ostream& print(std::ostream& o, unsigned int depth) {
-      std::string indent(2 * depth, ' ');
-      reduce();
-      o << indent << "Iterations:                     " << Updates << "\n";
-      o << indent << "Time:                           " << ActualTime << std::endl;
-      o << indent << "Iterations per sec:             " << std::setprecision(2) << std::fixed << Updates / ActualTime << "\n";
-      o << indent << "Directed Updates:               " << DirectedUpdates << "\n";
-      o << indent << "Update Length:                  " << double(Updates) / DirectedUpdates << "\n";
-
-      return o;
-    }
-
-    void reduce() {
-#ifdef USEMPI
-      unsigned long send_Updates(Updates);
-      unsigned long send_DirectedUpdates(DirectedUpdates);
-      double send_ActualTime(ActualTime);
-
-      MPI_Reduce(&send_Updates,          &Updates,         1, MPI_UNSIGNED_LONG, MPI_SUM, Master, MPI_COMM_WORLD);
-      MPI_Reduce(&send_DirectedUpdates,  &DirectedUpdates, 1, MPI_UNSIGNED_LONG, MPI_SUM, Master, MPI_COMM_WORLD);
-      MPI_Reduce(&send_ActualTime,       &ActualTime,      1, MPI_DOUBLE,        MPI_SUM, Master, MPI_COMM_WORLD);
-#endif
-    }
-
-
-    inline void increment(unsigned int length) {
-      Updates += length;
-      ++DirectedUpdates;
-    }
-
-  };
-
-  typedef  std::vector<unsigned long> BrokenHistogramType;
-  BrokenHistogramType BrokenHistorgram;
 
   SimCounters Warm, Meas;
 
@@ -67,19 +62,24 @@ public:
   int Seed;
 
   std::string SimulName;
+  std::string inputfname;
 
   SGFBase Container;
   Measurable MeasuredOperators;
 
   std::string outputConfiguration;
 
+  unsigned long Measurements;
 
   Simulation(const SGF::Parameters& p) {
 
+    Measurements = 0;
 
     int Seed = p.Seed;
 
     RNG::Initialize(Seed);
+
+    inputfname=p.inputfname;
 
     Warm.Time = p.WarmTime;
     Warm.Iterations = p.WarmIterations;
@@ -89,9 +89,7 @@ public:
 
     NumBins = p.NBins;
 
-    SimulName = p.modelID;
-
-    BrokenHistorgram.resize(MAXNUMBROKENLINES);
+    SimulName = p.inputfname;
 
     p.MakeContainer(Container);
     p.MakeMeasurables(Container, MeasuredOperators);
@@ -126,7 +124,7 @@ public:
 
     SGF::BrokenLines BrokenLineTracer(OpString2);  // It traces the list of broken lines
 
-
+    OpString2.insert_update(&BrokenLineTracer);
 
     for (unsigned int i = 0; i < NumBins; ++i) {
 
@@ -137,24 +135,23 @@ public:
         do {
           Meas.increment(OpString2.directed_update());
           MeasuredOperators.measure(OpString2, BrokenLineTracer());         // Perform measurements.
-          BrokenHistorgram[OpString2.NBrokenLines()] += 1;
 
         } while (OpString2.NBrokenLines() != 0);
+
+        ++Measurements;
 
         measProgress.Update();
 
       } while ( time.Continue() );
 
       MeasuredOperators.flush();                               // Bin the data.
-
+      Meas.ActualTime += time.ElapsedSeconds();
     }
 
-    Meas.ActualTime = measProgress.ElapsedSeconds();
 
     measProgress.reset_cout();
 
   }
-
 
   void run() {
 
@@ -171,34 +168,19 @@ public:
 
 
     o << "\nResults:\n";
-
-    unsigned int w = 30;
-    unsigned int w2 = 13;
     o << "\n";
     o << "  Thermalization:\n";
     Warm.print(o, 2);
     o << "\n";
     o << "  Measurements:\n";
     Meas.print(o, 2);
-    o << "    Measurement Count:              " << BrokenHistorgram[0] << "\n";
-    o << "    Iterations per measurement:     " << std::fixed << double(Meas.Updates) / BrokenHistorgram[0] << "\n";
+    o << "    Measurement Count:              " << Measurements << "\n";
+    o << "    Iterations per measurement:     " << std::fixed << double(Meas.Updates) / Measurements << "\n";
 
 #ifdef USEMPI
     o << "    Number of Processors:           " << NumProcessors << "\n";
 #endif
 
-    o << "\n";
-    o << "  Broken worldlines:\n\n";
-
-    double Normalization = 0;
-    for (int i = 0; i < BrokenHistorgram.size(); ++i)
-      Normalization += BrokenHistorgram[i];
-
-    for (int i = 0; i < BrokenHistorgram.size(); ++i)
-      if (BrokenHistorgram[i] != 0)
-        o << "    - [ " << std::right << std::fixed << std::setw(3) << i << "," << std::setw(12) << BrokenHistorgram[i] << std::setprecision(9) << std::left << "," << std::setw(13) << std::right << BrokenHistorgram[i] / Normalization << " ]\n";
-
-    o << std::endl;
 
     MeasuredOperators.print(o);
 
@@ -224,9 +206,7 @@ int main(int argc, char* argv[]) {
     exit(1);
   }
 
-  std::string json = readInputFile(argv[1]);
-
-  SGF::Parameters p(json);
+  SGF::Parameters p(argv[1]);
 
   SGF::Simulation S(p);
   S.run();

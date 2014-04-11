@@ -40,16 +40,15 @@ typedef CPPRNGMT RNGBase;
 
 #elif defined(RNG_MT)
 
-// Mersenne Twister
 #include "MersenneTwister.h"
 class RNGMT {
   static MTRand rand;
 public:
   inline static void Initialize(int s) {
-//    cout<<"Using the Mersenne Twister random number generator."<<std::endl;
+//    std::cout<<"Using the Mersenne Twister random number generator."<<std::endl;
 #ifdef USEMPI
     s=s*(Rank+1);
-//		std::cout<<"Initialize processor "<<Rank<<" with seed "<<s<<std::endl;
+//    std::cout<<"Initialize processor "<<Rank<<" with seed "<<s<<std::endl;
 #endif
     rand.seed(s);
   }
@@ -59,6 +58,50 @@ public:
 
 MTRand RNGMT::rand;
 typedef RNGMT RNGBase;
+
+#elif defined (RNG_TINYMT32)
+
+#include "tinymt32.c"
+class RNGTINYMT32 {
+  static tinymt32_t tinymt;
+public:
+  inline static void Initialize(int s) {
+//    std::cout<<"Using the tinymt32 Mersenne Twister random number generator."<<std::endl;
+#ifdef USEMPI
+    s=s*(Rank+1);
+//    std::cout<<"Initialize processor "<<Rank<<" with seed "<<s<<std::endl;
+#endif
+    tinymt32_init(&tinymt, s);
+  }
+  inline static double Uniform() {return tinymt32_generate_uint32(&tinymt)/4294967296.0;}
+  inline static double NZUniform() {return double(tinymt32_generate_uint32(&tinymt)+0.5)/4294967296.0;}
+
+};
+
+tinymt32_t RNGTINYMT32::tinymt;
+typedef RNGTINYMT32 RNGBase;
+
+#elif defined (RNG_TINYMT64)
+
+#include "tinymt64.c"
+class RNGTINYMT64 {
+  static tinymt64_t tinymt;
+public:
+  inline static void Initialize(int s) {
+//    std::cout<<"Using the tinymt64 Mersenne Twister random number generator."<<std::endl;
+#ifdef USEMPI
+    s=s*(Rank+1);
+//    std::cout<<"Initialize processor "<<Rank<<" with seed "<<s<<std::endl;
+#endif
+    tinymt64_init(&tinymt, s);
+  }
+  inline static double Uniform() {return tinymt64_generate_uint64(&tinymt)/18446744073709551616.0;}
+  inline static double NZUniform() {return double(tinymt64_generate_uint64(&tinymt)+0.5)/18446744073709551616.0;}
+
+};
+
+tinymt64_t RNGTINYMT64::tinymt;
+typedef RNGTINYMT64 RNGBase;
 
 #elif defined(RNG_SIMPLE_SPRNG)
 

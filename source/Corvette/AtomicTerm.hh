@@ -8,8 +8,8 @@
 namespace SGF {
 
 
-template<typename IndexedProductElementClass,int direction>
-MatrixElement MultiplyMe(const typename std::vector<IndexedProductElementClass> &p) {
+template<typename MatrixElementClass,typename IndexedProductElementClass,int direction>
+MatrixElementClass MultiplyMe(const typename std::vector<IndexedProductElementClass> &p) {
   unsigned int result=1;
   for(typename std::vector<IndexedProductElementClass>::const_iterator ip=p.begin(); ip<p.end(); ++ip)
     result*=ip->template amplitude<direction>();

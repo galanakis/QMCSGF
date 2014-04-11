@@ -482,6 +482,7 @@ struct SSL2D : public Model {
 struct Parameters {
 
   std::string json;
+  std::string inputfname;
 
   double Alpha;
   unsigned int GreenOperatorLines;
@@ -496,6 +497,8 @@ struct Parameters {
   std::string outputConfiguration;
 
   std::vector<std::string> Measurables;
+
+  double ExtraTermProbability;
 
   Model* model;
 
@@ -553,6 +556,7 @@ struct Parameters {
 
   void MakeContainer(SGFBase& Container) const {
 
+    Container.ExtraTermProbability=ExtraTermProbability;
     Container.Alpha = Alpha;
     model->MakeContainer(Container);
     Container.g.initialize(model->nsites(), GreenOperatorLines);
@@ -602,7 +606,9 @@ struct Parameters {
     return o;
   }
 
-  Parameters(std::string& json_input) : json(json_input) {
+  Parameters(const std::string& fname) : inputfname(fname) {
+
+    json=readInputFile(inputfname.c_str());
 
     rapidjson::Document d;
     d.Parse<0>(json.c_str());
@@ -641,6 +647,8 @@ struct Parameters {
       Measurables.push_back(measure[i].GetString());
     }
 
+    ExtraTermProbability = sgf["ExtraTermProbability"].IsNumber() ? sgf["ExtraTermProbability"].GetDouble() : 0;
+    assert(ExtraTermProbability>=0 && ExtraTermProbability<=1.0);
 
     inputConfiguration = "";
     if (sgf.HasMember("InitOperatorString") && sgf["InitOperatorString"].IsString())

@@ -241,7 +241,7 @@ class MeasurableSequence : public MeasurableObject {
 protected:
   std::vector<BinnedAccumulatorME> Bins;
 public:
-  MeasurableSequence(const std::string& s, unsigned long nn) : Bins(nn), MeasurableObject(s) {}
+  MeasurableSequence(const std::string& s, unsigned long nn) : MeasurableObject(s), Bins(nn) {}
 
   std::ostream& print(std::ostream& o, unsigned int depth = 1) const  {
     yaml_print(o, depth, _tag, Bins);
@@ -341,9 +341,8 @@ public:
 class MeasurableEigenvalues : public MeasurableVector {
   std::vector<_float_accumulator*> data_ptr;
   unsigned long N;
-
 public:
-  MeasurableEigenvalues(const std::string& tag, unsigned long nn) : MeasurableVector(tag, nn), N(nn), data_ptr(nn* nn) {}
+  MeasurableEigenvalues(const std::string& tag, unsigned long nn) : MeasurableVector(tag, nn), data_ptr(nn* nn), N(nn) {}
 
   void push(const _float_accumulator& Weight) {
 
@@ -508,8 +507,14 @@ public:
 
 */
 
+// Maximum number of broken lines is only used for the BrokenLineHistogram.
+#define MAXNUMBROKENLINES 100
 
-class Measurable  {
+
+class Measurable {
+
+  typedef  std::vector<unsigned long> BrokenHistogramType;
+  BrokenHistogramType BrokenHistorgram;
 
   struct TermBuffer {
     _float_accumulator buffer;
@@ -517,7 +522,7 @@ class Measurable  {
     TermBuffer(const std::vector<IndexedProductElement>& _p) : buffer(0), product(_p) {}
     TermBuffer(const TermBuffer& o) : buffer(o.buffer), product(o.product) {}
     MatrixElement me() const {
-      return MultiplyMe<IndexedProductElement, RIGHT>(product);
+      return MultiplyMe<MatrixElement, IndexedProductElement, RIGHT>(product);
     }
   };
 
@@ -581,6 +586,7 @@ public:
     _buffers.push_back(&buffer_potential);
     _TotalEnergy.push_back(&buffer_kinetic, 1.0);
     _TotalEnergy.push_back(&buffer_potential, 1.0);
+    BrokenHistorgram.resize(MAXNUMBROKENLINES);
   }
 
   ~Measurable() {
@@ -605,6 +611,7 @@ public:
     _Meas_Ptr.push_back(ptr);
   }
 
+  inline void measure() {}
 
   template<class OperatorStringType>
   inline void measure(const OperatorStringType& OperatorString, const KeyType& key) {
@@ -626,6 +633,9 @@ public:
       buffer_kinetic += Kinetic * Weight;
       buffer_potential += Potential * Weight;
     }
+
+    BrokenHistorgram[OperatorString.NBrokenLines()] += 1;
+
 
   }
 
@@ -677,6 +687,24 @@ public:
   }
 
   std::ostream&  print(std::ostream& o, unsigned int depth = 1) {
+
+    std::string indent(2 * depth, ' ');
+    o << std::endl;
+    o << indent << "Broken worldlines";
+    o << std::endl;
+    o << std::endl;
+
+    double Normalization = 0;
+    for (int i = 0; i < BrokenHistorgram.size(); ++i)
+      Normalization += BrokenHistorgram[i];
+
+    for (int i = 0; i < BrokenHistorgram.size(); ++i)
+      if (BrokenHistorgram[i] != 0)
+        o << indent << "  " << "- [ " << std::right << std::fixed << std::setw(3) << i << "," << std::setw(12) << BrokenHistorgram[i] << std::setprecision(9) << std::left << "," << std::setw(13) << std::right << BrokenHistorgram[i] / Normalization << " ]\n";
+
+    o << std::endl;
+
+
     _TotalEnergy.print(o, depth);
     o << std::endl;
     _Potential.print(o, depth);

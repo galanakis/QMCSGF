@@ -1,22 +1,18 @@
 #
 # Compilation options
-# There is one source, Boson-SGF.cpp.
+# There is one source file, SGFBoson.cpp.
 #
 # For both of them there are the following compilation options
 # - Random Number Generator can be 
 # 		a) MerseneTwister: -DRNG_MT
 # 		b) Sprng: -DRNGSPRNG
-#     c) Linear Congruence (Val's original): -DRNGLC (this is the default)
+#       c) Linear Congruence (Val's original): -DRNGLC (this is the default)
 # - LAPACK provided by MKL can be included to provide extra functionality (diagonalizations)
 # - OPENMPI can also be compiled for parallel computation
 # - Progress bar on the terminal: -DCMDLINEPROGRESS
 # - Debug (checks for negative occupancy): -DDEBUG
 #
 
-# Compiler selections
-icc='/opt/intel/composerxe/bin/icc -m64 -fast -fp-model precise -std=c++11 -xhost -wd11021'
-gcc='g++-mp-4.9 -O3 -std=c++11'
-clang='clang++ -O3 -std=c++11'
 
 compiler=""
 flags   =[]
@@ -25,37 +21,69 @@ includes=["-Isource -Isource/Interface -Isource/Corvette -Isource/Library"]
 
 message=[]
 compiler_options=[]
+compiler_name=""
 
-task :cpprng_mt do
-	message << "+C++Mersenne-Twister"
-	flags << "-DCPPRNG_MT"
+desc "Set intel compiler"
+task :icc do
+	compiler_name="icc"
+	compiler='/opt/intel/composerxe/bin/icc -m64 -fast -fp-model precise -std=c++11 -xhost -wd11021'
 end
 
-# Use the Mersenne Twister random number generator
+desc "Set clang compiler"
+task :clang do
+	compiler_name="clang"
+	compiler='clang++ -O3 -std=c++11'
+end
+
+desc "Set gcc compiler"
+task :gcc do
+	compiler_name="gcc"
+	compiler='g++-mp-4.9 -O3 -std=c++11'
+end
+
+#desc "Use the Mersenne Twister random number generator"
 task :rng_mt do
 	message << "+Mersenne-Twister"
 	flags << "-DRNG_MT"
 end
 
-# Print a progress bar in cerr
+#desc "Use the STL Mersenne Twister random number generator"
+task :cpprng_mt do
+	message << "+C++Mersenne-Twister"
+	flags << "-DCPPRNG_MT"
+end
+
+#desc "Use the TINYMT32 Mersenne Twister random number generator"
+task :rng_tinymt32 do
+	message << "+Tiny-Mersenne-Twister(32bit)"
+	flags << "-DRNG_TINYMT32"
+end
+
+#desc "Use the TINYMT64 Mersenne Twister random number generator"
+task :rng_tinymt64 do
+	message << "+Tiny-Mersenne-Twister(64bit)"
+	flags << "-DRNG_TINYMT64"
+end
+
+desc "Print a progress bar in cerr"
 task :cmdlineprogress do
 	message << "+ProgressBar"
 	flags << "-DCMDLINEPROGRESS"
 end
 
-# enable debugging options
+desc "Enable debugging"
 task :debug do
 	message << "+debug"
 	flags << "-g -DDEBUG"
 end
 
-# print compiler warnings
+desc "Print compiler warnings"
 task :wall do
 	compiler_options << "+warnings"
 	flags << "-Wall"
 end
 
-# use the MKL library for lapack
+#desc "Use the MKL library for lapack"
 task :mkl do
 	message << "+MKL"
 
@@ -71,7 +99,7 @@ task :mkl do
 	includes <<  "-I#{mklroot}/include"
 end
 
-# use the open mpi library
+desc "use the open mpi library"
 task :mpi do
 	message << "+MPI"
 	mpiroot="/opt/local"
@@ -80,38 +108,27 @@ task :mpi do
 	flags    << "-DUSEMPI"
 end
 
-# Intel compiler
-task :icc do
-	compiler_options << "intel"
-	compiler=icc
-end
-
-# clang compiler
-task :clang do
-	compiler_options << "clang"
-	compiler=clang
-end
-
-# gcc compiler
-task :gcc do
-	compiler_options << "gcc"
-	compiler=gcc
-end
-
-task :all     => [:rng_mt,:cmdlineprogress,:mkl,:debug,:mpi]
-
-task :release => [:rng_mt,:cmdlineprogress,:mkl]
-
-task :debug =>   [:rng_mt,:cmdlineprogress,:mkl,:debug]
-
-task :corv_boson => [:release] do
-	puts "Compiler: "+compiler_options*" "
-	puts "Options:  "+message*" "
+task :compile do
 	executable="corv_boson"
+	puts [compiler_name,compiler_options,message,executable]*" "
 	source="source/SGFBoson.cpp"
 	cmd="#{compiler} #{source} #{flags*" "} #{includes*" "} #{libs*" "} -o #{executable}"
-	puts %x{#{cmd}}
+	%x{#{cmd}}
 end
 
-task :default => [:icc,:wall,:corv_boson] do
-end
+task :random => [:rng_mt]
+
+task :icc   => [:mkl,:random]
+task :gcc   => [:mkl,:random]
+task :clang => [:mkl,:random]
+
+desc "cmdlineprogress+debug+mpi"
+task :all     =>   [:icc,:cmdlineprogress,:debug,:mpi,:compile]
+
+desc "cmdlineprogress"
+task :release =>   [:icc,:cmdlineprogress,:compile]
+
+desc "intel compiler + wall + cmdlineprogress"
+task :default => [:icc,:wall,:release,:compile]
+
+
