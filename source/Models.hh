@@ -535,7 +535,7 @@ public:
       triangles.push_back(triangle(0, Site(0, 0), B, C));
     }
 
-    for (int i = 0; i < subdivisions; ++i)
+    for (unsigned int i = 0; i < subdivisions; ++i)
       triangles = subdivide(triangles);
 
 

@@ -47,6 +47,20 @@ task :rng_mt do
 	flags << "-DRNG_MT"
 end
 
+#desc "Use the WELL44497 random number generator"
+task :rng_well do
+	message << "+RNG_WELL"
+	flags << "-DRNG_WELL"
+end
+
+
+#desc "Use the DSMT random number generator"
+task :rng_dsfmt do
+	message << "+DSFMT"
+	flags << "-DRNG_DSFMT -DHAVE_SSE2 -DDSFMT_MEXP=216091"
+end
+
+
 #desc "Use the STL Mersenne Twister random number generator"
 task :cpprng_mt do
 	message << "+C++Mersenne-Twister"

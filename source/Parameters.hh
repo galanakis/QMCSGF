@@ -67,7 +67,7 @@ struct BoseHubbard : public Model {
     Container.Beta = Beta;
     Container.Ensemble = ensemble;
 
-    int NSites = lattice->size();
+    unsigned int NSites = lattice->size();
 
     if (Nmax != 0 && Population > NSites * Nmax) {
       std::cerr << "The population is larger than the capacity of the system!" << std::endl;
@@ -178,13 +178,13 @@ struct BoseHubbard : public Model {
       unsigned int dimensions = m["Dimensions"].Size();
       assert(dimensions <= 3 && dimensions > 0);
       std::vector<unsigned int> LSizes(dimensions);
-      for (int i = 0; i < dimensions; ++i)
+      for (unsigned int i = 0; i < dimensions; ++i)
         LSizes[i] = m["Dimensions"][i].GetInt();
 
       std::vector<double> W(dimensions, 0);
       if (m.HasMember("ParabolicTrapHeight")) {
         assert(m["ParabolicTrapHeight"].IsArray() && m["ParabolicTrapHeight"].Size() == dimensions);
-        for (int i = 0; i < dimensions; ++i)
+        for (unsigned int i = 0; i < dimensions; ++i)
           W[i] = m["ParabolicTrapHeight"][i].GetDouble();
       }
 
@@ -264,7 +264,7 @@ struct BoseHubbard : public Model {
       }
 
     } else {
-      for (int p = 0; p < Population; ++p) {
+      for (unsigned int p = 0; p < Population; ++p) {
         unsigned int i = p % NSites;
         InitDistribution[i]++;
       }
@@ -421,7 +421,7 @@ struct SSL2D : public Model {
 
     std::vector<unsigned int> InitDistribution(NSites, 0);
 
-    for (int p = 0; p < Population; ++p) {
+    for (unsigned int p = 0; p < Population; ++p) {
       InitDistribution[p]++;
     }
 
@@ -548,7 +548,7 @@ struct Parameters {
 
   bool HasMeasurable(const std::string& s) const {
     bool result = false;
-    for (int i = 0; i < Measurables.size(); ++i)
+    for (unsigned int i = 0; i < Measurables.size(); ++i)
       result = result || (Measurables[i] == s);
     return result;
   }

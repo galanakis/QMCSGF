@@ -13,7 +13,7 @@ extern int Rank;
 
 #if defined(CPPRNG_MT)
 
-// Mersenne Twister
+// C++ Mersenne Twister
 #include <random>
 class CPPRNGMT {
   static std::mt19937 rand;
@@ -26,9 +26,9 @@ public:
 #endif
     rand.seed(s);
 
-    std::cout<<"Seed:          "<<s<<std::endl;
-    std::cout<<"Minimum value: "<<rand.min()<<std::endl;
-    std::cout<<"Maximum value: "<<rand.max()<<std::endl;
+//    std::cout<<"Seed:          "<<s<<std::endl;
+//    std::cout<<"Minimum value: "<<rand.min()<<std::endl;
+//    std::cout<<"Maximum value: "<<rand.max()<<std::endl;
 
   }
   inline static double Uniform() {return double(rand())/rand.max();}
@@ -37,6 +37,52 @@ public:
 
 std::mt19937 CPPRNGMT::rand;
 typedef CPPRNGMT RNGBase;
+
+#elif defined(RNG_DSFMT)
+
+#include "dSFMT.c"
+
+class RNGDFSMT {
+  static dsfmt_t dsfmt;
+public:
+  inline static void Initialize(int s) {
+//    std::cout<<"Using the DSFMT random number generator."<<std::endl;
+#ifdef USEMPI
+    s=s*(Rank+1);
+//    std::cout<<"Initialize processor "<<Rank<<" with seed "<<s<<std::endl;
+#endif
+    dsfmt_init_gen_rand(&dsfmt, s);
+  }
+  inline static double Uniform() {return dsfmt_genrand_close_open(&dsfmt);}
+  inline static double NZUniform() {return dsfmt_genrand_open_open(&dsfmt);}
+};
+
+dsfmt_t RNGDFSMT::dsfmt;
+typedef RNGDFSMT RNGBase;
+
+#elif defined(RNG_WELL)
+
+#include "WELL44497a_new.c"
+
+class RNGWELL {
+  static unsigned int _seed;
+public:
+  inline static void Initialize(int s) {
+//    std::cout<<"Using the DSFMT random number generator."<<std::endl;
+#ifdef USEMPI
+    s=s*(Rank+1);
+//    std::cout<<"Initialize processor "<<Rank<<" with seed "<<s<<std::endl;
+#endif
+    _seed=s;
+    InitWELLRNG44497(&_seed);
+  }
+  inline static double Uniform() {return WELLRNG44497()/4294967296.0;}
+  inline static double NZUniform() {return (double(WELLRNG44497())+0.5)/4294967296.0;}
+};
+
+unsigned int RNGWELL::_seed;
+typedef RNGWELL RNGBase;
+
 
 #elif defined(RNG_MT)
 

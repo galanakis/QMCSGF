@@ -243,7 +243,7 @@ protected:
 public:
   MeasurableSequence(const std::string& s, unsigned long nn) : MeasurableObject(s), Bins(nn) {}
 
-  std::ostream& print(std::ostream& o, unsigned int depth = 1) const  {
+  std::ostream& print(std::ostream& o, unsigned int depth) const  {
     yaml_print(o, depth, _tag, Bins);
     return o;
   }
@@ -320,16 +320,16 @@ public:
 
 
 
-  std::ostream& print(std::ostream& o) const  {
+  std::ostream& print(std::ostream& o,unsigned int depth) const  {
 
+    std::string indent(2*depth,' ');
     o << std::endl;
-    o << "  " << _tag << ":" << std::endl;
+    o << indent << _tag << ":" << std::endl;
     o << std::endl;
     o << std::endl;
-    unsigned int depth = 2;
-    Elements.print(o, depth);
-    EigenValues.print(o, depth);
-    EigenVectors.print(o, depth);
+    Elements.print(o, 1+depth);
+    EigenValues.print(o, 1+depth);
+    EigenVectors.print(o, 1+depth);
     return o;
   }
 
@@ -695,10 +695,10 @@ public:
     o << std::endl;
 
     double Normalization = 0;
-    for (int i = 0; i < BrokenHistorgram.size(); ++i)
+    for (unsigned int i = 0; i < BrokenHistorgram.size(); ++i)
       Normalization += BrokenHistorgram[i];
 
-    for (int i = 0; i < BrokenHistorgram.size(); ++i)
+    for (unsigned int i = 0; i < BrokenHistorgram.size(); ++i)
       if (BrokenHistorgram[i] != 0)
         o << indent << "  " << "- [ " << std::right << std::fixed << std::setw(3) << i << "," << std::setw(12) << BrokenHistorgram[i] << std::setprecision(9) << std::left << "," << std::setw(13) << std::right << BrokenHistorgram[i] / Normalization << " ]\n";
 
@@ -714,7 +714,7 @@ public:
     o << std::endl;
 
 
-    for (int i = 0; i < _Meas_Ptr.size(); ++i) {
+    for (unsigned int i = 0; i < _Meas_Ptr.size(); ++i) {
       _Meas_Ptr[i]->print(o, depth);
       o << std::endl;
     }

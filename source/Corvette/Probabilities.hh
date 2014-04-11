@@ -63,7 +63,7 @@ public:
   class UpdatableObject {
   public:
     UpdatableObject(CanonicalProbabilities& o) {}
-    virtual inline void update(const HamiltonianTerm*, int, int) = 0;
+    virtual void update(const HamiltonianTerm*, int, int) = 0;
   };
 
 
@@ -76,7 +76,7 @@ protected:
 
   std::vector<Boson>& _indices;                // A local list of all the bosons
 
-  const VectorPointerHash<std::vector<Boson> > &boson;
+  const VectorPointerHash<std::vector<Boson> > boson;
   const VectorPointerHash<Hamiltonian> kinetic;
   const VectorPointerHash<Hamiltonian> potential;
 
