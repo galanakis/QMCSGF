@@ -584,6 +584,9 @@ struct Parameters {
     if (HasMeasurable("DensityMatrix"))
       MeasuredOperators.InsertFunnyDensityMatrix("Density Matrix", Container.Psi);
 
+    if (HasMeasurable("DensityDensityMatrix"))
+      MeasuredOperators.InsertDensityDensityMatrix("Density Density Matrix", Container.Psi);
+
     if (HasMeasurable("DensityMatrixSlow")) {
       MeasuredOperators.InsertDensityMatrix("Density Matrix", Container.Psi);
     }

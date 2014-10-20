@@ -1,0 +1,30 @@
+{
+   "Model":{
+      "Label":"BoseHubbard",
+      "Temperature":1.02,
+      "Lattice": "Penrose",
+      "Divisions": 3,
+      "Ensemble":"Canonical",
+      "Population":20,
+      "ParabolicTrapHeight":[0],
+      "CoulombU":8,
+      "Nmax":0,
+      "Hoppingt":1
+   },
+   "Measure":[
+      "Kinetic",
+      "Potential",
+      "Number",
+      "DensityMatrix"
+   ],
+   "SGF": {
+      "GreenOperatorLines":4,
+      "Alpha":0.95,
+      "Seed":34715,
+      "Bins":20,
+      "WarmTime":40000,
+      "WarmIterations":100000000,
+      "MeasTime":40000,
+      "MeasIterations":100000000
+   }
+}

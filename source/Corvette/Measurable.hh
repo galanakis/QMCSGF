@@ -765,6 +765,10 @@ public:
     InsertOperatorTerms(tag, SGFBase::GenerateDensityMatrix(Psi));
   }
 
+  void InsertDensityDensityMatrix(const std::string& tag, std::vector<SGF::Boson>& Psi) {
+    InsertOperatorTerms(tag, SGFBase::GenerateDensityDensityMatrix(Psi));
+  }
+
   void InsertLocalDensity(const std::string& tag, std::vector<SGF::Boson>& Psi) {
     InsertOperatorTerms(tag, SGFBase::GenerateNumberOperator(Psi));
   }

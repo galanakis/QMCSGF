@@ -110,6 +110,10 @@ struct SGFBase {
   //
   static Hamiltonian GenerateDensityMatrix(std::vector<Boson>& psi);
   //
+  // It generates the density-density matrix <n_i n_j>
+  //
+  static Hamiltonian GenerateDensityDensityMatrix(std::vector<Boson>& psi);
+  //
   // From the list of bosons it generates the extra terms
   // C^{\dagger}, C
   //
@@ -484,6 +488,23 @@ Hamiltonian SGFBase::GenerateDensityMatrix(std::vector<Boson>& psi) {
   }
   return result;
 }
+
+//
+// It generates the density-density matrix n_i n_j
+//
+Hamiltonian SGFBase::GenerateDensityDensityMatrix(std::vector<Boson>& psi) {
+  Hamiltonian result;
+  for (boson_vector_t::size_type i = 0; i < psi.size(); ++i) {
+    for (boson_vector_t::size_type j = 0; j < psi.size(); ++j) {
+      if (i != j)
+        result.push_back(CreateHamiltonianTerm(1.0, CA, &psi[i], CA, &psi[j]));
+      else
+        result.push_back(CreateHamiltonianTerm(1.0, CACA, &psi[i]));
+    }
+  }
+  return result;
+}
+
 
 //
 // It generates the extra terms for the canonical ensemble
