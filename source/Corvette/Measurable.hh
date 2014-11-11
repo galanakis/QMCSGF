@@ -690,7 +690,7 @@ public:
 
     std::string indent(2 * depth, ' ');
     o << std::endl;
-    o << indent << "Broken worldlines";
+    o << indent << "Broken worldlines:";
     o << std::endl;
     o << std::endl;
 
