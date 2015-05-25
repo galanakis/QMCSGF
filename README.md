@@ -1,10 +1,10 @@
 # QMCSGF #
 
-## Quantum Monte Carlo for bosons based on the Stockastic Green Function Algorithm.
+## Quantum Monte Carlo for bosons based on the Stochastic Green Function Algorithm.
 
 ### &copy; 2015 Dimitrios Galanakis 
 
-This program is an implementation of the Stochastic Green Function algorithm for the simulation of bosonic Hamiltonians. 
+This program is an implementation of the Stochastic Green Function algorithm for the simulation of Bosonic Hamiltonians. 
 The Stochastic Green Function (SGF) algorithm is able to simulate any Hamiltonian that does not suffer from the so-called “sign problem”.
 
 For more information of the specific implementation you can read 
@@ -12,7 +12,7 @@ http://lanl.arxiv.org/pdf/1209.0946.pdf
 which is also found under doc/1209.0946.pdf.
 
 ### Compilation
-To compile the program you need intel's Math Kernel library and ruby's rake. 
+To compile the program you need Intel's Math Kernel library and ruby's rake. 
 If the MKLROOT variable is defined in the shell and the icc compiler is present,
 simply typing rake should be able to compile the program. If there are errors try to 
 start by tuning the following line (works on OS X):
