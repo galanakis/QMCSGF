@@ -26,63 +26,27 @@ namespace SGF {
 
 */
 
-
 typedef double circulartime_t;
 
 class CircularTime {
+  circulartime_t _time;
 public:
-  static inline circulartime_t  Plus(const circulartime_t  t1,const circulartime_t  t2) {
-    circulartime_t  sum=t1+t2;
-    return (sum<=circulartime_t(1.0))?sum:sum-circulartime_t(1.0);
-  }
-  static inline circulartime_t  Minus(const circulartime_t  t1,const circulartime_t  t2) {
-    circulartime_t  diff=t1-t2;
-    return (diff<=circulartime_t(0))?diff+circulartime_t(1.0):diff;
+  CircularTime() : _time(0) {}
+  explicit CircularTime(circulartime_t t) : _time(t) {}
+
+  inline circulartime_t  time() const {
+    return _time+circulartime_t(1.0)-ceil(_time);
   }
 
-  /*  Shift is the key function that could replace Plus and Minus.
-      It projects every double in the interval ]0,1.0]. To understand why
-      we consider the function 1+x-ceiling(x), which projects every number
-      in the interval ]0,1]. */
-  static inline circulartime_t  Shift(const circulartime_t  t) { return t+circulartime_t(1.0)-ceil(t); }
-  circulartime_t  _time;
-public:
-  CircularTime() : _time(1.0) {}
+  friend CircularTime operator+(const CircularTime &a,const CircularTime &b);
+  friend CircularTime operator-(const CircularTime &a,const CircularTime &b);
 
-  CircularTime(const CircularTime &o) : _time(o._time) {}
-  inline CircularTime &operator= (const CircularTime &o) { _time=o._time; return *this; }
-
-  CircularTime(circulartime_t  t) { _time=Shift(t); }
-  inline CircularTime &operator= (const circulartime_t  t) { _time=Shift(t); return *this; }
-
-  inline circulartime_t  time() const {return _time;}
-
-  inline CircularTime &operator+=(const CircularTime &o) { _time=Plus(_time,o._time);  return *this; }
-  inline CircularTime &operator+=(const circulartime_t  t) { _time=Shift(t+_time);  return *this; }
-
-  inline CircularTime &operator-=(const CircularTime &o) { _time=Minus(_time,o._time); return *this; }
-  inline CircularTime &operator-=(const circulartime_t  t) { _time=Shift(_time-t); return *this; }
-
-  friend CircularTime operator+(const CircularTime &,const CircularTime &);
-  friend CircularTime operator+(const CircularTime &,const circulartime_t );
-  friend CircularTime operator+(const circulartime_t ,const CircularTime &);
-
-  friend CircularTime operator-(const CircularTime &,const CircularTime &);
-  friend CircularTime operator-(const CircularTime &,const circulartime_t );
-  friend CircularTime operator-(const circulartime_t ,const CircularTime &);
-
-  friend bool operator==(const CircularTime &a,const CircularTime &b);
 };
 
-inline CircularTime operator+(const CircularTime &a,const CircularTime &b) {return CircularTime(CircularTime::Plus (a._time,b._time));}
-inline CircularTime operator+(const CircularTime &a,const circulartime_t  t) {return CircularTime(a._time+t);}
-inline CircularTime operator+(const circulartime_t  t,const CircularTime &a) {return CircularTime(t+a._time);}
+inline CircularTime operator+(const CircularTime &a,const CircularTime &b) {return CircularTime(a._time+b._time);}
+inline CircularTime operator-(const CircularTime &a,const CircularTime &b) {return CircularTime(a._time-b._time);}
 
-inline CircularTime operator-(const CircularTime &a,const CircularTime &b) {return CircularTime(CircularTime::Minus(a._time,b._time));}
-inline CircularTime operator-(const CircularTime &a,const circulartime_t  t) {return CircularTime(a._time-t);}
-inline CircularTime operator-(const circulartime_t  t,const CircularTime &a) {return CircularTime(t-a._time);}
-
-inline bool operator==(const CircularTime &a,const CircularTime &b) { return (a._time-b._time)*(a._time-b._time)<1e-14 && (a._time-b._time)*(a._time-b._time)<(a._time+b._time)*(a._time+b._time)*1e-14 ;}
+std::ostream &operator<<(std::ostream &os,const CircularTime &o) { return os<<o.time(); }
 
 }
 

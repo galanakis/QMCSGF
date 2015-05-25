@@ -43,7 +43,7 @@ public:
   inline void pop() { direction==RIGHT ? que.pop_front() : que.pop_back(); }
 
   template<int direction>
-  inline void push(const T& data) { direction==RIGHT ?  que.push_front(data) : que.push_back(data); }
+  inline void push(T&& args) { direction==RIGHT ?  que.emplace_front(args) : que.emplace_back(args); }
 
   template<int direction>
   inline const T& top() const { return direction==RIGHT ? que.front() : que.back(); }

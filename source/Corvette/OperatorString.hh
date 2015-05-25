@@ -72,9 +72,8 @@ class OperatorStringBase : public T {
     return T::template weight<rl>();
   }
 
-  inline MatrixElement G(int offset = 0) const {
-    return T::G();
-  }
+  
+  using T::G;
 
 
   inline _float_accumulator DiagonalEnergyIntegral() const {
@@ -105,21 +104,19 @@ class OperatorStringBase : public T {
   }
 
   inline double DeltaTau() const {
-    return Beta() * (Tau<LEFT>() - Tau<RIGHT>()).time();
+    return (Tau<LEFT>() - Tau<RIGHT>()).time();
   }
 
 
   inline CircularTime newtime() const {
     if (CDList.empty())
-      return 1;
+      return CircularTime();
     else {
-      CircularTime TL = Tau<LEFT>();
-      CircularTime TR = Tau<RIGHT>();
-
-      double dt = (TL - TR).time();
+      
+      double dt = DeltaTau();
       double L = dt * Beta() * DeltaV();
 
-      return TR + dt * RNG::NZExponential(L);
+      return Tau<RIGHT>() + CircularTime(dt * RNG::NZExponential(L));
 
 
     }
@@ -221,7 +218,7 @@ class OperatorStringBase : public T {
     if (CDList.empty()) {
       SumWD = 0;
     } else {
-      double a = DeltaTau() / 2;
+      double a = Beta()*DeltaTau() / 2;
       SumWD = (DeltaWD * a == 0) ? 1 / a : DeltaWD / tanh(DeltaWD * a);
     }
 
@@ -312,7 +309,7 @@ public:
 
       o = &CDList[i];
 
-      std::cout << std::right << "    [" << std::setw(6) << T::KinHash(o->Term) << ", " << std::fixed << std::setprecision(precision) << std::setw(precision + 5) << std::left << o->Time.time() << ", " << std::setw(21) << o->Energy << "]," << std::endl;
+      std::cout << std::right << "    [" << std::setw(6) << T::KinHash(o->Term) << ", " << std::fixed << std::setprecision(precision) << std::setw(precision + 5) << std::left << o->Time << ", " << std::setw(21) << o->Energy << "]," << std::endl;
 
     }
 

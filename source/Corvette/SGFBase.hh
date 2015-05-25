@@ -46,13 +46,6 @@ struct Operator {
   const HamiltonianTerm* Term;
   _float_accumulator Energy;
 
-  Operator(const Operator& o) : Time(o.Time), Term(o.Term), Energy(o.Energy) {}
-  Operator& operator=(const Operator& o) {
-    Time = o.Time;
-    Term = o.Term;
-    Energy = o.Energy;
-    return *this;
-  }
   Operator(const CircularTime& _time, const HamiltonianTerm* _term, const _float_accumulator& _energy) : Time(_time), Term(_term), Energy(_energy) {}
 };
 
@@ -226,7 +219,7 @@ struct SGFBase {
 
     o  << std::right << "  ["
        << std::setw(intwidth) << op->Term - &T[0] << ", "
-       << std::setprecision(timeprecision) << std::setw(timewidth) << std::left << op->Time.time() << ", "
+       << std::setprecision(timeprecision) << std::setw(timewidth) << std::left << op->Time << ", "
        << std::setprecision(energyprecision) << std::setw(energywidth) << op->Energy
        << "]";
 
