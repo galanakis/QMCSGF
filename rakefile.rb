@@ -1,23 +1,29 @@
+########################################################################
+# Copyright 2015 Dimitrios Galanakis
 #
-# Compilation options
-# There is one source file, SGFBoson.cpp.
+# This file is part of QMCSGF
 #
-# For both of them there are the following compilation options
-# - Random Number Generator can be 
-# 		a) MerseneTwister: -DRNG_MT
-# 		b) Sprng: -DRNGSPRNG
-#       c) Linear Congruence (Val's original): -DRNGLC (this is the default)
-# - LAPACK provided by MKL can be included to provide extra functionality (diagonalizations)
-# - OPENMPI can also be compiled for parallel computation
-# - Progress bar on the terminal: -DCMDLINEPROGRESS
-# - Debug (checks for negative occupancy): -DDEBUG
-#
-
+# QMCSGF is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation version 3.
+# 
+# QMCSGF is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with QMCSGF.  If not, see <http://www.gnu.org/licenses/>.
+# 
+#######################################################################
 
 compiler=""
+rng=""
+rng_name=""
 flags   =[]
 libs    =[]
-includes=["-Isource -Isource/Interface -Isource/Corvette -Isource/Library"]
+includes=["-Isource -Isource/Interface -Isource/QMCEngine -Isource/Library"]
+executable="qmcsgf"
 
 message=[]
 compiler_options=[]
@@ -35,48 +41,48 @@ task :clang do
 	compiler='clang++ -O3 -std=c++11'
 end
 
-desc "Set gcc compiler"
+desc "Set g++ compiler"
 task :gcc do
-	compiler_name="gcc"
-	compiler='g++-mp-4.9 -O3 -std=c++11'
+	compiler_name="g++"
+	compiler='g++ -O3 -std=c++11'
 end
 
 #desc "Use the Mersenne Twister random number generator"
 task :rng_mt do
-	message << "+Mersenne-Twister"
-	flags << "-DRNG_MT"
+	rng_name = "+Mersenne-Twister"
+	rng = "-DRNG_MT"
 end
 
 #desc "Use the WELL44497 random number generator"
 task :rng_well do
-	message << "+RNG_WELL"
-	flags << "-DRNG_WELL"
+	rng_name = "+RNG_WELL"
+	rng = "-DRNG_WELL"
 end
 
 
 #desc "Use the DSMT random number generator"
 task :rng_dsfmt do
-	message << "+DSFMT"
-	flags << "-DRNG_DSFMT -DHAVE_SSE2 -DDSFMT_MEXP=216091"
+	rng_name = "+DSFMT"
+	rng = "-DRNG_DSFMT -DHAVE_SSE2 -DDSFMT_MEXP=216091"
 end
 
 
 #desc "Use the STL Mersenne Twister random number generator"
 task :cpprng_mt do
-	message << "+C++Mersenne-Twister"
-	flags << "-DCPPRNG_MT"
+	rng_name = "+C++Mersenne-Twister"
+	rng = "-DCPPRNG_MT"
 end
 
 #desc "Use the TINYMT32 Mersenne Twister random number generator"
 task :rng_tinymt32 do
-	message << "+Tiny-Mersenne-Twister(32bit)"
-	flags << "-DRNG_TINYMT32"
+	rng_name = "+Tiny-Mersenne-Twister(32bit)"
+	rng = "-DRNG_TINYMT32"
 end
 
 #desc "Use the TINYMT64 Mersenne Twister random number generator"
 task :rng_tinymt64 do
-	message << "+Tiny-Mersenne-Twister(64bit)"
-	flags << "-DRNG_TINYMT64"
+	rng_name = "+Tiny-Mersenne-Twister(64bit)"
+	rng = "-DRNG_TINYMT64"
 end
 
 desc "Print a progress bar in cerr"
@@ -113,7 +119,7 @@ task :mkl do
 	includes <<  "-I#{mklroot}/include"
 end
 
-desc "use the open mpi library"
+#desc "use the open mpi library"
 task :mpi do
 	message << "+MPI"
 	mpiroot="/opt/local"
@@ -122,27 +128,33 @@ task :mpi do
 	flags    << "-DUSEMPI"
 end
 
+# This builds the code
 task :compile do
-	executable="corv_boson"
+	flags << rng
+	message << rng_name
 	puts [compiler_name,compiler_options,message,executable]*" "
-	source="source/SGFBoson.cpp"
+	source="source/qmcsgf.cpp"
 	cmd="#{compiler} #{source} #{flags*" "} #{includes*" "} #{libs*" "} -o #{executable}"
 	%x{#{cmd}}
 end
 
-task :random => [:rng_mt]
+task :icc   => [:mkl,:rng_mt,:wall]
+task :gcc   => [:mkl,:rng_mt,:wall]
+task :clang => [:mkl,:rng_mt,:wall]
 
-task :icc   => [:mkl,:random]
-task :gcc   => [:mkl,:random]
-task :clang => [:mkl,:random]
+desc "No extra features"
+task :standard =>   [:compile]
 
-desc "cmdlineprogress+debug+mpi"
-task :all     =>   [:icc,:cmdlineprogress,:debug,:mpi,:compile]
+desc "Standard features (cmdlineprogress)"
+task :release =>   [:cmdlineprogress,:compile]
 
-desc "cmdlineprogress"
-task :release =>   [:icc,:cmdlineprogress,:compile]
+desc "Debugging options ("
+task :test =>   [:cmdlineprogress,:debug,:compile]
+
+desc "All extras (cmdlineprogress, debug and mpi)"
+task :all =>   [:cmdlineprogress,:debug,:mpi,:compile]
 
 desc "intel compiler + wall + cmdlineprogress"
-task :default => [:icc,:wall,:release,:compile]
+task :default => [:icc,:release]
 
 
