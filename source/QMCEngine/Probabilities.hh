@@ -316,7 +316,7 @@ public:
     double Weight = weight<rl>();
 
     if ( Weight == 0 || (!LockedTerms && NBrokenLines() == 0 && ExtraTermProbability>0 && RNG::Uniform() < ExtraTermProbability) )
-      return extra.pointer(available[rl].element(RNG::UniformInteger(available[rl].size())));
+      return extra.pointer(available[rl][ RNG::UniformInteger(available[rl].size()) ]);
     else
       return CanonicalProbabilities::choose<rl>();
 

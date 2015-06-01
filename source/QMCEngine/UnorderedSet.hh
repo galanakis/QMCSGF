@@ -76,7 +76,7 @@ public:
   }
 
 
-  inline size_type element(size_type i) const {
+  inline size_type operator[](size_type i) const {
     return *(data_begin+i);
   }
 

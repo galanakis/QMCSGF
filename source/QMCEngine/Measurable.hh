@@ -138,15 +138,15 @@ void FinalizeEnvironment() {
 namespace SGF {
 
 
-typedef BinnedAccumulator<_float_accumulator> BinnedAccumulatorME;
+typedef Accumulator<_float_accumulator> AccumulatorME;
 
 template<typename T>
-std::ostream& yaml_print_inline(std::ostream& o, const BinnedAccumulator<T>& b) {
+std::ostream& yaml_print_inline(std::ostream& o, const Accumulator<T>& b) {
   return o << "[ " << std::fixed << std::setprecision(12) << std::setw(15) << std::right << b.average() << ", " << std::setw(20) << b.sigma() << " ]";
 }
 
 template<typename T>
-std::ostream& yaml_print_inline(std::ostream& o, const std::string& tag, const BinnedAccumulator<T>& b) {
+std::ostream& yaml_print_inline(std::ostream& o, const std::string& tag, const Accumulator<T>& b) {
   o << std::setw(25) << std::left << tag + ": ";
   yaml_print_inline(o, b);
   return o;
@@ -154,7 +154,7 @@ std::ostream& yaml_print_inline(std::ostream& o, const std::string& tag, const B
 
 
 template<typename T>
-std::ostream& yaml_print_inline(std::ostream& o, unsigned int depth, const std::string& tag, const BinnedAccumulator<T>& b) {
+std::ostream& yaml_print_inline(std::ostream& o, unsigned int depth, const std::string& tag, const Accumulator<T>& b) {
   std::string indent(2 * depth, ' ');
   o << indent;
   yaml_print_inline(o, tag, b);
@@ -209,7 +209,7 @@ public:
 
 class MeasurableScalar : public MeasurableObject {
 protected:
-  BinnedAccumulatorME _bin;
+  AccumulatorME _bin;
   virtual _float_accumulator value() const = 0;
 public:
   MeasurableScalar(const std::string& tag) : MeasurableObject(tag) {}
@@ -259,7 +259,7 @@ public:
 
 class MeasurableSequence : public MeasurableObject {
 protected:
-  std::vector<BinnedAccumulatorME> Bins;
+  std::vector<AccumulatorME> Bins;
 public:
   MeasurableSequence(const std::string& s, unsigned long nn) : MeasurableObject(s), Bins(nn) {}
 
@@ -407,7 +407,7 @@ public:
 
 class MeasurableDensityMatrix : public ExtraMeasurables {
 
-  std::vector<BinnedAccumulator<double> > BinsElements;
+  std::vector<Accumulator<double> > BinsElements;
 
   const Boson* Psi0;
   typedef std::vector<Boson>::size_type size_type;
@@ -415,7 +415,7 @@ class MeasurableDensityMatrix : public ExtraMeasurables {
   std::string tag;
   std::vector<double> data;
   double _number;
-  BinnedAccumulator<long double> _numberbin;
+  Accumulator<long double> _numberbin;
 
   _float_accumulator me_ca(size_type i, size_type j) const {
     return sqrt( (Psi0[i].nR() + 1) * Psi0[j].nR() );
@@ -521,7 +521,7 @@ public:
 
   Notes for MPI parallelization.
 
-  The BinnedAccumulatorME variables should only be defined in the Root node.
+  The AccumulatorME variables should only be defined in the Root node.
   Also the print and flush methods should only be called by the root.
   During the flush operation the mpi reduce should be called for every bin.
 

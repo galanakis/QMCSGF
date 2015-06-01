@@ -32,9 +32,10 @@ namespace SGF {
   1.0=1.0 t1+t2=0.1, t1-t2=0.5 etc. The class has only one variable
   _time which is in the interval 0<_time<=1.0.
 
-  To do this we define all possible additions/subtractions between
-  CircilarTimes and doubles, such that the result is always of type
-  Circular time.
+  We do this by projucting the double float argument of the constructor
+  to the interval (0,1] using the function f(t)=t+1.0-ceil(t). It easy
+  to check that this function removes the integral part and also
+  f(0)=f(1.0)=1.0.
 
   Note that we include 1.0 and exclude zero. This is because we
   don't want delta tau to ever be zero. A worse case scenario would
@@ -51,20 +52,12 @@ typedef double circulartime_t;
 class CircularTime {
   circulartime_t _time;
 public:
-  CircularTime() : _time(0) {}
-  explicit CircularTime(circulartime_t t) : _time(t) {}
-
-  inline circulartime_t  time() const {
-    return _time+circulartime_t(1.0)-ceil(_time);
-  }
-
-  friend CircularTime operator+(const CircularTime &a,const CircularTime &b);
-  friend CircularTime operator-(const CircularTime &a,const CircularTime &b);
-
+  explicit CircularTime(circulartime_t t=1.0) : _time(t+1.0-ceil(t)) {}
+  inline circulartime_t  time() const { return _time; }
 };
 
-inline CircularTime operator+(const CircularTime &a,const CircularTime &b) {return CircularTime(a._time+b._time);}
-inline CircularTime operator-(const CircularTime &a,const CircularTime &b) {return CircularTime(a._time-b._time);}
+inline CircularTime operator+(const CircularTime &a,const CircularTime &b) {return CircularTime(a.time()+b.time());}
+inline CircularTime operator-(const CircularTime &a,const CircularTime &b) {return CircularTime(a.time()-b.time());}
 
 std::ostream &operator<<(std::ostream &os,const CircularTime &o) { return os<<o.time(); }
 

@@ -70,9 +70,6 @@ struct Operator {
 };
 
 
-typedef CircDList<Operator> OperatorCircDlist;
-
-
 
 //
 // This class contains all the independent data
@@ -81,8 +78,9 @@ struct SGFBase {
 
 
   std::vector<Boson> Psi;
-  OperatorCircDlist OperatorCDL;
-  Hamiltonian T, V;
+  CircDList<Operator> OperatorCDL;
+  Hamiltonian T;
+  Hamiltonian V;
   GreenOperator<long double> g;
   double Alpha;
   double Beta;
@@ -172,6 +170,7 @@ struct SGFBase {
     v.push_back(IndexedProductElement(code2, p2));
     return HamiltonianTerm(c, v);
   }
+
 
   //
   // Member functions
@@ -281,7 +280,7 @@ struct SGFBase {
     return o;
   }
 
-  std::ostream& json_print(std::ostream& o, std::string tag, OperatorCircDlist& ostring, unsigned int depth) {
+  std::ostream& json_print(std::ostream& o, std::string tag, CircDList<Operator>& ostring, unsigned int depth) {
 
     std::string indent(2 * depth, ' ');
     o << indent << '\"' + tag + '\"' << ": [" << std::endl;
