@@ -555,9 +555,8 @@ struct Parameters {
 
       unsigned long iterm = oo[_Term].GetInt();
       CircularTime Time(oo[_Time].GetDouble());
-      double Energy(oo[_Energy].GetDouble());
 
-      Container.OperatorCDL.push<LEFT>(Operator(Time, &Container.T[iterm], Energy));
+      Container.OperatorCDL.push<LEFT>(Time, iterm);
 
 
     }
@@ -597,10 +596,11 @@ struct Parameters {
       MeasuredOperators.InsertLocalDensity("Local Density", Container.Psi);
     }
 
+#ifdef WITHMKL
     if (HasMeasurable("DensityMatrixEigenSystem")) {
       MeasuredOperators.InsertDensityMatrixEigenSystem("Density Matrix EigenSystem", Container.Psi);
     }
-
+#endif
     if (HasMeasurable("DensityMatrix"))
       MeasuredOperators.InsertFunnyDensityMatrix("Density Matrix", Container.Psi);
 

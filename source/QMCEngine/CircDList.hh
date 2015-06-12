@@ -56,14 +56,14 @@ class CircDList {
 protected:
   std::deque<T> que;
 public:
-  typedef typename std::deque<T>::size_type string_size_type;
+  typedef typename std::deque<T>::size_type size_type;
   CircDList() : que() {};
 
   template<int direction>
   inline void pop() { direction==RIGHT ? que.pop_front() : que.pop_back(); }
 
-  template<int direction>
-  inline void push(T&& args) { direction==RIGHT ?  que.emplace_front(args) : que.emplace_back(args); }
+  template<int direction,typename... Args>
+  inline void push(Args... args) { direction==RIGHT ?  que.emplace_front(args...) : que.emplace_back(args...); }
 
   template<int direction>
   inline const T& top() const { return direction==RIGHT ? que.front() : que.back(); }
@@ -71,10 +71,10 @@ public:
   template<int direction>
   inline const T& top(int depth) const {return direction==RIGHT ? que[depth] : que[que.size()-depth-1];}
 
-  inline string_size_type length() const {return que.size();}
+  inline size_type length() const {return que.size();}
   inline bool empty() const {return que.empty();}
-  inline const T &operator[](string_size_type i) const {return que[i];}
-  inline T &operator[](string_size_type i) {return que[i];}
+  inline const T &operator[](size_type i) const {return que[i];}
+  inline T &operator[](size_type i) {return que[i];}
 
   friend struct SGFBase;
 

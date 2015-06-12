@@ -28,13 +28,51 @@ along with QMCSGF.  If not, see <http://www.gnu.org/licenses/>.
 namespace SGF {
 
 
-template<typename MatrixElementClass,typename IndexedProductElementClass,int direction>
-MatrixElementClass MultiplyMe(const typename std::vector<IndexedProductElementClass> &p) {
+template<typename Float,typename OProd,int direction>
+Float MultiplyMe(const typename std::vector<OProd> &p) {
   unsigned int result=1;
-  for(typename std::vector<IndexedProductElementClass>::const_iterator ip=p.begin(); ip<p.end(); ++ip)
+  for(typename std::vector<OProd>::const_iterator ip=p.begin(); ip<p.end(); ++ip)
     result*=ip->template amplitude<direction>();
   return sqrt(result);
 }
+
+
+template<typename Float,typename OProd>
+class AtomicTermLight {
+public:
+  typedef typename std::vector<OProd> OProdVector;
+  typedef typename OProdVector::const_iterator const_iterator;
+private:
+  Float _coefficient;
+  OProdVector _product;
+public:
+  AtomicTermLight(Float c,const OProdVector &p) : _coefficient(c), _product(p) {}
+  AtomicTermLight(const AtomicTermLight &o) : _coefficient(o._coefficient), _product(o._product) {}
+
+  const_iterator begin() const {return _product.begin();}
+  const_iterator end() const {return _product.end();}
+  inline const OProdVector& product() const {return _product;}
+
+  inline Float &coefficient() {return _coefficient;};
+  inline const Float &coefficient() const {return _coefficient;};
+
+  /* The matrix element after applying
+     the operator to the left or the right */
+  template<int direction>
+  inline Float me() const {
+    unsigned int result=1;
+    for(const_iterator ip=_product.begin(); ip!=_product.end(); ++ip)
+      result*=ip->template amplitude<direction>();
+    return _coefficient*sqrt(result);
+  }
+
+  template<int direction,int action>
+  inline void update_psi() const {
+    for(const_iterator ip=_product.begin(); ip!=_product.end(); ++ip)
+      ip->template update<direction,action>();
+  }
+
+};
 
 /*
 
@@ -58,54 +96,33 @@ MatrixElementClass MultiplyMe(const typename std::vector<IndexedProductElementCl
 
 */
 
-template<typename MatrixElementClass,typename IndexedProductElementClass>
-class AtomicTerm {
+template<typename Float,typename OProd>
+class AtomicTerm : public AtomicTermLight<Float,OProd> {
 public:
-  typedef typename std::vector<IndexedProductElementClass> IndexProductElementVector;
-  typedef typename IndexProductElementVector::const_iterator const_iterator;
-private:
-  MatrixElementClass _coefficient;
-  IndexProductElementVector _product;
-public:
-  AtomicTerm(MatrixElementClass c,const IndexProductElementVector &p) : _coefficient(c), _product(p) {}
 
-  AtomicTerm(const AtomicTerm &o) : _coefficient(o._coefficient), _product(o._product) {}
+  using typename AtomicTermLight<Float,OProd>::OProdVector;
+  using typename AtomicTermLight<Float,OProd>::const_iterator;
+  using AtomicTermLight<Float,OProd>::begin;
+  using AtomicTermLight<Float,OProd>::end;
 
-  const_iterator begin() const {return _product.begin();}
-  const_iterator end() const {return _product.end();}
-  inline const IndexProductElementVector& product() const {return _product;}
+  AtomicTerm(Float c,const OProdVector &p) : AtomicTermLight<Float,OProd>(c,p) {}
 
-  inline MatrixElementClass &coefficient() {return _coefficient;};
-  inline const MatrixElementClass &coefficient() const {return _coefficient;};
+  AtomicTerm(const AtomicTermLight<Float,OProd> &o) : AtomicTermLight<Float,OProd>(o) {}
+
+  AtomicTerm(const AtomicTerm &o) : AtomicTermLight<Float,OProd>(o) {}
 
   /* offset after adding/removing the present term */
   template<int action=ADD>
   inline int offset() const {
     int result=0;
-    for(const_iterator ip=_product.begin(); ip!=_product.end(); ++ip)
+    for(const_iterator ip=begin(); ip!=end(); ++ip)
       result+=ip->template offset<action>();
     return result;
   }
 
-  /* The matrix element after applying
-     the operator to the left or the right */
-  template<int direction>
-  inline MatrixElementClass me() const {
-    unsigned int result=1;
-    for(const_iterator ip=_product.begin(); ip!=_product.end(); ++ip)
-      result*=ip->template amplitude<direction>();
-    return _coefficient*sqrt(result);
-  }
-
-  template<int direction,int action>
-  inline void update_psi() const {
-    for(const_iterator ip=_product.begin(); ip!=_product.end(); ++ip)
-      ip->template update<direction,action>();
-  }
-
   inline int absdelta() const {
     int result=0;
-    for(const_iterator ip=_product.begin(); ip!=_product.end(); ++ip)
+    for(const_iterator ip=begin(); ip!=end(); ++ip)
       result+=Abs(ip->delta());
     return result;        
   }

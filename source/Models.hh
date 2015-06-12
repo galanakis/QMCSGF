@@ -498,8 +498,8 @@ class Penrose : public Lattice {
 
   Site chop(const Site& s) const {
     Site result(s);
-    result.x = fabs(s.x) < 0.1 * scale() ? 0 : s.x;
-    result.y = fabs(s.y) < 0.1 * scale() ? 0 : s.y;
+    result.x = std::abs(s.x) < 0.1 * scale() ? 0 : s.x;
+    result.y = std::abs(s.y) < 0.1 * scale() ? 0 : s.y;
     return result;
   }
 

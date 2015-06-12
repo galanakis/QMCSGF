@@ -24,15 +24,41 @@ along with QMCSGF.  If not, see <http://www.gnu.org/licenses/>.
 #include <ctime>
 #include <string>
 #include <iostream>
-#include <fstream>
+#include <algorithm>
 
-template<class T> T Min(const T &a,const T &b) {
-  return (a<b)?a:b;
-}
-template<class T> T Max(const T &a,const T &b) {
-  return (a>b)?a:b;
-}
 
+template<typename T>
+struct Counter {
+  const T start;
+  const T iter;
+  virtual T count() const = 0;
+  Counter(T _start,T _iter) : start(_start), iter(_iter) {}
+  inline T elapsed() const { 
+    return count()-start;
+  }
+  inline bool running() const { 
+    return elapsed() < iter;
+  }
+  inline double progress() const {
+    return double(elapsed())/iter;
+  }
+};
+
+struct IterCounter : Counter<unsigned long> {
+  unsigned long * const counter;
+  unsigned long count() const { 
+    return *counter;
+  }
+  IterCounter(unsigned long *c,unsigned long Iter) : Counter<unsigned long>(*c,Iter), counter(c) {}
+};
+
+struct TimeCounter : public Counter<clock_t> {
+  clock_t count() const { return clock(); }
+  TimeCounter(unsigned int Seconds) : Counter<clock_t>(clock(),Seconds*CLOCKS_PER_SEC) {}
+  double ElapsedSeconds() const { 
+    return double(elapsed())/CLOCKS_PER_SEC;
+  }
+};
 
 /*
 
@@ -45,125 +71,61 @@ template<class T> T Max(const T &a,const T &b) {
    and also the less time than "Time" has elapsed. In this case
    it returns true.
 
-   Also it provides Progress which returns a number between 0 and 1.
-
 */
 
-class Timer {
-  clock_t StartTime;
-  clock_t EndTime;
-  unsigned long StartIter;
-  unsigned long MaxIter;
-  bool ignore_time;
-protected:
-  unsigned long *counter;
-public:
-  Timer(unsigned long *c,unsigned long Iter,unsigned long Time) : counter(c) {
-
-    StartTime=clock();
-    EndTime=StartTime+Time*CLOCKS_PER_SEC;
-    StartIter=*counter;
-    MaxIter=StartIter+Iter;
-
-    // If requested time is more than a year ignore time.
-    ignore_time=false;
-    if((EndTime-StartTime)/CLOCKS_PER_SEC>31556940)
-      ignore_time=true;
-
+struct Timer : public IterCounter, public TimeCounter {
+  Timer(unsigned long *c,unsigned long Iter,unsigned long Time) : IterCounter(c,Iter), TimeCounter(Time) {}
+  inline bool running() const {
+    return IterCounter::running() && TimeCounter::running();
   }
-
-  inline double ProgressIter() const {
-    return static_cast<double>(*counter-StartIter)/MaxIter;
-  }
-  inline double ProgressTime() const {
-    return (ignore_time) ? 0 : static_cast<double>(clock()-StartTime)/(EndTime-StartTime);
-  }
-  inline double Progress() const {
-    return Max(ProgressIter(),ProgressTime());
-  }
-  inline bool Continue() {
-    return *counter<MaxIter && (ignore_time || clock()<EndTime);
-  }
-  double ElapsedSeconds() {
-    return double(clock()-StartTime)/CLOCKS_PER_SEC;
-  }
-  double Iterations() {
-    return *counter-StartIter;
-  }
-  virtual ~Timer() {}
 };
 
-
 class ProgressBar : public Timer {
-  static const int StringLength=500;
-  char Status[StringLength],*Ptr;
-  double Progress;
-  unsigned long NumUpdates;
+  char Status[500],*Ptr;
+  unsigned long Iter;
   clock_t Time;
 public:
-  ProgressBar(const std::string &Name,unsigned long *c,unsigned long Iter,unsigned long TotalTime) : Timer(c,Iter,TotalTime), Progress(0), NumUpdates(0) {
-    Time=clock();
+  ProgressBar(unsigned long *c,unsigned long _iter,unsigned long _time,const std::string &Name="") : Timer(c,_iter,_time), Ptr(Status) {
+    Iter=IterCounter::count();
+    Time=TimeCounter::count();
+    prefix(Name);
+  }
+
+  ~ProgressBar() {
+    clear();
+  }
+
+  inline void clear() {
+    std::clog<<'\r'<<std::flush;
+  }
+
+  void prefix(const std::string &Name) {
+    clear();
     strcpy(Status,Name.c_str());
     Ptr=Status+strlen(Status);
-    sprintf(Ptr," - 000 %% - 000h 00m 00s -       0 updates per second");
-#ifdef CMDLINEPROGRESS
-    std::cerr<<Status<<std::flush;
-#else
-    std::fstream File;
-    File.open(Status,std::ios::out);
-    File.close();
-#endif
-
-  }
-  ~ProgressBar() {
-#ifdef CMDLINEPROGRESS
-    reset_cout();
-#else
-    remove(Status);
-#endif
   }
 
-  inline void reset_cout() {
-    for(unsigned int i=0; i<strlen(Status); ++i)
-      std::cerr<<'\b';
-  }
-  inline void Update() {
-    unsigned long NewNumUpdates=*counter;
-    double prog=Timer::Progress();
+  inline bool running() {
+    unsigned long NewIter=IterCounter::count();
+    clock_t NewTime=TimeCounter::count();
 
-    if(prog<0) prog=0.0;
-    if(prog>1) prog=1.0;
-    if(static_cast<int>(100*(prog-Progress))!=0) {
-      clock_t Now=clock();
-      double DeltaSeconds=double(Now-Time)/CLOCKS_PER_SEC;
-      int Speed=static_cast<unsigned int>((NewNumUpdates-NumUpdates)/DeltaSeconds);
-      int SecondsLeft=(1-prog)*DeltaSeconds/(prog-Progress);
-      Time=Now;
-      Progress=prog;
-      NumUpdates=NewNumUpdates;
+    // Update the progress bar every second
+    if(NewTime>Time+CLOCKS_PER_SEC) {
+  
+      double progress=std::max(IterCounter::progress(),TimeCounter::progress());
+      int sec=ElapsedSeconds()*(1.0-progress)/progress;
+      int speed=CLOCKS_PER_SEC*(NewIter-Iter)/(NewTime-Time);
 
-      int HoursLeft=SecondsLeft/3600;
-      SecondsLeft%=3600;
-      int MinutesLeft=SecondsLeft/60;
-      SecondsLeft%=60;
+      sprintf(Ptr,"\x1b[31;1m%3.0f%%\x1b[0m  \x1b[33;1m%.3dh %.2dm %.2ds\x1b[36;1m  %7d updates/second\x1b[0m",100*progress,sec/3600,sec%3600/60,sec%60,speed);
+      clear();
+      std::clog<<Status<<std::flush;
 
-      int percent=static_cast<int>(100*Progress);
-
-
-
-#ifdef CMDLINEPROGRESS
-      reset_cout();
-      sprintf(Ptr," - %.3d %% - %.3dh %.2dm %.2ds - %6d updates per second",percent,HoursLeft,MinutesLeft,SecondsLeft,Speed);
-      std::cerr<<Status<<std::flush;
-#else
-      char OldStatus[StringLength];
-      strcpy(OldStatus,Status);
-      sprintf(Ptr," - %.3d %% - %.3dh %.2dm %.2ds - %6d updates per second",percent,HoursLeft,MinutesLeft,SecondsLeft,Speed);
-      rename(OldStatus,Status);
-#endif
-
+      Time=NewTime;
+      Iter=NewIter;
 
     }
+
+    return Timer::running();
   }
 
 };

@@ -123,8 +123,7 @@ public:
 
     OperatorStringType OpString(Container);
 
-    ProgressBar warmProgress(SimulName + std::string(": Thermalizing "), &Warm.Updates, Warm.Iterations, Warm.Time);
-    Timer time(&Warm.Updates, Warm.Iterations, Warm.Time);
+    ProgressBar warmProgress(&Warm.Updates, Warm.Iterations, Warm.Time,SimulName + std::string(": Thermalizing "));
 
     do {
 
@@ -132,15 +131,15 @@ public:
         Warm.increment(OpString.directed_update());
       } while (OpString.NBrokenLines() != 0);
 
-      warmProgress.Update();
-    } while ( time.Continue() );
+    } while ( warmProgress.running() );
 
-    Warm.ActualTime = time.ElapsedSeconds();
+    Warm.ActualTime = warmProgress.ElapsedSeconds();
 
-    warmProgress.reset_cout();
-    ProgressBar measProgress(SimulName + std::string(": Measuring    "), &Meas.Updates, Meas.Iterations, Meas.Time);
+    Container.OperatorCDL=OpString.getString();
 
     OperatorStringType OpString2(Container);
+
+    ProgressBar measProgress(&Meas.Updates, Meas.Iterations, Meas.Time,SimulName + std::string(": Measuring    "));
 
     SGF::BrokenLines BrokenLineTracer(OpString2);  // It traces the list of broken lines
 
@@ -160,16 +159,15 @@ public:
 
         ++Measurements;
 
-        measProgress.Update();
+        measProgress.running();
 
-      } while ( time.Continue() );
+      } while ( time.running() );
 
       MeasuredOperators.flush();                               // Bin the data.
       Meas.ActualTime += time.ElapsedSeconds();
     }
 
-
-    measProgress.reset_cout();
+    Container.OperatorCDL=OpString2.getString();
 
   }
 

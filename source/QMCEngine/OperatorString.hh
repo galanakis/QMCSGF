@@ -59,15 +59,10 @@ namespace SGF {
 
 
 
-
 enum {LATER, EARLIER};
 
 template<typename T>
-class OperatorStringBase : public T {
-
-
-
-  CircDList<Operator>& CDList;
+class OperatorStringBase : public T, public CircDList<Operator> {
 
   double _Beta;             // Inverse temperature.
   double _Alpha;            // directionality parameter
@@ -79,7 +74,7 @@ class OperatorStringBase : public T {
   _float_accumulator _diagonal_energy; // Keeps track of the diagonal energy
 
   inline double ER_Dtau() const {
-    return CDList.empty() ? Energy<RIGHT>() : Energy<RIGHT>() * (CDList.top<LEFT>().Time - CDList.top<RIGHT>().Time).time();
+    return empty() ? Energy<RIGHT>() : Energy<RIGHT>() * (top<LEFT>().Time - top<RIGHT>().Time).time();
   }
 
   template<int rl>
@@ -92,22 +87,8 @@ class OperatorStringBase : public T {
     return T::template weight<rl>();
   }
 
-  
+
   using T::G;
-
-
-  inline _float_accumulator DiagonalEnergyIntegral() const {
-    _float_accumulator result = 0;
-    for (unsigned int i = 0; i + 1 < CDList.length(); ++i) {
-      result += CDList[i + 1].Energy * (CDList[i].Time - CDList[i + 1].Time).time();
-    }
-    return result;
-  }
-
-  // Calculates the diagonal energy by doing the time integral explicitly.
-  inline double GetDiagonalEnergy1() const {
-    return ER_Dtau() + DiagonalEnergyIntegral();
-  }
 
   inline double DeltaV() const {
     return Energy<LEFT>() - Energy<RIGHT>(); // The difference between the energies
@@ -115,12 +96,12 @@ class OperatorStringBase : public T {
 
   template<int rl>
   const CircularTime& Tau() const {
-    return CDList.top<rl>().Time;
+    return top<rl>().Time;
   }
 
   template<int rl>
   const HamiltonianTerm* Term() const {
-    return CDList.top<rl>().Term;
+    return top<rl>().Term;
   }
 
   inline double DeltaTau() const {
@@ -129,7 +110,7 @@ class OperatorStringBase : public T {
 
 
   inline CircularTime newtime() const {
-    if (CDList.empty())
+    if (empty())
       return CircularTime();
     else {
       
@@ -235,7 +216,7 @@ class OperatorStringBase : public T {
 
     DeltaWD = DeltaV();
 
-    if (CDList.empty()) {
+    if (empty()) {
       SumWD = 0;
     } else {
       double a = Beta()*DeltaTau() / 2;
@@ -249,7 +230,7 @@ class OperatorStringBase : public T {
   template<int rl>
   inline _float_accumulator delta_diagonal(const CircularTime& tau) const {
 
-    return CDList.empty() ? 0 : rl == RIGHT ?
+    return empty() ? 0 : rl == RIGHT ?
            Energy<RIGHT>() * ( tau - Tau<RIGHT>() ).time() :
            Energy<LEFT >() * ( Tau<LEFT >() - tau ).time() ;
 
@@ -257,47 +238,62 @@ class OperatorStringBase : public T {
 
   // Destroy the operator in the front of the Green operator
   template<int rl>
-  void destroy() {
+  inline void destroy() {
     CircularTime tau = Tau<rl>();
     T::template update<rl, REMOVE>(Term<rl>());
-    CDList.pop<rl>();
+    pop<rl>();
     _diagonal_energy -= delta_diagonal<rl>(tau);
   }
 
-  // Create an operator to the right of the Green operator
-  // Note that the order of "update", "push" and _diagonal_energy increment matters
-  void create_RIGHT() {
-    const HamiltonianTerm* term = T::template choose<RIGHT>();
+  template<int rl>
+  inline void create() {
+    const HamiltonianTerm* term = T::template choose<rl>();
     CircularTime tau = newtime();
-    _diagonal_energy += delta_diagonal<RIGHT>(tau);
-    T::template update<RIGHT, ADD>(term);
-    CDList.push<RIGHT>(Operator(tau, term, Energy<RIGHT>()));
+    _diagonal_energy += delta_diagonal<rl>(tau);
+    T::template update<rl, ADD>(term);
+    push<rl>(tau, term);
   }
 
-  // Create an operator to the left of the Green operator
-  void create_LEFT() {
-    const HamiltonianTerm* term = T::template choose<LEFT>();
-    CircularTime tau = newtime();
-    _diagonal_energy += delta_diagonal<LEFT>(tau);
-    CDList.push<LEFT>(Operator(tau, term, Energy<LEFT>()));
-    T::template update<LEFT, ADD>(term);
-  }
 
 public:
 
 
-  OperatorStringBase(SGFBase& base) :  T(base), CDList(base.OperatorCDL), _Beta(base.Beta), _Alpha(base.Alpha) {
+  OperatorStringBase(SGFBase& base) :  
+    T(base), 
+    CircDList<Operator>(Convert(base.OperatorCDL,&T::KineticTerms[0])), 
+    _Beta(base.Beta), 
+    _Alpha(base.Alpha) {
 
-    _diagonal_energy = DiagonalEnergyIntegral();
+    _diagonal_energy = 0;
+
+    for(unsigned int i=0; i<length(); ++i) {
+
+      CircularTime tau0=Tau<RIGHT>();
+
+      // Take term a from the RIGHT and push it the LEFT.
+      T::template update<LEFT, ADD>(Term<RIGHT>());
+      push<LEFT>(top<RIGHT>());
+      T::template update<RIGHT, REMOVE>(Term<RIGHT>());
+      pop<RIGHT>();
+
+      CircularTime tau1=Tau<RIGHT>();
+
+      if(i+1<length())
+        _diagonal_energy += Energy<RIGHT>() * (tau0-tau1).time();
+
+    }
+
 
     EvaluateRunningPars();
     EvalueRenormalizations();
 
-    //print_internal();
-
   }
 
-  void print_internal() {
+  const CircDList<OperatorInt> getString() const {
+    return Convert(*this,T::kinetic.pointer(0));
+  }
+
+  void print_internals() {
 
     unsigned int precision = 17;
     std::cout << std::setprecision(precision);
@@ -319,7 +315,6 @@ public:
     std::cout << "WDiff   = " << WDiff << std::endl;
 
     std::cout << "DiagEn  = " << _diagonal_energy << std::endl; // Keeps track of the diagonal energy
-    std::cout << "EvalDiag=" << DiagonalEnergyIntegral() << std::endl;
 
     std::cout << "Operator String (size= " << length() << ")" << std::endl;
 
@@ -327,27 +322,15 @@ public:
 
     for (unsigned long i = 0; i < length(); ++i) {
 
-      o = &CDList[i];
+      o = &que[i];
 
-      std::cout << std::right << "    [" << std::setw(6) << T::KinHash(o->Term) << ", " << std::fixed << std::setprecision(precision) << std::setw(precision + 5) << std::left << o->Time << ", " << std::setw(21) << o->Energy << "]," << std::endl;
+      std::cout << std::right << "    [" << std::setw(6) << T::KinHash(o->Term) << ", " << std::fixed << std::setprecision(precision) << std::setw(precision + 5) << std::left << o->Time << "]," << std::endl;
 
     }
 
-
-    //assert(_diagonal_energy == DiagonalEnergyIntegral());
-
-
   }
 
-  ~OperatorStringBase() {
-
-    //print_internal();
-
-  }
-
-  unsigned long length() const {
-    return CDList.length();
-  }
+  ~OperatorStringBase() {}
 
   // Calculates the diagonal energy fast using the updated variable.
   double DiagonalEnergy() const {
@@ -396,7 +379,7 @@ public:
     }
 #endif
 
-    return (2 * WCRIGHT + SumWD - DeltaWD) * RNG::Uniform() < 2 * WCRIGHT;
+    return (WSum-WDiff) * RNG::Uniform() < 2 * WCRIGHT;
   }
 
   bool ChooseCreateLeft() const {
@@ -408,7 +391,7 @@ public:
     }
 #endif
 
-    return (2 * WCLEFT + SumWD + DeltaWD) * RNG::Uniform() < 2 * WCLEFT;
+    return (WSum+WDiff) * RNG::Uniform() < 2 * WCLEFT;
   }
 
   bool KeepGoingRight() const {
@@ -426,7 +409,7 @@ public:
     if (ChooseDirectionRight())
       do {
         if (ChooseCreateRight())
-          create_LEFT();
+          create<LEFT>();
         else
           destroy<RIGHT>();
 
@@ -438,7 +421,7 @@ public:
     else
       do {
         if (ChooseCreateLeft())
-          create_RIGHT();
+          create<RIGHT>();
         else
           destroy<LEFT>();
 
@@ -455,12 +438,10 @@ public:
 
   }
 
-
 };
 
 typedef OperatorStringBase<CanonicalProbabilities> CanonicalOperatorString;
 typedef OperatorStringBase<GrandProbabilities> GrandOperatorString;
-//typedef CanonicalOperatorString OperatorStringType;
 
 }
 

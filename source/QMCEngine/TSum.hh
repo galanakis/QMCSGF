@@ -213,7 +213,7 @@ public:
     return _norm;
   }
   inline IndexType choose() {
-    return list.element(RNG::Uniform() * list.size());
+    return list[RNG::Uniform() * list.size()];
   }
 
   inline const Float &element(IndexType index) const {

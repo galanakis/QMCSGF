@@ -293,6 +293,65 @@ public:
 inline bool operator==(const IndexedProductElement &a,const IndexedProductElement &b) { return a.code_id() == b.code_id() && a.particle_id() == b.particle_id(); }
 
 
+IndexedProductElement C_(Boson* const _p) {
+  return IndexedProductElement(C,_p);
+}
+
+IndexedProductElement A_(Boson* const _p) {
+  return IndexedProductElement(A,_p);
+}
+
+struct IndexedProduct {
+  std::vector<IndexedProductElement> vector;
+  IndexedProduct(const IndexedProductElement &e) {
+    vector.push_back(e);
+    vector.shrink_to_fit();
+  }
+private:
+  IndexedProduct() {}
+  IndexedProduct(const IndexedProduct &o) : vector(o.vector) {}
+  friend struct HTerm;
+  friend IndexedProduct operator*(const IndexedProductElement &e,const IndexedProduct &p);
+};
+
+struct HTerm : public IndexedProduct {
+  MatrixElement coefficient;
+  HTerm(const IndexedProduct &p) : IndexedProduct(p), coefficient(1.0) {}
+private:
+  HTerm() : coefficient(1.0) {}
+  friend HTerm operator*(const IndexedProduct &p,MatrixElement c);
+};
+
+
+ProductCode CodeMultiply(ProductCode codeL,ProductCode codeR) {
+  int i=0;
+  while(codeR>>i > 1)
+    ++i;
+  return static_cast<ProductCode> ((codeL<<i) | (codeR ^ (1<<i)));
+}
+
+IndexedProduct operator*(const IndexedProductElement &e,const IndexedProduct &p) {
+  IndexedProduct result(p);
+  std::vector<IndexedProductElement>::const_iterator it=result.vector.begin();
+  while( it!=result.vector.end() && e.particle_id() > it->particle_id() )
+    it++;
+
+  if( it!=result.vector.end() && e.particle_id() == it->particle_id() )
+    result.vector.insert(it,IndexedProductElement(CodeMultiply(e.code_id(),it->code_id()),it->particle_id()));
+  else 
+    result.vector.insert(it,e);
+
+  result.vector.shrink_to_fit();
+
+  return result;
+
+}
+
+HTerm operator*(const IndexedProduct &p,MatrixElement c) {
+  HTerm result(p);
+  result.coefficient=c;
+  return result;
+}
 
 }
 

@@ -70,13 +70,6 @@ public:
 };
 
 
-// It represents a type for the Hamiltonian terms
-//typedef HamitonianTerm TermType;
-// It represents a collection of terms
-//typedef Hamiltonian TermList;
-// It represents the type of mantrix element container
-//typedef TSum TermValueHash;
-
 
 class CanonicalProbabilities {
 public:
@@ -96,12 +89,15 @@ protected:
 
   std::vector<Boson>& _indices;                // A local list of all the bosons
 
+  Hamiltonian KineticTerms;
+  Hamiltonian PotentialTerms;
+
   const VectorPointerHash<std::vector<Boson> > boson;
   const VectorPointerHash<Hamiltonian> kinetic;
   const VectorPointerHash<Hamiltonian> potential;
 
-  const AdjacencyList kin_pot_adjacency;       // For each term it holds a list of other kinetic terms with one common boson
-  const AdjacencyList kin_kin_adjacency;       // For each term it holds a list of other potential terms with one common boson
+  const std::vector<std::vector<const HamiltonianTerm*> >kin_pot_adjacency;       // For each term it holds a list of other kinetic terms with one common boson
+  const std::vector<std::vector<const HamiltonianTerm*> >kin_kin_adjacency;       // For each term it holds a list of other potential terms with one common boson
   const OffsetContainer offsets;               // Contains the offsets
   ForestContainer forest;                      // Contains two trees one for each direction
   PotentialEnergyContainer PotentialEnergy[2]; // Contains the potential energy matrix elements and their sum
@@ -124,30 +120,31 @@ protected:
   }
 
   template<int rl>
-  inline void update_trees(const term_vector_t& kin) {
-    for (term_vector_t::const_iterator nbr = kin.begin(); nbr != kin.end(); ++nbr)
+  inline void update_trees(const std::vector<const HamiltonianTerm*>& kin) {
+    for (std::vector<const HamiltonianTerm*>::const_iterator nbr = kin.begin(); nbr != kin.end(); ++nbr)
       forest.template update<rl>(offsets.index((*nbr)->offset()), kinetic.index(*nbr), (*nbr)->me<rl>());
   }
 
   template<int rl>
-  inline void update_energies(const term_vector_t& pot) {
-    for (term_vector_t::const_iterator nbr = pot.begin(); nbr != pot.end(); ++nbr)
+  inline void update_energies(const std::vector<const HamiltonianTerm*>& pot) {
+    for (std::vector<const HamiltonianTerm*>::const_iterator nbr = pot.begin(); nbr != pot.end(); ++nbr)
       PotentialEnergy[rl].update(potential.index(*nbr), (*nbr)->me<rl>());
   }
 
 public:
 
   CanonicalProbabilities(SGFBase& base) :
-
     UpdatableObjects(),
     _indices(base.Psi),
+    KineticTerms(base.T),
+    PotentialTerms(base.V),
     boson(base.Psi),
-    kinetic(base.T),
-    potential(base.V),
-    kin_pot_adjacency(SGFBase::GetAdjacencyList(base.T, base.V)),
-    kin_kin_adjacency(SGFBase::GetAdjacencyList(base.T, base.T)),
-    offsets(SGFBase::GetOffsets(base.T)),
-    forest(base.T.size(), offsets.size()),
+    kinetic(KineticTerms),
+    potential(PotentialTerms),
+    kin_pot_adjacency(SGFBase::GetAdjacencyList(KineticTerms, PotentialTerms)),
+    kin_kin_adjacency(SGFBase::GetAdjacencyList(KineticTerms, KineticTerms)),
+    offsets(SGFBase::GetOffsets(KineticTerms)),
+    forest(KineticTerms.size(), offsets.size()),
     _NBWL(SGFBase::CountBrokenLines2(base.Psi)),
     GF(base.g)
 
@@ -260,10 +257,10 @@ class GrandProbabilities : public CanonicalProbabilities {
 
   Hamiltonian Extra;                            // The list of extra terms (C dagger, C) is stored locally
   VectorPointerHash<Hamiltonian> extra;         // a term hash for the extra terms
-  const AdjacencyList extra_kin_adjacency;      // Adjacency list between the extra terms and the kinetic terms
-  const AdjacencyList extra_pot_adjacency;      // Adjacency list between the extra terms and the potential terms
-  const AdjacencyList kin_extra_adjacency;      // Adjacency list between the kinetic terms and the extra terms
-  const AdjacencyList extra_extra_adjacency;    // Adjacency list between the kinetic terms and the extra terms
+  const std::vector<std::vector<const HamiltonianTerm*> >extra_kin_adjacency;      // Adjacency list between the extra terms and the kinetic terms
+  const std::vector<std::vector<const HamiltonianTerm*> >extra_pot_adjacency;      // Adjacency list between the extra terms and the potential terms
+  const std::vector<std::vector<const HamiltonianTerm*> >kin_extra_adjacency;      // Adjacency list between the kinetic terms and the extra terms
+  const std::vector<std::vector<const HamiltonianTerm*> >extra_extra_adjacency;    // Adjacency list between the kinetic terms and the extra terms
   UnorderedSet available[2];                    // contains a list of the permitted terms (non zero matrix element) in each direction
   bool LockedTerms;                             // false if there is already an extra term.
   const double ExtraTermProbability;            // The probability to chose an extra term
@@ -284,8 +281,8 @@ class GrandProbabilities : public CanonicalProbabilities {
   }
 
   template<int rl>
-  inline void update_extra(const term_vector_t& kin) {
-    for (term_vector_t::const_iterator nbr = kin.begin(); nbr != kin.end(); ++nbr)
+  inline void update_extra(const std::vector<const HamiltonianTerm*>& kin) {
+    for (std::vector<const HamiltonianTerm*>::const_iterator nbr = kin.begin(); nbr != kin.end(); ++nbr)
       update_extra<rl>(extra.index(*nbr));
   }
 
@@ -297,9 +294,9 @@ public:
     CanonicalProbabilities(base),
     Extra(SGFBase::GenerateExtraTerms(base.Psi)),
     extra(Extra),
-    extra_kin_adjacency(SGFBase::GetAdjacencyList(Extra, base.T)),
+    extra_kin_adjacency(SGFBase::GetAdjacencyList(Extra, KineticTerms)),
     extra_pot_adjacency(SGFBase::GetAdjacencyList(Extra, base.V)),
-    kin_extra_adjacency(SGFBase::GetAdjacencyList(base.T, Extra)),
+    kin_extra_adjacency(SGFBase::GetAdjacencyList(KineticTerms, Extra)),
     extra_extra_adjacency(SGFBase::GetAdjacencyList(Extra, Extra)),
     LockedTerms(false),
     ExtraTermProbability(base.ExtraTermProbability)

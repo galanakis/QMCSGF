@@ -46,29 +46,43 @@ namespace SGF {
   - the energy of the time slice4
 */
 
-
 typedef AtomicTerm<MatrixElement, IndexedProductElement> HamiltonianTerm;
 // Define the type of the Kinetic and Potential Part of the Hamiltonian
 typedef std::vector<HamiltonianTerm> Hamiltonian;
 
 
-
-typedef std::vector<int> int_vector_t;
-typedef std::vector<Boson*> boson_vector_t;
-typedef std::set<Boson*> boson_set_t;
-typedef std::vector<const HamiltonianTerm*> term_vector_t;
-typedef term_vector_t::const_iterator adjacency_iterator;
-typedef std::pair<adjacency_iterator, adjacency_iterator> range_type;
-typedef std::vector<term_vector_t > AdjacencyList;
-
-struct Operator {
+template<typename TermIndex>
+struct OperatorBase {
   CircularTime Time;
-  const HamiltonianTerm* Term;
-  _float_accumulator Energy;
+  TermIndex Term;
+//  _float_accumulator Energy;
 
-  Operator(const CircularTime& _time, const HamiltonianTerm* _term, const _float_accumulator& _energy) : Time(_time), Term(_term), Energy(_energy) {}
+  OperatorBase(const CircularTime& _time,const TermIndex _term) : Time(_time), Term(_term) {}
+  OperatorBase(const OperatorBase &o) : Time(o.Time), Term(o.Term) {}
 };
 
+
+typedef OperatorBase<const HamiltonianTerm*> Operator;
+
+
+typedef OperatorBase<unsigned long> OperatorInt;
+
+CircDList<Operator> Convert(const CircDList<OperatorInt> &o,const HamiltonianTerm* T0) {
+  CircDList<Operator> result;
+  for(unsigned int i=0; i<o.length(); ++i) {
+    result.push<RIGHT>(o[i].Time,T0+o[i].Term);
+  }
+  return result;
+}
+
+
+CircDList<OperatorInt> Convert(const CircDList<Operator> &o,const HamiltonianTerm* T0) {
+  CircDList<OperatorInt> result;
+  for(unsigned int i=0; i<o.length(); ++i) {
+    result.push<RIGHT>(o[i].Time,o[i].Term-T0);
+  }
+  return result;
+}
 
 
 //
@@ -78,7 +92,7 @@ struct SGFBase {
 
 
   std::vector<Boson> Psi;
-  CircDList<Operator> OperatorCDL;
+  CircDList<OperatorInt> OperatorCDL;
   Hamiltonian T;
   Hamiltonian V;
   GreenOperator<long double> g;
@@ -91,12 +105,12 @@ struct SGFBase {
   // Input: a list of kinetic terms
   // Output: a softed list containing all the possible offsets
   //
-  static int_vector_t GetOffsets(const Hamiltonian& T);
+  static std::vector<int> GetOffsets(const Hamiltonian& T);
   //
   // Input: a list of kinetic terms
   // Output: a softed list containing all the possible bosons
   //
-  static boson_vector_t GetConfiguration(const Hamiltonian& T);
+  static std::vector<Boson*> GetConfiguration(const Hamiltonian& T);
   //
   // Input: a list of all the kinetic terms
   // Output: a list of the "extra" kinetic terms needed for the Grand canonical ensemble
@@ -106,12 +120,12 @@ struct SGFBase {
   // Input: a softed list containing all the possible bosons
   // Output: a list of the "extra" kinetic terms needed for the Grand canonical ensemble
   //
-  static Hamiltonian GetExtraTerms(const boson_vector_t& psi);
+  static Hamiltonian GetExtraTerms(const std::vector<Boson*>& psi);
   //
   // Input: a vector of boson pointers
   // Output: the number of broken lines in this vector
   //
-  static unsigned int CountBrokenLines(const boson_vector_t& psi);
+  static unsigned int CountBrokenLines(const std::vector<Boson*>& psi);
   //
   // It generates the number operator
   //
@@ -139,7 +153,7 @@ struct SGFBase {
   // Output: a vector of size Trow, which contains the indices of the operators
   //         in Tcol which share a common boson
   //
-  static AdjacencyList GetAdjacencyList(const Hamiltonian& Trow, const Hamiltonian& Tcol);
+  static std::vector<std::vector<const HamiltonianTerm*> > GetAdjacencyList(const Hamiltonian& Trow, const Hamiltonian& Tcol);
   //
   // Input: reference to a Hamiltonian and reference to a Hamiltonian term
   // Output: None.
@@ -226,20 +240,16 @@ struct SGFBase {
     return ss.str();
   }
 
-  std::string json_print(const Operator* op) {
+  std::string json_print(const OperatorInt* op) {
     std::stringstream o;
     const unsigned int timeprecision = std::numeric_limits<circulartime_t>::digits10 + 1;
     unsigned int timewidth = timeprecision + 4;
 
-    const unsigned int energyprecision = std::numeric_limits<_float_accumulator>::digits10 + 1;
-    unsigned int energywidth = energyprecision + 4;
-
     unsigned int intwidth = std::numeric_limits<Hamiltonian::size_type>::digits10;
 
     o  << std::right << "  ["
-       << std::setw(intwidth) << op->Term - &T[0] << ", "
-       << std::setprecision(timeprecision) << std::setw(timewidth) << std::left << op->Time << ", "
-       << std::setprecision(energyprecision) << std::setw(energywidth) << op->Energy
+       << std::setw(intwidth) << op->Term << ", "
+       << std::setprecision(timeprecision) << std::setw(timewidth) << std::left << op->Time
        << "]";
 
     return o.str();
@@ -280,7 +290,7 @@ struct SGFBase {
     return o;
   }
 
-  std::ostream& json_print(std::ostream& o, std::string tag, CircDList<Operator>& ostring, unsigned int depth) {
+  std::ostream& json_print(std::ostream& o, std::string tag, CircDList<OperatorInt>& ostring, unsigned int depth) {
 
     std::string indent(2 * depth, ' ');
     o << indent << '\"' + tag + '\"' << ": [" << std::endl;
@@ -366,8 +376,8 @@ struct SGFBase {
 // Input: a list of kinetic terms
 // Output: a softed list containing all the possible offsets
 //
-int_vector_t SGFBase::GetOffsets(const Hamiltonian& T) {
-  int_vector_t offsets;
+std::vector<int> SGFBase::GetOffsets(const Hamiltonian& T) {
+  std::vector<int> offsets;
   // Scan all kinetic terms to find all the lengths
   std::set<int> set_offsets;
   for (Hamiltonian::size_type i = 0; i < T.size(); ++i)
@@ -384,9 +394,9 @@ int_vector_t SGFBase::GetOffsets(const Hamiltonian& T) {
 // Input: a list of kinetic terms
 // Output: a softed list containing all the possible bosons
 //
-boson_vector_t SGFBase::GetConfiguration(const Hamiltonian& T) {
-  boson_vector_t indices;
-  boson_set_t indexset;
+std::vector<Boson*> SGFBase::GetConfiguration(const Hamiltonian& T) {
+  std::vector<Boson*> indices;
+  std::set<Boson*> indexset;
   for (Hamiltonian::size_type i = 0; i < T.size(); ++i)
     for (HamiltonianTerm::const_iterator jt = T[i].begin(); jt != T[i].end(); ++jt)
       indexset.insert( jt->particle_id());
@@ -401,9 +411,9 @@ boson_vector_t SGFBase::GetConfiguration(const Hamiltonian& T) {
 // Input: a softed list containing all the possible bosons
 // Output: a list of the "extra" kinetic terms needed for the Grand canonical ensemble
 //
-Hamiltonian SGFBase::GetExtraTerms(const boson_vector_t& psi) {
+Hamiltonian SGFBase::GetExtraTerms(const std::vector<Boson*>& psi) {
   Hamiltonian result;
-  for (boson_vector_t::size_type i = 0; i < psi.size(); ++i) {
+  for (std::vector<Boson*>::size_type i = 0; i < psi.size(); ++i) {
     result.push_back(CreateHamiltonianTerm(1.0, A, psi[i]));
     result.push_back(CreateHamiltonianTerm(1.0, C, psi[i]));
   }
@@ -427,9 +437,9 @@ Hamiltonian SGFBase::GetExtraTerms(const Hamiltonian& T) {
 // Input: a vector of boson pointers
 // Output: the number of broken lines in this vector
 //
-unsigned int SGFBase::CountBrokenLines(const boson_vector_t& o) {
+unsigned int SGFBase::CountBrokenLines(const std::vector<Boson*>& o) {
   int result = 0;
-  for (boson_vector_t::size_type i = 0; i < o.size(); ++i)
+  for (std::vector<Boson*>::size_type i = 0; i < o.size(); ++i)
     result += Abs(o[i]->delta());
   return result;
 
@@ -441,9 +451,9 @@ unsigned int SGFBase::CountBrokenLines(const boson_vector_t& o) {
 // Output: a vector of size Trow, which contains the indices of the operators
 //         in Tcol which share a common boson
 //
-AdjacencyList SGFBase::GetAdjacencyList(const Hamiltonian& Trow, const Hamiltonian& Tcol)  {
+std::vector<std::vector<const HamiltonianTerm*> > SGFBase::GetAdjacencyList(const Hamiltonian& Trow, const Hamiltonian& Tcol)  {
 
-  AdjacencyList adjacency; // The adjacency list is stored here
+  std::vector<std::vector<const HamiltonianTerm*> > adjacency; // The adjacency list is stored here
 
   // First, categorize the Tcol terms by index.
   std::map<Boson*, std::set<Hamiltonian::size_type> > map_to_set;
@@ -480,7 +490,7 @@ AdjacencyList SGFBase::GetAdjacencyList(const Hamiltonian& Trow, const Hamiltoni
 //
 Hamiltonian SGFBase::GenerateNumberOperator(std::vector<Boson>& psi) {
   Hamiltonian result;
-  for (boson_vector_t::size_type i = 0; i < psi.size(); ++i)
+  for (std::vector<Boson*>::size_type i = 0; i < psi.size(); ++i)
     result.push_back(CreateHamiltonianTerm(1.0, CA, &psi[i]));
   return result;
 }
@@ -490,8 +500,8 @@ Hamiltonian SGFBase::GenerateNumberOperator(std::vector<Boson>& psi) {
 //
 Hamiltonian SGFBase::GenerateDensityMatrix(std::vector<Boson>& psi) {
   Hamiltonian result;
-  for (boson_vector_t::size_type i = 0; i < psi.size(); ++i) {
-    for (boson_vector_t::size_type j = 0; j < psi.size(); ++j) {
+  for (std::vector<Boson*>::size_type i = 0; i < psi.size(); ++i) {
+    for (std::vector<Boson*>::size_type j = 0; j < psi.size(); ++j) {
       if (i != j)
         result.push_back(CreateHamiltonianTerm(1.0, C, &psi[i], A, &psi[j]));
       else
@@ -506,8 +516,8 @@ Hamiltonian SGFBase::GenerateDensityMatrix(std::vector<Boson>& psi) {
 //
 Hamiltonian SGFBase::GenerateDensityDensityMatrix(std::vector<Boson>& psi) {
   Hamiltonian result;
-  for (boson_vector_t::size_type i = 0; i < psi.size(); ++i) {
-    for (boson_vector_t::size_type j = 0; j < psi.size(); ++j) {
+  for (std::vector<Boson*>::size_type i = 0; i < psi.size(); ++i) {
+    for (std::vector<Boson*>::size_type j = 0; j < psi.size(); ++j) {
       if (i != j)
         result.push_back(CreateHamiltonianTerm(1.0, CA, &psi[i], CA, &psi[j]));
       else
@@ -536,7 +546,7 @@ Hamiltonian SGFBase::GenerateExtraTerms(std::vector<Boson>& psi) {
 //
 unsigned int SGFBase::CountBrokenLines2(const std::vector<Boson>& o) {
   int result = 0;
-  for (boson_vector_t::size_type i = 0; i < o.size(); ++i)
+  for (std::vector<Boson*>::size_type i = 0; i < o.size(); ++i)
     result += Abs(o[i].delta());
   return result;
 

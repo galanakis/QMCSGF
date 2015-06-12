@@ -35,6 +35,7 @@ along with QMCSGF.  If not, see <http://www.gnu.org/licenses/>.
 #include "OperatorString.hh"
 
 
+#ifdef WITHMKL
 #include "mkl_lapack.h"
 typedef double _doublereal;
 typedef int _integer;
@@ -93,6 +94,7 @@ void eig(_integer N, char jobz, _doublereal sym_a[], _doublereal W[]) {
 
 };
 
+#endif
 
 #ifdef USEMPI
 // *******************************************
@@ -296,6 +298,8 @@ public:
 };
 
 
+#ifdef WITHMKL
+
 class MeasurableEigenSystem : public MeasurableVector {
 protected:
 
@@ -396,6 +400,8 @@ public:
 
 };
 
+
+#endif
 
 class ExtraMeasurables : public MeasurableObject {
 public:
@@ -633,6 +639,9 @@ public:
 
   inline void measure() {}
 
+  
+  
+
   template<class OperatorStringType>
   inline void measure(const OperatorStringType& OperatorString, const KeyType& key) {
 
@@ -772,6 +781,7 @@ public:
     InsertVector(tag, T, new MeasurableVector(tag, T.size()));
   }
 
+#ifdef WITHMKL
   void InsertDensityMatrixEigenvalues(const std::string& tag, std::vector<Boson>& Psi) {
     InsertVector(tag, SGFBase::GenerateDensityMatrix(Psi), new MeasurableEigenvalues(tag, Psi.size()));
   }
@@ -780,6 +790,8 @@ public:
   void InsertDensityMatrixEigenSystem(const std::string& tag, std::vector<SGF::Boson>& Psi) {
     InsertVector(tag, SGFBase::GenerateDensityMatrix(Psi), new MeasurableEigenSystem(tag, Psi.size()));
   }
+
+#endif
 
   void InsertDensityMatrix(const std::string& tag, std::vector<SGF::Boson>& Psi) {
     InsertOperatorTerms(tag, SGFBase::GenerateDensityMatrix(Psi));
