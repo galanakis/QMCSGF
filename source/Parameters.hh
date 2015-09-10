@@ -538,13 +538,15 @@ struct Parameters {
 
     const rapidjson::Value& psi = d["configuration"];
 
-    const rapidjson::Value& terms = d["operators"];
+    const rapidjson::Value& terms = d["String"];
 
     unsigned long nsites = psi.Size();
     unsigned long nterms = terms.Size();
 
+    enum {_Population, _Nmax};
     for (unsigned long i = 0; i < nsites; ++i) {
-      Container.Psi[i].nR() = Container.Psi[i].nL() = psi[i].GetInt();
+      const rapidjson::Value& p = psi[i];
+      Container.Psi[i].nL() = Container.Psi[i].nR() = p[_Population].GetInt();
     }
 
     enum {_Term, _Time, _Energy};
