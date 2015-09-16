@@ -18,6 +18,7 @@
 #######################################################################
 
 
+
 compiler_name=""
 compiler_exec=""
 
@@ -50,10 +51,10 @@ task :clang do
 	compiler_exec='clang++ -Ofast'
 end
 
-#desc "Use the Mersenne Twister random number generator"
+#desc "Use the Linear congruences random number generator"
 task :rng_mt do
-	rng_name = "+Mersenne-Twister"
-	rng_flag = "-DRNG_MT"
+	rng_name = "+Linear-Congruence"
+	rng_flag = "-DRNG_LC"
 end
 
 #desc "Use the WELL44497 random number generator"
@@ -71,9 +72,9 @@ end
 
 
 #desc "Use the STL Mersenne Twister random number generator"
-task :cpprng_mt do
+task :rng_stlmt do
 	rng_name = "+C++Mersenne-Twister"
-	rng_flag = "-DCPPRNG_MT"
+	rng_flag = "-DRNG_STLMT"
 end
 
 #desc "Use the TINYMT32 Mersenne Twister random number generator"
@@ -144,9 +145,6 @@ task :default
 
 # Set the default compiler
 Rake::Task["icc"].execute
-
-# Set the default randon number generator
-Rake::Task["rng_mt"].execute
 
 # After all tasks are done do a compilation
 Rake.application.top_level_tasks << :compile

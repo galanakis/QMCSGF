@@ -549,7 +549,7 @@ struct Parameters {
       Container.Psi[i].nL() = Container.Psi[i].nR() = p[_Population].GetInt();
     }
 
-    enum {_Term, _Time, _Energy};
+    enum {_Term, _Time};
 
     for (unsigned long i = 0; i < nterms; ++i) {
 

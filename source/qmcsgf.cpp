@@ -95,7 +95,11 @@ public:
 
     Measurements = 0;
 
-    int Seed = p.Seed;
+  int Seed = p.Seed;
+// Use a different seed for each processor
+#ifdef USEMPI
+    Seed=Seed*(Rank+1);
+#endif  
 
     RNG::Initialize(Seed);
 
